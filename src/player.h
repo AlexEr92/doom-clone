@@ -3,18 +3,18 @@
 
 #include "map.h"
 
-typedef struct {
-    int forward, back, turn_left, turn_right, strafe_left, strafe_right;
-    int mouse_dx;
-} InputState;
+/* InputState is defined in input.h to avoid a circular dependency. */
+struct InputState;
 
 typedef struct {
     float x, y;
     float dirX, dirY;
     float planeX, planeY;
+    float hp;
+    float armor;
 } Player;
 
 void player_init(Player *p, int start_x, int start_y);
-void player_update(Player *p, const Map *m, const InputState *in, double dt);
+void player_update(Player *p, const Map *m, const struct InputState *in, double dt);
 
 #endif

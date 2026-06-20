@@ -7,7 +7,7 @@
 
 typedef struct {
     float x, y;
-    char marker; /* 'E','B','M','A','R' */
+    char marker; /* 'E','S','B','M','A','R' */
 } MapSpriteSpawn;
 
 typedef struct {

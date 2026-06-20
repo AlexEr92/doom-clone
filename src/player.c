@@ -1,4 +1,5 @@
 #include "player.h"
+#include "input.h"
 #include "utils.h"
 #include <math.h>
 
@@ -9,6 +10,8 @@ void player_init(Player *p, int start_x, int start_y) {
     p->dirY = 0.0f;
     p->planeX = 0.0f;
     p->planeY = FOV_PLANE;
+    p->hp = 100.0f;
+    p->armor = 0.0f;
 }
 
 static int blocked(const Map *m, float x, float y) {

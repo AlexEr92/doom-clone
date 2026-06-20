@@ -140,6 +140,50 @@ static void gen_enemy(Texture *t) {
     }
 }
 
+static void gen_enemy_serg(Texture *t) {
+    tex_alloc(t);
+    for (int y = 0; y < TEX_SIZE; y++) {
+        for (int x = 0; x < TEX_SIZE; x++) {
+            int dx = x - TEX_SIZE / 2;
+            int dy = y - TEX_SIZE / 2;
+            uint32_t c;
+            /* head (human) */
+            if (dx * dx + (dy + 14) * (dy + 14) <= 60) {
+                c = col(200, 170, 140);
+            }
+            /* body armor brown */
+            else if (y > 20 && y < 52 && abs(dx) < 15) {
+                c = col(110, 80, 50);
+            }
+            /* legs */
+            else if (y >= 52 && y < 60 && abs(dx) < (y < 56 ? 11 : 9)) {
+                c = col(70, 50, 30);
+            }
+            else c = 0;
+            t->pixels[y * TEX_SIZE + x] = c;
+        }
+    }
+}
+
+static void gen_enemy_dead(Texture *t) {
+    tex_alloc(t);
+    for (int y = 0; y < TEX_SIZE; y++) {
+        for (int x = 0; x < TEX_SIZE; x++) {
+            int dx = x - TEX_SIZE / 2;
+            int dy = y - (TEX_SIZE - 12);
+            uint32_t c;
+            /* flat corpse blob near bottom */
+            if (dx * dx * 1 + dy * dy * 4 <= 360 && y > 36) {
+                int band = (x / 8) % 2;
+                c = band ? col(70, 30, 30) : col(110, 50, 50);
+            } else {
+                c = 0;
+            }
+            t->pixels[y * TEX_SIZE + x] = c;
+        }
+    }
+}
+
 static void gen_medkit(Texture *t) {
     tex_alloc(t);
     for (int y = 0; y < TEX_SIZE; y++) {
@@ -224,6 +268,34 @@ static void gen_weapon(Texture *t) {
     }
 }
 
+static void gen_weapon_shotgun(Texture *t) {
+    t->w = 128;
+    t->h = 128;
+    t->pixels = (uint32_t *)malloc(128 * 128 * sizeof(uint32_t));
+    if (!t->pixels) return;
+    memset(t->pixels, 0, 128 * 128 * sizeof(uint32_t));
+    for (int y = 0; y < 128; y++) {
+        for (int x = 0; x < 128; x++) {
+            int dx = x - 64;
+            uint32_t c = 0;
+            /* double barrel */
+            if (y > 36 && y < 56 && abs(dx) < 40) {
+                int bore = (abs(dx) < 18) ? col(20, 20, 20) : col(70, 60, 45);
+                c = bore;
+            }
+            /* stock / grip */
+            else if (y >= 56 && y < 100 && abs(dx) < (44 - (y - 56) / 3)) {
+                c = col(90, 60, 30);
+            }
+            /* hands */
+            else if (y >= 90 && abs(dx) < 56) {
+                c = col(180, 140, 100);
+            }
+            t->pixels[y * 128 + x] = c;
+        }
+    }
+}
+
 int assets_load_png(Texture *tex, const char *path) {
     int w, h, ch;
     unsigned char *data = stbi_load(path, &w, &h, &ch, 4);
@@ -256,15 +328,19 @@ int assets_init(Assets *a) {
     gen_ceiling(&a->ceiling_tex);
     gen_barrel(&a->sprite_barrel);
     gen_enemy(&a->sprite_enemy);
+    gen_enemy_serg(&a->sprite_enemy_serg);
+    gen_enemy_dead(&a->sprite_enemy_dead);
     gen_medkit(&a->sprite_medkit);
     gen_ammo(&a->sprite_ammo);
     gen_armor(&a->sprite_armor);
     gen_weapon(&a->weapon_pistol);
+    gen_weapon_shotgun(&a->weapon_shotgun);
 
     /* Verify all sprite/wall textures allocated */
     Texture *all[] = { &a->wall_brick, &a->wall_door, &a->floor_tex, &a->ceiling_tex,
-                      &a->sprite_barrel, &a->sprite_enemy, &a->sprite_medkit,
-                      &a->sprite_ammo, &a->sprite_armor, &a->weapon_pistol };
+                      &a->sprite_barrel, &a->sprite_enemy, &a->sprite_enemy_serg,
+                      &a->sprite_enemy_dead, &a->sprite_medkit, &a->sprite_ammo,
+                      &a->sprite_armor, &a->weapon_pistol, &a->weapon_shotgun };
     for (size_t i = 0; i < sizeof(all) / sizeof(all[0]); i++) {
         if (!all[i]->pixels) {
             fprintf(stderr, "assets: procedural texture %zu failed\n", i);
@@ -281,8 +357,11 @@ void assets_shutdown(Assets *a) {
     texture_free(&a->ceiling_tex);
     texture_free(&a->sprite_barrel);
     texture_free(&a->sprite_enemy);
+    texture_free(&a->sprite_enemy_serg);
+    texture_free(&a->sprite_enemy_dead);
     texture_free(&a->sprite_medkit);
     texture_free(&a->sprite_ammo);
     texture_free(&a->sprite_armor);
     texture_free(&a->weapon_pistol);
+    texture_free(&a->weapon_shotgun);
 }

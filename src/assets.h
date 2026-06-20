@@ -17,10 +17,13 @@ typedef struct {
     Texture ceiling_tex;
     Texture sprite_barrel;
     Texture sprite_enemy;
+    Texture sprite_enemy_serg;
+    Texture sprite_enemy_dead;
     Texture sprite_medkit;
     Texture sprite_ammo;
     Texture sprite_armor;
     Texture weapon_pistol;
+    Texture weapon_shotgun;
 } Assets;
 
 int  assets_init(Assets *a);

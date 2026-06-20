@@ -31,6 +31,7 @@ int map_load(Map *m, const char *path) {
                     m->start_y = row;
                     break;
                 case 'E':
+                case 'S':
                 case 'B':
                 case 'M':
                 case 'A':

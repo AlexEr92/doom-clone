@@ -9,11 +9,30 @@ void sprite_init(SpriteList *sl) {
 }
 
 int sprite_add(SpriteList *sl, float x, float y, int type) {
+    /* Default per-type scale so entities stand on the floor at a sensible
+     * height relative to walls (wall-tall = 1.0). */
+    float scale = 1.0f;
+    switch (type) {
+        case SPRITE_ENEMY:      scale = 0.72f; break;
+        case SPRITE_ENEMY_SERG: scale = 0.78f; break;
+        case SPRITE_ENEMY_DEAD: scale = 0.55f; break;
+        case SPRITE_BARREL:     scale = 0.55f; break;
+        case SPRITE_MEDKIT:     scale = 0.32f; break;
+        case SPRITE_AMMO:       scale = 0.30f; break;
+        case SPRITE_ARMOR:      scale = 0.45f; break;
+        default:                scale = 1.0f; break;
+    }
+    return sprite_add_full(sl, x, y, type, scale, 0);
+}
+
+int sprite_add_full(SpriteList *sl, float x, float y, int type, float scale, int vmove) {
     if (sl->count >= MAX_SPRITES) return -1;
     sl->items[sl->count].x = x;
     sl->items[sl->count].y = y;
     sl->items[sl->count].type = type;
     sl->items[sl->count].active = 1;
+    sl->items[sl->count].scale = scale;
+    sl->items[sl->count].vmove = vmove;
     return sl->count++;
 }
 
@@ -23,12 +42,14 @@ void sprite_clear(SpriteList *sl) {
 
 static const Texture *sprite_texture(const Assets *a, int type) {
     switch (type) {
-        case SPRITE_BARREL:  return &a->sprite_barrel;
-        case SPRITE_ENEMY:   return &a->sprite_enemy;
-        case SPRITE_MEDKIT:  return &a->sprite_medkit;
-        case SPRITE_AMMO:    return &a->sprite_ammo;
-        case SPRITE_ARMOR:   return &a->sprite_armor;
-        default:             return &a->sprite_barrel;
+        case SPRITE_BARREL:      return &a->sprite_barrel;
+        case SPRITE_ENEMY:       return &a->sprite_enemy;
+        case SPRITE_ENEMY_SERG:  return &a->sprite_enemy_serg;
+        case SPRITE_ENEMY_DEAD:  return &a->sprite_enemy_dead;
+        case SPRITE_MEDKIT:      return &a->sprite_medkit;
+        case SPRITE_AMMO:        return &a->sprite_ammo;
+        case SPRITE_ARMOR:       return &a->sprite_armor;
+        default:                 return &a->sprite_barrel;
     }
 }
 
@@ -84,12 +105,19 @@ void sprite_render(Framebuffer *fb, const SpriteList *sl, const Player *p, const
 
         int spriteScreenX = (int)((SCREEN_W / 2.0f) * (1.0f + transformX / transformY));
 
-        int spriteHeight = (int)fabsf((float)SCREEN_H / transformY);
-        int vMoveScreen = 0;
-        int drawStartY = -spriteHeight / 2 + SCREEN_H / 2 + vMoveScreen;
-        int drawEndY   =  spriteHeight / 2 + SCREEN_H / 2 + vMoveScreen;
+        /* Sprite vertical placement: anchor BOTTOM to the floor line.
+         * The floor contact at perpendicular distance transformY projects to
+         * the same y as a wall's bottom edge: y = H/2 + (H/transformY)/2.
+         * Then a scaled sprite stands on the floor instead of floating. */
+        float wallHalf = (float)SCREEN_H / transformY * 0.5f;
+        int floorY = (int)((float)SCREEN_H / 2.0f + wallHalf);
+        int spriteHeight = (int)(fabsf((float)SCREEN_H / transformY) * sp->scale);
+        int vMoveScreen = sp->vmove;
+        int drawEndY   = floorY + vMoveScreen;
+        int drawStartY = drawEndY - spriteHeight;
 
-        int spriteWidth = spriteHeight; /* square aspect ratio */
+        /* Keep aspect ratio of texture (texW:texH). */
+        int spriteWidth = (int)((float)spriteHeight * (float)texW / (float)texH);
         int drawStartX = -spriteWidth / 2 + spriteScreenX;
         int drawEndX   =  spriteWidth / 2 + spriteScreenX;
 
@@ -106,12 +134,12 @@ void sprite_render(Framebuffer *fb, const SpriteList *sl, const Player *p, const
 
             uint32_t *col_ptr = fb->pixels + (size_t)drawStartY * SCREEN_W + x;
             float stepY = (float)texH / (float)spriteHeight;
-            float texPos = ((float)drawStartY - (float)SCREEN_H / 2.0f + (float)spriteHeight / 2.0f - (float)vMoveScreen) * stepY;
+            float texPos = 0.0f;
             for (int y = drawStartY; y <= drawEndY; y++) {
                 int texY = (int)texPos;
-                if (texY < 0) { texPos += stepY; continue; }
-                if (texY >= texH) { texPos += stepY; continue; }
                 texPos += stepY;
+                if (texY < 0) continue;
+                if (texY >= texH) continue;
                 uint32_t c = tex->pixels[(size_t)texY * texW + texX];
                 if ((c & 0xFF000000u) == 0) continue; /* transparent */
                 *col_ptr = c;

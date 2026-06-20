@@ -1,8 +1,15 @@
 #ifndef INPUT_H
 #define INPUT_H
 
-#include "player.h"
 #include <SDL.h>
+
+typedef struct InputState {
+    int forward, back, turn_left, turn_right, strafe_left, strafe_right;
+    int mouse_dx;
+    int fire;         /* current held state of fire button */
+    int fire_pressed; /* edge: set on keydown, cleared by consumer */
+    int switch1, switch2; /* edge triggers for weapon switch */
+} InputState;
 
 void input_init(InputState *in);
 void input_handle_event(InputState *in, SDL_Event *ev, int *running);
