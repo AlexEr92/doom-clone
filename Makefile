@@ -1,5 +1,5 @@
 CC = clang
-CFLAGS = -Wall -Wextra -O2 -std=c11 $(shell sdl2-config --cflags)
+CFLAGS = -Wall -Wextra -O2 -std=c11 $(shell sdl2-config --cflags) -Ivendor
 LDFLAGS = $(shell sdl2-config --libs) -lm
 SRC = $(wildcard src/*.c)
 OBJ = $(SRC:src/%.c=build/%.o)

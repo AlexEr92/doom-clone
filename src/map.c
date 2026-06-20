@@ -30,6 +30,19 @@ int map_load(Map *m, const char *path) {
                     m->start_x = col;
                     m->start_y = row;
                     break;
+                case 'E':
+                case 'B':
+                case 'M':
+                case 'A':
+                case 'R':
+                    m->cells[row][col] = 0;
+                    if (m->sprite_count < MAX_MAP_SPRITES) {
+                        m->sprites[m->sprite_count].x = col + 0.5f;
+                        m->sprites[m->sprite_count].y = row + 0.5f;
+                        m->sprites[m->sprite_count].marker = c;
+                        m->sprite_count++;
+                    }
+                    break;
                 default:  m->cells[row][col] = 0; break;
             }
         }
