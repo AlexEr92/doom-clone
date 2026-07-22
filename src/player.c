@@ -1,5 +1,6 @@
 #include "player.h"
 #include "input.h"
+#include "door.h"
 #include "utils.h"
 #include <math.h>
 
@@ -14,46 +15,47 @@ void player_init(Player *p, int start_x, int start_y) {
     p->armor = 0.0f;
 }
 
-static int blocked(const Map *m, float x, float y) {
-    return map_is_wall(m, x, y);
+static int blocked(const Map *m, DoorList *dl, float x, float y) {
+    return map_is_wall_door(m, dl, x, y);
 }
 
-static void try_move(Player *p, const Map *m, float nx, float ny) {
+static void try_move(Player *p, const Map *m, DoorList *dl, float nx, float ny) {
     float r = PLAYER_RADIUS;
-    if (!blocked(m, nx + (nx > p->x ? r : -r), p->y)) {
+    if (!blocked(m, dl, nx + (nx > p->x ? r : -r), p->y)) {
         p->x = nx;
     }
-    if (!blocked(m, p->x, ny + (ny > p->y ? r : -r))) {
+    if (!blocked(m, dl, p->x, ny + (ny > p->y ? r : -r))) {
         p->y = ny;
     }
 }
 
-void player_update(Player *p, const Map *m, const InputState *in, double dt) {
+void player_update(Player *p, const Map *m, DoorList *dl,
+                   const InputState *in, double dt) {
     if (in->forward) {
-        try_move(p, m,
+        try_move(p, m, dl,
                  p->x + p->dirX * MOVE_SPEED * (float)dt,
                  p->y + p->dirY * MOVE_SPEED * (float)dt);
     }
     if (in->back) {
-        try_move(p, m,
+        try_move(p, m, dl,
                  p->x - p->dirX * MOVE_SPEED * (float)dt,
                  p->y - p->dirY * MOVE_SPEED * (float)dt);
     }
     if (in->strafe_left) {
-        try_move(p, m,
+        try_move(p, m, dl,
                  p->x - p->planeX * MOVE_SPEED * (float)dt,
                  p->y - p->planeY * MOVE_SPEED * (float)dt);
     }
     if (in->strafe_right) {
-        try_move(p, m,
+        try_move(p, m, dl,
                  p->x + p->planeX * MOVE_SPEED * (float)dt,
                  p->y + p->planeY * MOVE_SPEED * (float)dt);
     }
 
     float rot = 0.0f;
-    if (in->turn_left)  rot -= ROT_SPEED * (float)dt;
-    if (in->turn_right) rot += ROT_SPEED * (float)dt;
-    rot += in->mouse_dx * MOUSE_SENS;
+    if (in->turn_left)  rot += ROT_SPEED * (float)dt;
+    if (in->turn_right) rot -= ROT_SPEED * (float)dt;
+    rot -= in->mouse_dx * MOUSE_SENS;
 
     if (rot != 0.0f) {
         float cosR = cosf(rot);

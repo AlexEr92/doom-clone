@@ -1,5 +1,7 @@
 #include "enemy.h"
 #include "sprite.h"
+#include "door.h"
+#include "audio.h"
 #include "utils.h"
 #include <math.h>
 #include <string.h>
@@ -49,7 +51,7 @@ int enemy_spawn(EnemyList *el, SpriteList *sl, float x, float y, int type) {
 }
 
 /* Lightweight DDA line-of-sight: returns 1 if no wall between (x0,y0) and (x1,y1). */
-static int line_of_sight(const Map *m, float x0, float y0, float x1, float y1) {
+static int line_of_sight(const Map *m, DoorList *dl, float x0, float y0, float x1, float y1) {
     float dx = x1 - x0;
     float dy = y1 - y0;
     float dist = sqrtf(dx * dx + dy * dy);
@@ -62,12 +64,12 @@ static int line_of_sight(const Map *m, float x0, float y0, float x1, float y1) {
     for (int i = 0; i < steps; i++) {
         cx += sx;
         cy += sy;
-        if (map_is_wall(m, cx, cy)) return 0;
+        if (map_is_wall_door(m, dl, cx, cy)) return 0;
     }
     return 1;
 }
 
-static void move_towards(Enemy *e, const Map *m, float tx, float ty, double dt) {
+static void move_towards(Enemy *e, const Map *m, DoorList *dl, float tx, float ty, double dt) {
     const EnemyDef *d = &defs[e->type];
     float dx = tx - e->x;
     float dy = ty - e->y;
@@ -79,11 +81,12 @@ static void move_towards(Enemy *e, const Map *m, float tx, float ty, double dt) 
     float ny = e->y + dy / dist * step;
     /* slide: try X then Y with a small radius */
     float r = 0.2f;
-    if (!map_is_wall(m, nx + (nx > e->x ? r : -r), e->y)) e->x = nx;
-    if (!map_is_wall(m, e->x, ny + (ny > e->y ? r : -r))) e->y = ny;
+    if (!map_is_wall_door(m, dl, nx + (nx > e->x ? r : -r), e->y)) e->x = nx;
+    if (!map_is_wall_door(m, dl, e->x, ny + (ny > e->y ? r : -r))) e->y = ny;
 }
 
-void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, Player *pl, double dt) {
+void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m,
+                      DoorList *dl, Player *pl, Audio *au, double dt) {
     (void)sl;
     for (int i = 0; i < el->count; i++) {
         Enemy *e = &el->items[i];
@@ -93,7 +96,7 @@ void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, Player *pl, d
         float dx = pl->x - e->x;
         float dy = pl->y - e->y;
         float dist = sqrtf(dx * dx + dy * dy);
-        int can_see = (dist <= d->detect_range) && line_of_sight(m, e->x, e->y, pl->x, pl->y);
+        int can_see = (dist <= d->detect_range) && line_of_sight(m, dl, e->x, e->y, pl->x, pl->y);
 
         if (e->attack_cooldown > 0.0f) e->attack_cooldown -= (float)dt;
         e->anim_timer += (float)dt;
@@ -113,19 +116,27 @@ void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, Player *pl, d
             case ESTATE_CHASE:
                 if (can_see) {
                     if (dist <= d->attack_range) e->state = ESTATE_ATTACK;
-                    else move_towards(e, m, pl->x, pl->y, dt);
+                    else move_towards(e, m, dl, pl->x, pl->y, dt);
                 } else {
                     /* lost sight: keep moving towards last known pos (player's current) briefly */
-                    move_towards(e, m, pl->x, pl->y, dt);
+                    move_towards(e, m, dl, pl->x, pl->y, dt);
                 }
                 break;
             case ESTATE_ATTACK:
                 if (!can_see) { e->state = ESTATE_CHASE; break; }
                 if (dist > d->attack_range * 1.3f) { e->state = ESTATE_CHASE; break; }
                 if (e->attack_cooldown <= 0.0f) {
-                    /* hit: apply damage to player */
-                    pl->hp -= d->damage;
+                    /* hit: armor absorbs a fraction of damage first */
+                    float dmg = d->damage;
+                    if (pl->armor > 0.0f) {
+                        float absorbed = dmg * 0.5f;
+                        if (absorbed > pl->armor) absorbed = pl->armor;
+                        pl->armor -= absorbed;
+                        dmg -= absorbed;
+                    }
+                    pl->hp -= dmg;
                     if (pl->hp < 0.0f) pl->hp = 0.0f;
+                    if (au) audio_play(au, SND_PLAYER_HURT, dist, 12.0f);
                     e->attack_cooldown = d->attack_cd;
                 }
                 break;
@@ -140,7 +151,8 @@ void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, Player *pl, d
     }
 }
 
-void enemy_damage(EnemyList *el, SpriteList *sl, int idx, float dmg) {
+void enemy_damage(EnemyList *el, SpriteList *sl, int idx, float dmg,
+                  Audio *au, float px, float py) {
     if (idx < 0 || idx >= el->count) return;
     Enemy *e = &el->items[idx];
     if (e->state == ESTATE_DEAD) return;
@@ -155,10 +167,20 @@ void enemy_damage(EnemyList *el, SpriteList *sl, int idx, float dmg) {
             sp->scale = 0.55f;
             sp->vmove = 0;
         }
+        if (au) {
+            float dx = e->x - px, dy = e->y - py;
+            float dist = sqrtf(dx * dx + dy * dy);
+            audio_play(au, SND_ENEMY_DEATH, dist, 16.0f);
+        }
     } else {
         /* being shot alerts/chases immediately */
         if (e->state == ESTATE_IDLE || e->state == ESTATE_ALERT) {
             e->state = ESTATE_CHASE;
+        }
+        if (au) {
+            float dx = e->x - px, dy = e->y - py;
+            float dist = sqrtf(dx * dx + dy * dy);
+            audio_play(au, SND_ENEMY_HURT, dist, 16.0f);
         }
     }
 }

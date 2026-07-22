@@ -6,8 +6,11 @@
 #include "map.h"
 #include "assets.h"
 
+struct DoorList;
+
 extern float zBuffer[SCREEN_W];
 
-void raycast_render(Framebuffer *fb, const Player *p, const Map *m, const Assets *a);
+void raycast_render(Framebuffer *fb, const Player *p, const Map *m,
+                    const Assets *a, struct DoorList *dl);
 
 #endif

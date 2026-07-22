@@ -1,4 +1,5 @@
 #include "map.h"
+#include "door.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -70,4 +71,16 @@ int map_is_wall(const Map *m, float x, float y) {
     int mx = (int)x;
     int my = (int)y;
     return map_cell(m, mx, my) != 0;
+}
+
+int map_is_wall_door(const Map *m, struct DoorList *dl, float x, float y) {
+    int mx = (int)x;
+    int my = (int)y;
+    int c = map_cell(m, mx, my);
+    if (c == 0) return 0;
+    if (c == 2 && dl) {
+        /* door: blocking only if openness < 0.5 */
+        return door_is_blocking(dl, mx, my);
+    }
+    return 1;
 }

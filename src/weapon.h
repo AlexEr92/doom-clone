@@ -5,6 +5,8 @@
 #include "enemy.h"
 #include "sprite.h"
 
+struct Audio;
+
 typedef enum {
     WEAPON_PISTOL = 0,
     WEAPON_SHOTGUN,
@@ -39,8 +41,10 @@ void weapon_switch(WeaponSystem *ws, int idx);
  * - finds nearest enemy whose screen AABB contains the ray's screen column
  *   and is not occluded by a wall (zBuffer check)
  * Applies damage and triggers weapon anim + cooldown.
+ * au may be NULL (no audio).
  */
-void weapon_try_fire(WeaponSystem *ws, const Player *p, EnemyList *el, SpriteList *sl);
+void weapon_try_fire(WeaponSystem *ws, const Player *p, EnemyList *el,
+                     SpriteList *sl, struct Audio *au);
 
 /* Per-tick update of cooldowns / animation. */
 void weapon_update(WeaponSystem *ws, double dt);

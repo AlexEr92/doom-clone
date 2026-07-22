@@ -5,6 +5,9 @@
 #include "player.h"
 #include "sprite.h"
 
+struct DoorList;
+struct Audio;
+
 /* FSM states */
 typedef enum {
     ESTATE_IDLE = 0,
@@ -57,11 +60,15 @@ void enemy_list_init(EnemyList *el);
 /* Spawn an enemy; creates a matching sprite in `sl` and stores its id. */
 int  enemy_spawn(EnemyList *el, SpriteList *sl, float x, float y, int type);
 
-/* Per-tick update: AI state machine, movement, attacks. Modifies player hp. */
-void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, Player *pl, double dt);
+/* Per-tick update: AI state machine, movement, attacks. Modifies player hp.
+ * dl may be NULL (no doors). au may be NULL (no audio). */
+void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m,
+                      struct DoorList *dl, Player *pl, struct Audio *au, double dt);
 
-/* Apply damage to enemy idx; on death switches sprite to corpse. */
-void enemy_damage(EnemyList *el, SpriteList *sl, int idx, float dmg);
+/* Apply damage to enemy idx; on death switches sprite to corpse.
+ * au may be NULL. player_x/y used for spatial audio. */
+void enemy_damage(EnemyList *el, SpriteList *sl, int idx, float dmg,
+                  struct Audio *au, float px, float py);
 
 /* Returns 1 if all enemies are dead. */
 int  enemy_all_dead(const EnemyList *el);

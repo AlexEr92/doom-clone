@@ -1,4 +1,5 @@
 #include "raycast.h"
+#include "door.h"
 #include "utils.h"
 #include <math.h>
 
@@ -16,7 +17,8 @@ static const Texture *wall_texture_for(const Assets *a, int cell) {
     return cell == 2 ? &a->wall_door : &a->wall_brick;
 }
 
-void raycast_render(Framebuffer *fb, const Player *p, const Map *m, const Assets *a) {
+void raycast_render(Framebuffer *fb, const Player *p, const Map *m,
+                    const Assets *a, DoorList *dl) {
     /* Flat ceiling/floor fills */
     uint32_t ceil_color = make_color(40, 40, 50);
     uint32_t floor_color = make_color(70, 60, 55);
@@ -61,6 +63,7 @@ void raycast_render(Framebuffer *fb, const Player *p, const Map *m, const Assets
         int hit = 0;
         int side = 0;
         int cell = 0;
+        float door_openness = 0.0f;
         int guard = 0;
         while (!hit && guard++ < 64) {
             if (sideDistX < sideDistY) {
@@ -73,7 +76,19 @@ void raycast_render(Framebuffer *fb, const Player *p, const Map *m, const Assets
                 side = 1;
             }
             cell = map_cell(m, mapX, mapY);
-            if (cell > 0) hit = 1;
+            if (cell > 0) {
+                if (cell == 2 && dl) {
+                    /* door: if not blocking, pass through */
+                    int did = door_at(dl, mapX, mapY);
+                    if (did >= 0) {
+                        door_openness = dl->doors[did].openness;
+                        if (!door_is_blocking(dl, mapX, mapY)) {
+                            continue; /* open door: ray continues */
+                        }
+                    }
+                }
+                hit = 1;
+            }
         }
 
         float perpWallDist;
@@ -100,21 +115,31 @@ void raycast_render(Framebuffer *fb, const Player *p, const Map *m, const Assets
         if (side == 0 && rayDirX > 0) texX = texW - texX - 1;
         if (side == 1 && rayDirY < 0) texX = texW - texX - 1;
 
-        if (drawStart < 0) drawStart = 0;
-        if (drawEnd >= SCREEN_H) drawEnd = SCREEN_H - 1;
+        /* Door sliding effect: a closing/opening door is drawn shifted upward
+         * by openness * lineHeight, revealing the floor/ceiling gap below.
+         * Only applies when we actually hit a door cell. */
+        int door_shift = 0;
+        if (hit && cell == 2 && dl) {
+            door_shift = (int)(door_openness * (float)lineHeight);
+        }
+
+        int drawStartClamped = drawStart + door_shift;
+        int drawEndClamped = drawEnd;
+        if (drawStartClamped < 0) drawStartClamped = 0;
+        if (drawEndClamped >= SCREEN_H) drawEndClamped = SCREEN_H - 1;
 
         float shade = (side == 1) ? 0.7f : 1.0f;
         float step = (float)texH / (float)lineHeight;
-        float texPos = ((float)drawStart - (float)SCREEN_H / 2.0f + (float)lineHeight / 2.0f) * step;
+        float texPos = ((float)drawStartClamped - (float)SCREEN_H / 2.0f
+                        + (float)lineHeight / 2.0f - (float)door_shift) * step;
 
-        uint32_t *col_ptr = fb->pixels + (size_t)drawStart * SCREEN_W + x;
-        for (int y = drawStart; y <= drawEnd; y++) {
+        uint32_t *col_ptr = fb->pixels + (size_t)drawStartClamped * SCREEN_W + x;
+        for (int y = drawStartClamped; y <= drawEndClamped; y++) {
             int texY = (int)texPos;
             if (texY < 0) texY = 0;
             if (texY >= texH) texY = texH - 1;
             texPos += step;
             uint32_t c = sample_nearest(tex, texX, texY);
-            /* transparent pixels shouldn't occur on walls; shade for depth */
             if (shade < 1.0f) c = shade_color(c, shade);
             *col_ptr = c;
             col_ptr += SCREEN_W;

@@ -1,5 +1,6 @@
 #include "weapon.h"
 #include "raycast.h"
+#include "audio.h"
 #include "utils.h"
 #include <math.h>
 #include <string.h>
@@ -56,14 +57,23 @@ static int enemy_screen_band(const Player *p, const Enemy *e, int *cx_out, int *
     return 1;
 }
 
-void weapon_try_fire(WeaponSystem *ws, const Player *p, EnemyList *el, SpriteList *sl) {
+void weapon_try_fire(WeaponSystem *ws, const Player *p, EnemyList *el,
+                     SpriteList *sl, Audio *au) {
     Weapon *w = &ws->weapons[ws->current];
     if (w->cooldown > 0.0f) return;
-    if (w->ammo <= 0) return;
+    if (w->ammo <= 0) {
+        if (au) audio_play_volume(au, SND_NO_AMMO, 0.5f);
+        return;
+    }
 
     w->ammo--;
     w->cooldown = w->fire_cd;
     w->anim = 1.0f;
+
+    if (au) {
+        audio_play_volume(au,
+            ws->current == WEAPON_PISTOL ? SND_PISTOL : SND_SHOTGUN, 0.5f);
+    }
 
     /* For each pellet, pick a random spread angle around view direction,
      * compute its screen column, find nearest enemy whose band contains it
@@ -115,7 +125,7 @@ void weapon_try_fire(WeaponSystem *ws, const Player *p, EnemyList *el, SpriteLis
             }
         }
         if (best >= 0) {
-            enemy_damage(el, sl, best, w->damage);
+            enemy_damage(el, sl, best, w->damage, au, p->x, p->y);
         }
     }
 }

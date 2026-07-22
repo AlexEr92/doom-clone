@@ -29,6 +29,12 @@ static inline float clampf(float v, float lo, float hi) {
     return v;
 }
 
+static inline int clampi(int v, int lo, int hi) {
+    if (v < lo) return lo;
+    if (v > hi) return hi;
+    return v;
+}
+
 static inline uint32_t make_color(uint8_t r, uint8_t g, uint8_t b) {
     return 0xFF000000u | ((uint32_t)b << 16) | ((uint32_t)g << 8) | (uint32_t)r;
 }

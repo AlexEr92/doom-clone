@@ -28,6 +28,9 @@ void input_handle_event(InputState *in, SDL_Event *ev, int *running) {
                     break;
                 case SDLK_1: in->switch1 = 1; break;
                 case SDLK_2: in->switch2 = 1; break;
+                case SDLK_e: in->use = 1; break;
+                case SDLK_m: in->mute = 1; break;
+                case SDLK_p: in->pause_toggle = 1; break;
                 default: break;
             }
             break;
@@ -71,4 +74,7 @@ void input_end_frame(InputState *in) {
     in->fire_pressed = 0;
     in->switch1 = 0;
     in->switch2 = 0;
+    in->use = 0;
+    in->mute = 0;
+    in->pause_toggle = 0;
 }
