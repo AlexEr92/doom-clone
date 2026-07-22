@@ -1,0 +1,41 @@
+# Сборка CMake (out-of-source)
+/build/
+/out/
+
+# Исполняемые файлы
+/doom-clone
+/doom-clone.exe
+*.app/
+
+# Объектники и библиотеки
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# Отладка/профилирование
+*.pdb
+*.ilk
+core
+core.*
+vgcore.*
+
+# ОС / редакторы
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.vscode/
+.idea/
