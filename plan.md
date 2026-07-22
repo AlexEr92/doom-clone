@@ -4,7 +4,8 @@
 
 | Параметр | Значение |
 |---|---|
-| Язык | C11 (clang) |
+| Язык | C11 (clang / gcc / msvc) |
+| Сборка | CMake (кросс-платформенная, macOS/Linux/Windows) |
 | Графика | SDL2 2.32.10 |
 | Рендер | Raycasting (DDA) |
 | Аудио | SDL_mixer |
@@ -25,7 +26,7 @@
 
 ```
 doom-clone/
-├── Makefile
+├── CMakeLists.txt    # кросс-платформенная сборка (CMake)
 ├── plan.md
 ├── README.md
 ├── vendor/
@@ -50,14 +51,14 @@ doom-clone/
 │   ├── textures/       # текстуры стен (неделя 2)
 │   ├── sprites/        # враги, предметы (неделя 2)
 │   └── sounds/         # звуки (неделя 4)
-└── build/              # объектники
+└── build/              # каталог сборки CMake (out-of-source)
 ```
 
 ## Этапы разработки
 
 ### Неделя 1 — Базовый движок и raycasting ✅ ВЫПОЛНЕНО
 
-- [x] Настройка проекта + Makefile
+- [x] Настройка проекта + сборка (изначально Makefile, позднее перенесена на CMake)
 - [x] SDL2 окно 1280×800, внутренний буфер 640×400
 - [x] Игровой цикл с фиксированным таймстеппом 60 Гц
 - [x] Загрузка ASCII-карты, парсинг точки старта `P`
@@ -130,6 +131,17 @@ doom-clone/
 
 **Результат:** Готовое демо с полным игровым циклом.
 
+### Инфраструктура — Перенос сборки на CMake ✅ ВЫПОЛНЕНО
+
+- [x] `CMakeLists.txt` — кросс-платформенная сборка (macOS/Linux/Windows)
+- [x] Поиск SDL2 и SDL2_mixer через `find_package` (config + module fallback)
+- [x] Поддержка импортированных целей `SDL2::SDL2` / `SDL2_mixer::SDL2_mixer`
+  и классических переменных `*_INCLUDE_DIRS` / `*_LIBRARIES`
+- [x] Цель `run` для запуска из корня проекта (ассеты — по относительным путям)
+- [x] Условная линковка `libm` только на Unix
+
+**Результат:** Проект собирается одной командой `cmake --build build` на любой ОС.
+
 ## Ключевые технические решения
 
 1. **Игровой цикл с фиксированным шагом** — физика на 60 Гц, рендер каждый кадр. Избегает нестабильности на разных FPS.
@@ -179,19 +191,72 @@ A  - патроны (зарезервировано, неделя 4)
 - **stb_image.h** — загрузка изображений в одном заголовочном файле
 - Оригинальный исходный код Doom (id Software) — для архитектурного вдохновения
 
-## Сборка и запуск
+## Сборка и запуск (CMake, кросс-платформенная)
+
+Сборка переведена с macOS-only `Makefile` на **CMake** и собирается под любой ОС:
+macOS, Linux, Windows (MSVC и MinGW).
+
+### Установка зависимостей
+
+**macOS (Homebrew):**
+```bash
+brew install sdl2 sdl2_mixer cmake
+```
+
+**Linux (Debian/Ubuntu):**
+```bash
+sudo apt install libsdl2-dev libsdl2-mixer-dev cmake build-essential
+```
+
+**Linux (Fedora):**
+```bash
+sudo dnf install SDL2-devel SDL2_mixer-devel cmake gcc
+```
+
+**Windows (MSYS2/MinGW):**
+```bash
+pacman -S mingw-w64-x86_64-SDL2 mingw-w64-x86_64-SDL2_mixer mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc
+```
+
+**Windows (vcpkg, MSVC):**
+```bash
+vcpkg install sdl2 sdl2-mixer
+```
+
+### Конфигурация и сборка
 
 ```bash
 cd doom-clone
-make          # сборка
-make run      # сборка + запуск
-make clean    # очистка
+cmake -S . -B build          # конфигурация (один раз)
+cmake --build build          # сборка
+cmake --build build --target run   # сборка + запуск из корня проекта
+cmake --build build --target clean # очистка
 ```
 
-Зависимости (macOS/Homebrew):
+Дополнительные опции:
 ```bash
-brew install sdl2 sdl2_mixer
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug   # отладочная сборка
+cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=...  # напр., для vcpkg на Windows
 ```
+
+Исполняемый файл: `build/doom-clone` (или `build/doom-clone.exe` на Windows).
+Игру нужно запускать из корня проекта (ассеты грузятся по относительным путям) —
+цель `run` делает это автоматически.
+
+### Платформо-зависимые замечания
+
+- **Linux/Unix:** линкуется `libm` (math.h).
+- **Windows (MSVC):** `libm` не линкуется; SDL2-цели через vcpkg автоматически
+  подтягивают DLL в каталог сборки.
+- **SDL2/SDL2_mixer:** поддерживаются как современные CMake-конфиги
+  (цели `SDL2::SDL2`, `SDL2_mixer::SDL2_mixer`), так и классические переменные
+  `*_INCLUDE_DIRS`/`*_LIBRARIES` — для старых установок.
+
+### Статус инфраструктуры
+
+- [x] `CMakeLists.txt` — кросс-платформенная сборка (macOS/Linux/Windows)
+- [x] Поиск SDL2 и SDL2_mixer через `find_package` (config + module fallback)
+- [x] Цель `run` для запуска из корня проекта
 
 ## Статус
 
@@ -199,3 +264,4 @@ brew install sdl2 sdl2_mixer
 - [x] Неделя 2 — Текстуры и спрайты
 - [x] Неделя 3 — Стрельба и ИИ врагов
 - [x] Неделя 4 — HUD, предметы, звук, состояния игры
+- [x] Инфраструктура — Перенос сборки на CMake (кросс-платформенная)
