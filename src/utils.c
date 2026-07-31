@@ -1,8 +1,10 @@
 #include "utils.h"
-#include <time.h>
+#include <SDL.h>
 
 double get_time_seconds(void) {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
+    static Uint64 frequency = 0;
+    if (frequency == 0) {
+        frequency = SDL_GetPerformanceFrequency();
+    }
+    return (double)SDL_GetPerformanceCounter() / (double)frequency;
 }
