@@ -120,6 +120,7 @@
 | [bug-003](bug-003-dead-fire-pressed-field.md) | Мёртвое поле `fire_pressed` | `input.h` |
 | [feat-001](feat-001-file-textures-weapon-enemy.md) | Файловые PNG-текстуры оружия и врагов | `assets.c` |
 | [test-001](test-001-unit-test-harness.md) | Подключить Unity, покрыть тестами то, что уже тестируемо | `tests/`, `vendor/unity/` |
+| [chore-001](chore-001-github-actions-ci.md) | CI на трёх платформах через GitHub Actions | `.github/workflows/` |
 
 ## Закрытые
 
