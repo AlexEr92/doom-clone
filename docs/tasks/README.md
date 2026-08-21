@@ -28,6 +28,9 @@
 
 ## Как закрыть задачу
 
+Закрытие — часть выполнения задачи, а не отдельная работа: пока файл лежит
+здесь, индекс утверждает, что задача открыта.
+
 1. `git mv docs/tasks/X.md docs/closed_tasks/X.md`
 2. дописать в конец файла секцию «Закрыто»: дату и что именно изменилось
 3. перенести строку из таблицы ниже в [«Закрытые»](#закрытые)
@@ -131,6 +134,7 @@
 | [chore-001](chore-001-github-actions-ci.md) | CI на трёх платформах через GitHub Actions | `.github/workflows/` |
 | [chore-002](chore-002-dead-ternary-text-width.md) | Убрать неработающий тернарник в `text_width()` | `game.c` |
 | [chore-003](chore-003-const-correctness-lint.md) | Три параметра/переменных без `const` | `game.c`, `item.c`, `map.c` |
+| [chore-004](chore-004-review-agent.md) | Агент-ревьюер: критерии приёмки, `/lint`, smoke, конвенции | `.claude/agents/` |
 
 ## Закрытые
 

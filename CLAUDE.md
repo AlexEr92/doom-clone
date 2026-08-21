@@ -154,6 +154,10 @@ exist yet; until it does, `driver.sh smoke` is the only regression check.
   sections, "previously N players, now 10", or any trace of the conversation
   that produced the edit — the reader did not participate in it and git
   already records the history.
+- **A task is finished when it sits in `docs/closed_tasks/`**, not when the
+  code works. "Do task 05-01" means the work *and* the closing steps in
+  `docs/tasks/README.md`; stopping at working code leaves the index claiming
+  it is still open. Say so if you deliberately leave it open.
 - **A bug you find in passing becomes a task, not a detour.** File it as
   `docs/tasks/bug-NNN-slug.md` and keep going; do not fix it inside the diff
   of whatever you were doing. The exception is when the current task cannot
