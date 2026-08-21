@@ -3,12 +3,16 @@
 #include <math.h>
 #include <string.h>
 
-void item_list_init(ItemList *il) {
+void item_list_init(ItemList *il)
+{
     memset(il, 0, sizeof(*il));
 }
 
-int item_add(ItemList *il, int sprite_id, ItemType type, float amount, int weapon) {
-    if (il->count >= MAX_ITEMS) return -1;
+int item_add(ItemList *il, int sprite_id, ItemType type, float amount, int weapon)
+{
+    if (il->count >= MAX_ITEMS) {
+        return -1;
+    }
     Item *it = &il->items[il->count];
     it->active = 1;
     it->sprite_id = sprite_id;
@@ -21,27 +25,35 @@ int item_add(ItemList *il, int sprite_id, ItemType type, float amount, int weapo
     return il->count++;
 }
 
-static int apply_pickup(Item *it, SpriteList *sl, Player *pl, WeaponSystem *ws, Audio *au) {
+static int apply_pickup(Item *it, SpriteList *sl, Player *pl, WeaponSystem *ws, Audio *au)
+{
     switch (it->type) {
         case ITEM_MEDKIT: {
-            if (pl->hp >= 100.0f) return 0;
+            if (pl->hp >= 100.0f) {
+                return 0;
+            }
             pl->hp = clampf(pl->hp + it->amount, 0.0f, 100.0f);
             break;
         }
         case ITEM_ARMOR: {
-            if (pl->armor >= 100.0f) return 0;
+            if (pl->armor >= 100.0f) {
+                return 0;
+            }
             pl->armor = clampf(pl->armor + it->amount, 0.0f, 100.0f);
             break;
         }
         case ITEM_AMMO: {
-            if (it->weapon < 0 || it->weapon >= WEAPON_COUNT) return 0;
+            if (it->weapon < 0 || it->weapon >= WEAPON_COUNT) {
+                return 0;
+            }
             Weapon *w = &ws->weapons[it->weapon];
-            if (w->ammo >= w->max_ammo) return 0;
+            if (w->ammo >= w->max_ammo) {
+                return 0;
+            }
             w->ammo = clampi(w->ammo + (int)it->amount, 0, w->max_ammo);
             break;
         }
-        default:
-            return 0;
+        default: return 0;
     }
     /* deactivate sprite + item */
     if (it->sprite_id >= 0 && it->sprite_id < sl->count) {
@@ -52,19 +64,29 @@ static int apply_pickup(Item *it, SpriteList *sl, Player *pl, WeaponSystem *ws, 
     return 1;
 }
 
-int item_update(ItemList *il, SpriteList *sl, Player *pl, WeaponSystem *ws, Audio *au) {
+int item_update(ItemList *il, SpriteList *sl, Player *pl, WeaponSystem *ws, Audio *au)
+{
     const float radius = 0.45f;
     int picked = 0;
     for (int i = 0; i < il->count; i++) {
         Item *it = &il->items[i];
-        if (!it->active) continue;
-        if (it->sprite_id < 0 || it->sprite_id >= sl->count) continue;
+        if (!it->active) {
+            continue;
+        }
+        if (it->sprite_id < 0 || it->sprite_id >= sl->count) {
+            continue;
+        }
         Sprite *sp = &sl->items[it->sprite_id];
-        if (!sp->active) { it->active = 0; continue; }
+        if (!sp->active) {
+            it->active = 0;
+            continue;
+        }
         float dx = sp->x - pl->x;
         float dy = sp->y - pl->y;
         if (dx * dx + dy * dy <= radius * radius) {
-            if (apply_pickup(it, sl, pl, ws, au)) picked = 1;
+            if (apply_pickup(it, sl, pl, ws, au)) {
+                picked = 1;
+            }
         }
     }
     return picked;

@@ -12,11 +12,11 @@ typedef enum {
 } DoorState;
 
 typedef struct Door {
-    int cellx, celly;     /* map cell coords of the door */
+    int cellx, celly; /* map cell coords of the door */
     DoorState state;
-    float openness;       /* 0 = closed (solid), 1 = fully open (walk-through) */
-    float timer;          /* seconds remaining in OPEN before auto-close */
-    int triggered;        /* set when player used the door this tick */
+    float openness; /* 0 = closed (solid), 1 = fully open (walk-through) */
+    float timer;    /* seconds remaining in OPEN before auto-close */
+    int triggered;  /* set when player used the door this tick */
 } Door;
 
 #define MAX_DOORS 64

@@ -12,34 +12,39 @@
  * We build a 16-bit mono 22050 Hz WAV in memory, then load it with
  * Mix_QuickLoad_WAV. This avoids shipping external sound files. */
 
-static void put_u32(unsigned char *p, Uint32 v) {
+static void put_u32(unsigned char *p, Uint32 v)
+{
     p[0] = (unsigned char)(v & 0xFF);
     p[1] = (unsigned char)((v >> 8) & 0xFF);
     p[2] = (unsigned char)((v >> 16) & 0xFF);
     p[3] = (unsigned char)((v >> 24) & 0xFF);
 }
-static void put_u16(unsigned char *p, Uint16 v) {
+static void put_u16(unsigned char *p, Uint16 v)
+{
     p[0] = (unsigned char)(v & 0xFF);
     p[1] = (unsigned char)((v >> 8) & 0xFF);
 }
 
 /* Build a WAV byte buffer from 16-bit PCM samples. Caller frees the buffer. */
-static unsigned char *build_wav(const Sint16 *samples, Uint32 n, Uint32 *out_len) {
+static unsigned char *build_wav(const Sint16 *samples, Uint32 n, Uint32 *out_len)
+{
     Uint32 data_len = n * 2u;
     Uint32 total = 44u + data_len;
     unsigned char *buf = (unsigned char *)malloc(total);
-    if (!buf) return NULL;
+    if (!buf) {
+        return NULL;
+    }
     memcpy(buf, "RIFF", 4);
     put_u32(buf + 4, total - 8);
     memcpy(buf + 8, "WAVE", 4);
     memcpy(buf + 12, "fmt ", 4);
     put_u32(buf + 16, 16);
-    put_u16(buf + 20, 1);            /* PCM */
-    put_u16(buf + 22, 1);            /* mono */
-    put_u32(buf + 24, 22050);        /* sample rate */
-    put_u32(buf + 28, 22050 * 2);    /* byte rate */
-    put_u16(buf + 32, 2);            /* block align */
-    put_u16(buf + 34, 16);           /* bits per sample */
+    put_u16(buf + 20, 1);         /* PCM */
+    put_u16(buf + 22, 1);         /* mono */
+    put_u32(buf + 24, 22050);     /* sample rate */
+    put_u32(buf + 28, 22050 * 2); /* byte rate */
+    put_u16(buf + 32, 2);         /* block align */
+    put_u16(buf + 34, 16);        /* bits per sample */
     memcpy(buf + 36, "data", 4);
     put_u32(buf + 40, data_len);
     for (Uint32 i = 0; i < n; i++) {
@@ -49,20 +54,27 @@ static unsigned char *build_wav(const Sint16 *samples, Uint32 n, Uint32 *out_len
     return buf;
 }
 
-static Sint16 *alloc_samples(Uint32 n) {
+static Sint16 *alloc_samples(Uint32 n)
+{
     return (Sint16 *)malloc(n * sizeof(Sint16));
 }
 
 /* Enveloped noise burst (good for gunshots / impacts). */
-static Sint16 *gen_noise(Uint32 n, float attack, float decay, int lp) {
+static Sint16 *gen_noise(Uint32 n, float attack, float decay, int lp)
+{
     Sint16 *s = alloc_samples(n);
-    if (!s) return NULL;
+    if (!s) {
+        return NULL;
+    }
     float prev = 0.0f;
     for (Uint32 i = 0; i < n; i++) {
         float t = (float)i / (float)n;
         float env;
-        if (t < attack) env = t / attack;
-        else            env = expf(-(t - attack) * decay);
+        if (t < attack) {
+            env = t / attack;
+        } else {
+            env = expf(-(t - attack) * decay);
+        }
         float w = ((float)rand() / (float)RAND_MAX) * 2.0f - 1.0f;
         if (lp) { /* simple one-pole low-pass for body */
             prev = prev + 0.35f * (w - prev);
@@ -74,9 +86,12 @@ static Sint16 *gen_noise(Uint32 n, float attack, float decay, int lp) {
 }
 
 /* Sine-ish blip with pitch drop (good for pickup / door). */
-static Sint16 *gen_blip(Uint32 n, float f0, float f1, float decay) {
+static Sint16 *gen_blip(Uint32 n, float f0, float f1, float decay)
+{
     Sint16 *s = alloc_samples(n);
-    if (!s) return NULL;
+    if (!s) {
+        return NULL;
+    }
     float ph = 0.0f;
     for (Uint32 i = 0; i < n; i++) {
         float t = (float)i / 22050.0f;
@@ -89,9 +104,12 @@ static Sint16 *gen_blip(Uint32 n, float f0, float f1, float decay) {
 }
 
 /* Low growl for enemy hurt/death (mixed saw + noise). */
-static Sint16 *gen_growl(Uint32 n, float f0, float f1, float noise_mix) {
+static Sint16 *gen_growl(Uint32 n, float f0, float f1, float noise_mix)
+{
     Sint16 *s = alloc_samples(n);
-    if (!s) return NULL;
+    if (!s) {
+        return NULL;
+    }
     float ph = 0.0f;
     for (Uint32 i = 0; i < n; i++) {
         float t = (float)i / (float)n;
@@ -106,12 +124,17 @@ static Sint16 *gen_growl(Uint32 n, float f0, float f1, float noise_mix) {
     return s;
 }
 
-static Mix_Chunk *make_chunk(Sint16 *samples, Uint32 n) {
-    if (!samples) return NULL;
+static Mix_Chunk *make_chunk(Sint16 *samples, Uint32 n)
+{
+    if (!samples) {
+        return NULL;
+    }
     Uint32 len = 0;
     unsigned char *wav = build_wav(samples, n, &len);
     free(samples);
-    if (!wav) return NULL;
+    if (!wav) {
+        return NULL;
+    }
     Mix_Chunk *c = Mix_QuickLoad_WAV(wav);
     /* Mix_QuickLoad_WAV copies? No — it does NOT copy the buffer; it keeps the
      * pointer. We must keep the WAV buffer alive for the chunk's lifetime.
@@ -120,7 +143,8 @@ static Mix_Chunk *make_chunk(Sint16 *samples, Uint32 n) {
     return c;
 }
 
-int audio_init(Audio *a) {
+int audio_init(Audio *a)
+{
     memset(a, 0, sizeof(*a));
     if (Mix_OpenAudio(22050, AUDIO_S16SYS, 2, 512) != 0) {
         fprintf(stderr, "audio: Mix_OpenAudio failed: %s\n", Mix_GetError());
@@ -180,27 +204,46 @@ int audio_init(Audio *a) {
     return 0;
 }
 
-void audio_shutdown(Audio *a) {
-    if (!a->available) return;
+void audio_shutdown(Audio *a)
+{
+    if (!a->available) {
+        return;
+    }
     for (int i = 0; i < SND_COUNT; i++) {
-        if (a->chunks[i]) Mix_FreeChunk(a->chunks[i]);
+        if (a->chunks[i]) {
+            Mix_FreeChunk(a->chunks[i]);
+        }
         a->chunks[i] = NULL;
     }
-    if (a->music) { Mix_FreeMusic(a->music); a->music = NULL; }
+    if (a->music) {
+        Mix_FreeMusic(a->music);
+        a->music = NULL;
+    }
     Mix_CloseAudio();
     a->available = 0;
 }
 
-void audio_play(Audio *a, SoundId id, float dist, float maxdist) {
-    if (!a->available || a->muted) return;
-    if (id < 0 || id >= SND_COUNT) return;
+void audio_play(Audio *a, SoundId id, float dist, float maxdist)
+{
+    if (!a->available || a->muted) {
+        return;
+    }
+    if (id < 0 || id >= SND_COUNT) {
+        return;
+    }
     Mix_Chunk *c = a->chunks[id];
-    if (!c) return;
+    if (!c) {
+        return;
+    }
     float vol = 1.0f;
     if (maxdist > 0.0f) {
         vol = 1.0f - (dist / maxdist);
-        if (vol < 0.0f) vol = 0.0f;
-        if (vol > 1.0f) vol = 1.0f;
+        if (vol < 0.0f) {
+            vol = 0.0f;
+        }
+        if (vol > 1.0f) {
+            vol = 1.0f;
+        }
     }
     int mix_vol = (int)(vol * 128.0f);
     Mix_VolumeChunk(c, mix_vol);
@@ -208,18 +251,32 @@ void audio_play(Audio *a, SoundId id, float dist, float maxdist) {
     Mix_PlayChannel(-1, c, 0);
 }
 
-void audio_play_volume(Audio *a, SoundId id, float vol) {
-    if (!a->available || a->muted) return;
-    if (id < 0 || id >= SND_COUNT) return;
+void audio_play_volume(Audio *a, SoundId id, float vol)
+{
+    if (!a->available || a->muted) {
+        return;
+    }
+    if (id < 0 || id >= SND_COUNT) {
+        return;
+    }
     Mix_Chunk *c = a->chunks[id];
-    if (!c) return;
-    if (vol < 0.0f) vol = 0.0f;
-    if (vol > 1.0f) vol = 1.0f;
+    if (!c) {
+        return;
+    }
+    if (vol < 0.0f) {
+        vol = 0.0f;
+    }
+    if (vol > 1.0f) {
+        vol = 1.0f;
+    }
     Mix_VolumeChunk(c, (int)(vol * 128.0f));
     Mix_PlayChannel(-1, c, 0);
 }
 
-void audio_toggle_mute(Audio *a) {
+void audio_toggle_mute(Audio *a)
+{
     a->muted = !a->muted;
-    if (a->available) Mix_Volume(-1, a->muted ? 0 : MIX_MAX_VOLUME);
+    if (a->available) {
+        Mix_Volume(-1, a->muted ? 0 : MIX_MAX_VOLUME);
+    }
 }

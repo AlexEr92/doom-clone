@@ -14,12 +14,12 @@ typedef enum {
 } ItemType;
 
 typedef struct {
-    int active;       /* 1 until picked up */
-    int sprite_id;     /* index into SpriteList */
+    int active;    /* 1 until picked up */
+    int sprite_id; /* index into SpriteList */
     ItemType type;
     float x, y;
-    float amount;     /* hp/ammo/armor amount */
-    int weapon;       /* for ammo: which weapon (WEAPON_PISTOL/SHOTGUN) */
+    float amount; /* hp/ammo/armor amount */
+    int weapon;   /* for ammo: which weapon (WEAPON_PISTOL/SHOTGUN) */
 } Item;
 
 #define MAX_ITEMS 64

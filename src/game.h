@@ -16,10 +16,10 @@ typedef enum {
 typedef struct {
     Engine *eng;
     GameState state;
-    GameState prev_state;     /* for un-pausing */
-    float menu_timer;         /* blink / animation */
-    int restart;              /* set when (re)starting gameplay requested */
-    int quit;                 /* request to exit whole program */
+    GameState prev_state; /* for un-pausing */
+    float menu_timer;     /* blink / animation */
+    int restart;          /* set when (re)starting gameplay requested */
+    int quit;             /* request to exit whole program */
 } Game;
 
 void game_init(Game *g, Engine *eng);

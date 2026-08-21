@@ -5,34 +5,56 @@
 #include <math.h>
 #include <string.h>
 
-void weapon_system_init(WeaponSystem *ws) {
+void weapon_system_init(WeaponSystem *ws)
+{
     memset(ws, 0, sizeof(*ws));
     ws->weapons[WEAPON_PISTOL] = (Weapon){
-        .type = WEAPON_PISTOL, .ammo = 50, .max_ammo = 50,
-        .damage = 15.0f, .pellets = 1, .spread = 0.0f,
-        .fire_cd = 0.45f, .cooldown = 0.0f, .anim = 0.0f,
+            .type = WEAPON_PISTOL,
+            .ammo = 50,
+            .max_ammo = 50,
+            .damage = 15.0f,
+            .pellets = 1,
+            .spread = 0.0f,
+            .fire_cd = 0.45f,
+            .cooldown = 0.0f,
+            .anim = 0.0f,
     };
     ws->weapons[WEAPON_SHOTGUN] = (Weapon){
-        .type = WEAPON_SHOTGUN, .ammo = 20, .max_ammo = 20,
-        .damage = 10.0f, .pellets = 7, .spread = 0.12f,
-        .fire_cd = 0.85f, .cooldown = 0.0f, .anim = 0.0f,
+            .type = WEAPON_SHOTGUN,
+            .ammo = 20,
+            .max_ammo = 20,
+            .damage = 10.0f,
+            .pellets = 7,
+            .spread = 0.12f,
+            .fire_cd = 0.85f,
+            .cooldown = 0.0f,
+            .anim = 0.0f,
     };
     ws->current = WEAPON_PISTOL;
 }
 
-void weapon_switch(WeaponSystem *ws, int idx) {
-    if (idx < 0 || idx >= WEAPON_COUNT) return;
-    if (idx == ws->current) return;
+void weapon_switch(WeaponSystem *ws, int idx)
+{
+    if (idx < 0 || idx >= WEAPON_COUNT) {
+        return;
+    }
+    if (idx == ws->current) {
+        return;
+    }
     ws->current = idx;
 }
 
-void weapon_update(WeaponSystem *ws, double dt) {
+void weapon_update(WeaponSystem *ws, double dt)
+{
     for (int i = 0; i < WEAPON_COUNT; i++) {
-        if (ws->weapons[i].cooldown > 0.0f)
+        if (ws->weapons[i].cooldown > 0.0f) {
             ws->weapons[i].cooldown -= (float)dt;
+        }
         if (ws->weapons[i].anim > 0.0f) {
             ws->weapons[i].anim -= (float)dt * 4.0f;
-            if (ws->weapons[i].anim < 0.0f) ws->weapons[i].anim = 0.0f;
+            if (ws->weapons[i].anim < 0.0f) {
+                ws->weapons[i].anim = 0.0f;
+            }
         }
     }
 }
@@ -40,14 +62,20 @@ void weapon_update(WeaponSystem *ws, double dt) {
 /* For each enemy, compute its screen-space column band (center x + half width)
  * at the player's current view, plus perpWallDist. Returns 1 if computed.
  * The "ray screen x" is the column where the fire ray would be drawn. */
-static int enemy_screen_band(const Player *p, const Enemy *e, int *cx_out, int *halfw_out, float *depth_out) {
+static int enemy_screen_band(const Player *p, const Enemy *e, int *cx_out, int *halfw_out,
+                             float *depth_out)
+{
     float dx = e->x - p->x;
     float dy = e->y - p->y;
     float det = p->plane_x * p->dir_y - p->plane_y * p->dir_x;
-    if (fabsf(det) < 1e-6f) return 0;
+    if (fabsf(det) < 1e-6f) {
+        return 0;
+    }
     float transformX = (p->dir_y * dx - p->dir_x * dy) / det;
     float transformY = (-p->plane_y * dx + p->plane_x * dy) / det;
-    if (transformY <= 0.1f) return 0; /* behind camera */
+    if (transformY <= 0.1f) {
+        return 0; /* behind camera */
+    }
     int screenX = (int)((SCREEN_W / 2.0f) * (1.0f + transformX / transformY));
     int spriteHeight = (int)fabsf((float)SCREEN_H / transformY);
     int halfW = spriteHeight / 2; /* assume square sprite width */
@@ -57,12 +85,16 @@ static int enemy_screen_band(const Player *p, const Enemy *e, int *cx_out, int *
     return 1;
 }
 
-void weapon_try_fire(WeaponSystem *ws, const Player *p, EnemyList *el,
-                     SpriteList *sl, Audio *au) {
+void weapon_try_fire(WeaponSystem *ws, const Player *p, EnemyList *el, SpriteList *sl, Audio *au)
+{
     Weapon *w = &ws->weapons[ws->current];
-    if (w->cooldown > 0.0f) return;
+    if (w->cooldown > 0.0f) {
+        return;
+    }
     if (w->ammo <= 0) {
-        if (au) audio_play_volume(au, SND_NO_AMMO, 0.5f);
+        if (au) {
+            audio_play_volume(au, SND_NO_AMMO, 0.5f);
+        }
         return;
     }
 
@@ -71,8 +103,7 @@ void weapon_try_fire(WeaponSystem *ws, const Player *p, EnemyList *el,
     w->anim = 1.0f;
 
     if (au) {
-        audio_play_volume(au,
-            ws->current == WEAPON_PISTOL ? SND_PISTOL : SND_SHOTGUN, 0.5f);
+        audio_play_volume(au, ws->current == WEAPON_PISTOL ? SND_PISTOL : SND_SHOTGUN, 0.5f);
     }
 
     /* For each pellet, pick a random spread angle around view direction,
@@ -90,8 +121,11 @@ void weapon_try_fire(WeaponSystem *ws, const Player *p, EnemyList *el,
         float rayDirY = p->dir_x * sinA + p->dir_y * cosA;
         /* compute screen column for this ray (cameraX derived from dir/plane) */
         float det = p->plane_x * p->dir_y - p->plane_y * p->dir_x;
-        if (fabsf(det) < 1e-6f) continue;
-        /* cameraX satisfies: rayDir = dir + plane*cameraX => solve for cameraX via dot with plane-perp */
+        if (fabsf(det) < 1e-6f) {
+            continue;
+        }
+        /* cameraX satisfies: rayDir = dir + plane*cameraX => solve for cameraX via dot with
+         * plane-perp */
         /* We'll instead reuse the standard formula using transform: */
         float perpDist;
         float camX;
@@ -102,8 +136,12 @@ void weapon_try_fire(WeaponSystem *ws, const Player *p, EnemyList *el,
         int screenX = (int)((float)SCREEN_W * (1.0f + camX) * 0.5f);
         (void)perpDist;
         (void)det;
-        if (screenX < 0) screenX = 0;
-        if (screenX >= SCREEN_W) screenX = SCREEN_W - 1;
+        if (screenX < 0) {
+            screenX = 0;
+        }
+        if (screenX >= SCREEN_W) {
+            screenX = SCREEN_W - 1;
+        }
 
         /* wall distance at this screen column (zBuffer) */
         float wallDist = zBuffer[screenX];
@@ -113,12 +151,20 @@ void weapon_try_fire(WeaponSystem *ws, const Player *p, EnemyList *el,
         float bestDepth = 1e30f;
         for (int i = 0; i < el->count; i++) {
             Enemy *e = &el->items[i];
-            if (e->state == ESTATE_DEAD) continue;
+            if (e->state == ESTATE_DEAD) {
+                continue;
+            }
             int cx, halfw;
             float depth;
-            if (!enemy_screen_band(p, e, &cx, &halfw, &depth)) continue;
-            if (depth >= wallDist) continue; /* occluded by wall */
-            if (screenX < cx - halfw || screenX > cx + halfw) continue;
+            if (!enemy_screen_band(p, e, &cx, &halfw, &depth)) {
+                continue;
+            }
+            if (depth >= wallDist) {
+                continue; /* occluded by wall */
+            }
+            if (screenX < cx - halfw || screenX > cx + halfw) {
+                continue;
+            }
             if (depth < bestDepth) {
                 bestDepth = depth;
                 best = i;

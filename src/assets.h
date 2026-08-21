@@ -11,8 +11,8 @@ typedef struct {
 } Texture;
 
 typedef struct {
-    Texture wall_brick;     /* cell type 1 */
-    Texture wall_door;      /* cell type 2 */
+    Texture wall_brick; /* cell type 1 */
+    Texture wall_door;  /* cell type 2 */
     Texture floor_tex;
     Texture ceiling_tex;
     Texture sprite_barrel;
@@ -26,7 +26,7 @@ typedef struct {
     Texture weapon_shotgun;
 } Assets;
 
-int  assets_init(Assets *a);
+int assets_init(Assets *a);
 void assets_shutdown(Assets *a);
 
 /* Load PNG from path into tex (replaces existing). Returns 0 on success. */

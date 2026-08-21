@@ -23,23 +23,35 @@ typedef struct {
     uint32_t *pixels;
 } Framebuffer;
 
-static inline float clampf(float v, float lo, float hi) {
-    if (v < lo) return lo;
-    if (v > hi) return hi;
+static inline float clampf(float v, float lo, float hi)
+{
+    if (v < lo) {
+        return lo;
+    }
+    if (v > hi) {
+        return hi;
+    }
     return v;
 }
 
-static inline int clampi(int v, int lo, int hi) {
-    if (v < lo) return lo;
-    if (v > hi) return hi;
+static inline int clampi(int v, int lo, int hi)
+{
+    if (v < lo) {
+        return lo;
+    }
+    if (v > hi) {
+        return hi;
+    }
     return v;
 }
 
-static inline uint32_t make_color(uint8_t r, uint8_t g, uint8_t b) {
+static inline uint32_t make_color(uint8_t r, uint8_t g, uint8_t b)
+{
     return 0xFF000000u | ((uint32_t)b << 16) | ((uint32_t)g << 8) | (uint32_t)r;
 }
 
-static inline uint32_t shade_color(uint32_t c, float factor) {
+static inline uint32_t shade_color(uint32_t c, float factor)
+{
     uint8_t r = (uint8_t)(c & 0xFF);
     uint8_t g = (uint8_t)((c >> 8) & 0xFF);
     uint8_t b = (uint8_t)((c >> 16) & 0xFF);
