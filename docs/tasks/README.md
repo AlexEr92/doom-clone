@@ -129,6 +129,8 @@
 | [feat-001](feat-001-file-textures-weapon-enemy.md) | Файловые PNG-текстуры оружия и врагов | `assets.c` |
 | [test-001](test-001-unit-test-harness.md) | Подключить Unity, покрыть тестами то, что уже тестируемо | `tests/`, `vendor/unity/` |
 | [chore-001](chore-001-github-actions-ci.md) | CI на трёх платформах через GitHub Actions | `.github/workflows/` |
+| [chore-002](chore-002-dead-ternary-text-width.md) | Убрать неработающий тернарник в `text_width()` | `game.c` |
+| [chore-003](chore-003-const-correctness-lint.md) | Три параметра/переменных без `const` | `game.c`, `item.c`, `map.c` |
 
 ## Закрытые
 
