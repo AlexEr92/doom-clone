@@ -31,8 +31,11 @@ int engine_init(Engine *e) {
         return -1;
     }
 
+    /* Must match the byte order make_color() packs (utils.h): 0xAABBGGRR,
+     * i.e. red in the low byte. ARGB8888 would swap the red and blue
+     * channels of every colour in the game. */
     e->screen_texture = SDL_CreateTexture(e->renderer,
-                                          SDL_PIXELFORMAT_ARGB8888,
+                                          SDL_PIXELFORMAT_ABGR8888,
                                           SDL_TEXTUREACCESS_STREAMING,
                                           SCREEN_W, SCREEN_H);
     if (!e->screen_texture) {

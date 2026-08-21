@@ -29,8 +29,11 @@ typedef struct {
     int loaded;
 } World;
 
-static void world_load(World *w, const char *map_path) {
-    map_load(&w->map, map_path);
+static int world_load(World *w, const char *map_path) {
+    if (map_load(&w->map, map_path) != 0) {
+        w->loaded = 0;
+        return -1;
+    }
     player_init(&w->player, w->map.start_x, w->map.start_y);
     sprite_init(&w->sprites);
     enemy_list_init(&w->enemies);
@@ -67,6 +70,7 @@ static void world_load(World *w, const char *map_path) {
 
     door_discover(&w->doors, &w->map);
     w->loaded = 1;
+    return 0;
 }
 
 int main(int argc, char **argv) {
@@ -98,7 +102,15 @@ int main(int argc, char **argv) {
     game_init(&game, &eng);
 
     World world;
-    world_load(&world, map_path);
+    if (world_load(&world, map_path) != 0) {
+        fprintf(stderr, "Failed to load map '%s'. Run from the project root "
+                        "(assets are resolved relative to the working directory).\n",
+                map_path);
+        assets_shutdown(&assets);
+        audio_shutdown(&audio);
+        engine_shutdown(&eng);
+        return 1;
+    }
     world.audio = audio;
 
     InputState input;
@@ -139,7 +151,11 @@ int main(int argc, char **argv) {
          * set by the event handler (GSTATE_MENU for pause/dead/win, or
          * GSTATE_PLAYING for menu->start). */
         if (game.restart) {
-            world_load(&world, map_path);
+            if (world_load(&world, map_path) != 0) {
+                fprintf(stderr, "Failed to reload map '%s'\n", map_path);
+                eng.running = 0;
+                break;
+            }
             world.audio = audio;
             game.restart = 0;
             input_init(&input);
