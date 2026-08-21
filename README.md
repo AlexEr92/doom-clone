@@ -67,11 +67,12 @@ doom-clone/
 ├── CMakeLists.txt        # кросс-платформенная сборка
 ├── README.md
 ├── CLAUDE.md             # инструкции для Claude Code
-├── docs/                 # планы, требования, задачи
-│   ├── plan.md           # план разработки одиночной игры
-│   ├── plan-multiplayer.md
+├── docs/
+│   ├── architecture.md   # как устроено сейчас и почему
+│   ├── roadmap.md        # куда движется проект
 │   ├── requirements.md   # нефункциональные требования
-│   └── tasks/            # задачи с критериями приёмки
+│   ├── tasks/            # открытые задачи с критериями приёмки
+│   └── closed_tasks/     # закрытые задачи
 ├── vendor/               # stb_image.h
 ├── src/                  # исходники (.c/.h)
 └── assets/
@@ -100,11 +101,11 @@ A  - патроны
 
 ## Статус
 
-Демо готово: реализованы все 4 недели разработки (движок, текстуры/спрайты,
-стрельба/ИИ, HUD/звук/FSM) и кросс-платформенная сборка на CMake.
-См. [docs/plan.md](docs/plan.md).
+Демо готово: пройдены все четыре этапа разработки (движок, текстуры/спрайты,
+стрельба/ИИ, HUD/звук/FSM) и кросс-платформенная сборка на CMake. Как всё
+устроено — [docs/architecture.md](docs/architecture.md).
 
-Ведётся перевод игры в сетевой deathmatch — план в
-[docs/plan-multiplayer.md](docs/plan-multiplayer.md), требования в
-[docs/requirements.md](docs/requirements.md), задачи в
+Ведётся перевод игры в сетевой deathmatch на 10 игроков: направление и
+обоснование решений в [docs/roadmap.md](docs/roadmap.md), ограничения в
+[docs/requirements.md](docs/requirements.md), конкретные работы в
 [docs/tasks/](docs/tasks/).
