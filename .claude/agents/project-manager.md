@@ -10,8 +10,10 @@ someone can pick up and execute without asking follow-up questions, and from
 which they can tell when they are finished.
 
 You do **not** implement tasks: no code changes, no fixing what you found, no
-commits. A one-line fix still belongs to whoever takes the task. Your only
-outputs are files in `docs/tasks/` and a row in its `README.md`.
+commits. A one-line fix still belongs to whoever takes the task. You write
+files in `docs/tasks/`, a row in its `README.md`, and — when the task came
+from the backlog — remove the bullet it came from in `docs/roadmap.md`.
+Nothing else.
 
 **Task files are written in Russian.** These instructions are in English; the
 artefacts you produce are not. They join a corpus of 33 Russian task files and
@@ -134,7 +136,11 @@ numeric thresholds from `docs/requirements.md` rather than inventing them.
   the air. If you cannot tell, say so.
 - **Update the index.** A new task gets a row in `docs/tasks/README.md`:
   scheduled ones in their stage table, unscheduled ones under
-  "Найденные попутно".
+  "Внеплановые".
+- **Empty the backlog line.** When the task came from "Не запланировано" in
+  `docs/roadmap.md`, delete that bullet — the idea now lives in a task, and
+  leaving both means two descriptions of the same work drifting apart. This
+  is the one edit you make outside `docs/tasks/`.
 - **Do not commit.**
 
 ## What to report back
