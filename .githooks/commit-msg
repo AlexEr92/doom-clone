@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Validate the commit message against the project's rules (CLAUDE.md).
+# Enabled by: git config core.hooksPath .githooks
+set -uo pipefail
+
+msg_file="$1"
+root="$(git rev-parse --show-toplevel)"
+checker="$root/.claude/skills/git-commit/check-message.sh"
+
+# Merges, fixups and squashes carry generated subjects that the rules do not
+# describe; reverts keep the reverted subject. Leave them alone.
+subject="$(grep -v '^#' "$msg_file" | head -1)"
+case "$subject" in
+    Merge\ *|fixup!\ *|squash!\ *|Revert\ *) exit 0 ;;
+esac
+
+# An empty message aborts the commit anyway — let git say so.
+[ -n "${subject// /}" ] || exit 0
+
+[ -x "$checker" ] || exit 0
+
+if ! "$checker" "$msg_file" >/dev/null 2>&1; then
+    echo "Сообщение коммита не соответствует правилам (CLAUDE.md):" >&2
+    "$checker" "$msg_file" >&2
+    echo >&2
+    echo "Отредактируй сообщение и повтори. Обойти: git commit --no-verify" >&2
+    exit 1
+fi

@@ -25,6 +25,25 @@ this; a bare `./build/doom-clone` from elsewhere exits with an error.
 New `.c` files must be added to the source list in `CMakeLists.txt`; there
 is no glob.
 
+### Git hooks
+
+Hooks live in `.githooks/` and are **off until enabled per clone** — git does
+not version `.git/hooks/`:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+| Hook | Does | Costs |
+|---|---|---|
+| `commit-msg` | validates the message via `.claude/skills/git-commit/check-message.sh` | milliseconds |
+| `pre-commit` | refuses staged `src/*.c`/`*.h` that do not match `.clang-format` | ~0.2s |
+| `pre-push` | builds, runs `ctest` if `tests/` exists, then `driver.sh smoke` | ~9s |
+
+`pre-commit` checks the **staged** content, not the working tree, and never
+rewrites files — run `clang-format -i` yourself and re-stage. `--no-verify`
+bypasses any of them.
+
 ### Running headless / driving the game
 
 There is no test suite (see [Ongoing work](#ongoing-work)). To verify a

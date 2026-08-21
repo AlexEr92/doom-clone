@@ -44,6 +44,19 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug   # отладочная сборк
 Цель `run` делает это автоматически. Исполняемый файл: `build/doom-clone`
 (или `build/doom-clone.exe` на Windows).
 
+### Git-хуки
+
+Хуки лежат в `.githooks/` и включаются один раз на клон — каталог
+`.git/hooks/` не версионируется:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Они проверяют сообщение коммита, форматирование проиндексированных
+исходников и — перед push — сборку со smoke-прогоном. Подробности в
+[CLAUDE.md](CLAUDE.md). Обойти любой: `--no-verify`.
+
 ## Управление
 
 | Клавиша | Действие |
