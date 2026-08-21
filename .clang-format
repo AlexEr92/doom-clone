@@ -1,0 +1,54 @@
+# Стиль K&R: отступ 4 пробела, табы не используются.
+# Открывающая скобка функции — на следующей строке, у if/else/for/while/switch
+# и у struct/enum/union — на той же.
+# Тело if/else всегда в скобках и всегда со следующей строки.
+---
+Language: Cpp
+BasedOnStyle: LLVM
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 8
+ColumnLimit: 100
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true
+  AfterControlStatement: Never
+  AfterStruct: false
+  AfterUnion: false
+  AfterEnum: false
+  AfterCaseLabel: false
+  BeforeElse: false
+  BeforeWhile: false
+  IndentBraces: false
+  SplitEmptyFunction: false
+
+# Указатель прижат к имени: `Player *p`, не `Player* p`.
+PointerAlignment: Right
+DerivePointerAlignment: false
+
+# Скобки обязательны у любого тела управляющей конструкции — clang-format
+# дописывает их сам, если их нет.
+InsertBraces: true
+
+# Никаких однострочных if/else и никаких схлопнутых блоков:
+# тело всегда на строке после `if (...) {`.
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortBlocksOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortCaseLabelsOnASingleLine: true
+
+IndentCaseLabels: true
+
+# Порядок #include в main.c значим и подобран вручную — не переставлять.
+SortIncludes: Never
+
+AlignAfterOpenBracket: Align
+AlignTrailingComments: true
+SpaceBeforeParens: ControlStatements
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+InsertNewlineAtEOF: true
