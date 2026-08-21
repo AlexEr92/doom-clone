@@ -33,8 +33,8 @@ void raycast_render(Framebuffer *fb, const Player *p, const Map *m,
 
     for (int x = 0; x < SCREEN_W; x++) {
         float cameraX = 2.0f * (float)x / (float)SCREEN_W - 1.0f;
-        float rayDirX = p->dirX + p->planeX * cameraX;
-        float rayDirY = p->dirY + p->planeY * cameraX;
+        float rayDirX = p->dir_x + p->plane_x * cameraX;
+        float rayDirY = p->dir_y + p->plane_y * cameraX;
 
         int mapX = (int)p->x;
         int mapY = (int)p->y;

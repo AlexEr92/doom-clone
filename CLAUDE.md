@@ -47,8 +47,8 @@ patterns match the calling shell.
 This is the single most important thing to know, and it is invisible from
 any one file:
 
-- **`Player` mixes state with camera.** `player.h` holds `dirX/dirY` *and*
-  `planeX/planeY` — the latter is a rendering artifact (FOV), not gameplay.
+- **`Player` mixes state with camera.** `player.h` holds `dir_x/dir_y` *and*
+  `plane_x/plane_y` — the latter is a rendering artifact (FOV), not gameplay.
 - **Hitscan runs in screen space.** `weapon_try_fire()` (`weapon.c`) finds
   hits by projecting enemies to screen columns via `enemy_screen_band()`
   and testing the global `zBuffer[SCREEN_W]`, which is filled by

@@ -10,10 +10,10 @@
 `player.h:10-16` смешивает симуляцию и рендер:
 
 ```c
-typedef struct { float x, y; float dirX, dirY; float planeX, planeY; float hp, armor; } Player;
+typedef struct { float x, y; float dir_x, dir_y; float plane_x, plane_y; float hp, armor; } Player;
 ```
 
-`planeX/planeY` — артефакт рендера (FOV 0.66), к игровой логике отношения не
+`plane_x/plane_y` — артефакт рендера (FOV 0.66), к игровой логике отношения не
 имеет. Плюс векторы направления нельзя корректно интерполировать между
 снапшотами, а углы — тривиально. В пакете это 4 float вместо 1.
 
@@ -29,11 +29,11 @@ typedef struct { float x, y; float dirX, dirY; float planeX, planeY; float hp, a
       float respawn_timer;
   } PlayerState;
   ```
-- [ ] Ввести `Camera { float dirX, dirY, planeX, planeY; }` и функцию
+- [ ] Ввести `Camera { float dir_x, dir_y, plane_x, plane_y; }` и функцию
       `void player_camera(const PlayerState *p, Camera *c);`
       (`dir = (cos a, sin a)`, `plane = FOV_PLANE * (-sin a, cos a)`)
 - [ ] `player_init()` — задавать `angle`, а не векторы (текущее
-      `dirX=-1, dirY=0` → `angle = π`)
+      `dir_x=-1, dir_y=0` → `angle = π`)
 - [ ] `player_update()` (`player.c:32-69`) — вместо поворота векторов
       прибавлять к `angle` и нормализовать в `[-π, π]`; движение считать от
       `cos/sin`, стрейф — от перпендикуляра

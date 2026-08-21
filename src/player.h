@@ -9,8 +9,8 @@ struct DoorList;
 
 typedef struct {
     float x, y;
-    float dirX, dirY;
-    float planeX, planeY;
+    float dir_x, dir_y;
+    float plane_x, plane_y;
     float hp;
     float armor;
 } Player;

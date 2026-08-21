@@ -82,21 +82,21 @@ void sprite_render(Framebuffer *fb, const SpriteList *sl, const Player *p, const
     qsort(order, (size_t)n, sizeof(SpriteOrder), cmp_order);
 
     /* inverse camera: transform world delta to camera space
-     * [ camX ] = [ dirY  -dirX ] [ dx ]
+     * [ camX ] = [ dir_y  -dir_x ] [ dx ]
      * [ camY ]   [ plane...      ]   ... actually standard lodev:
      * invDet used. We use:
-     *   u = (dirY*dx - dirX*dy)
-     *   v = (-planeY*dx + planeX*dy)  ... we need determinant. */
-    float dirX = p->dirX, dirY = p->dirY;
-    float planeX = p->planeX, planeY = p->planeY;
-    float det = planeX * dirY - planeY * dirX; /* determinant of [planeX planeY; dirX dirY] */
+     *   u = (dir_y*dx - dir_x*dy)
+     *   v = (-plane_y*dx + plane_x*dy)  ... we need determinant. */
+    float dir_x = p->dir_x, dir_y = p->dir_y;
+    float plane_x = p->plane_x, plane_y = p->plane_y;
+    float det = plane_x * dir_y - plane_y * dir_x; /* determinant of [plane_x plane_y; dir_x dir_y] */
 
     for (int s = 0; s < n; s++) {
         const Sprite *sp = &sl->items[order[s].idx];
         float dx = sp->x - p->x;
         float dy = sp->y - p->y;
-        float transformX = (dirY * dx - dirX * dy) / det;
-        float transformY = (-planeY * dx + planeX * dy) / det;
+        float transformX = (dir_y * dx - dir_x * dy) / det;
+        float transformY = (-plane_y * dx + plane_x * dy) / det;
         if (transformY <= 0.1f) continue; /* behind camera */
 
         const Texture *tex = sprite_texture(a, sp->type);

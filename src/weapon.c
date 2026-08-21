@@ -43,10 +43,10 @@ void weapon_update(WeaponSystem *ws, double dt) {
 static int enemy_screen_band(const Player *p, const Enemy *e, int *cx_out, int *halfw_out, float *depth_out) {
     float dx = e->x - p->x;
     float dy = e->y - p->y;
-    float det = p->planeX * p->dirY - p->planeY * p->dirX;
+    float det = p->plane_x * p->dir_y - p->plane_y * p->dir_x;
     if (fabsf(det) < 1e-6f) return 0;
-    float transformX = (p->dirY * dx - p->dirX * dy) / det;
-    float transformY = (-p->planeY * dx + p->planeX * dy) / det;
+    float transformX = (p->dir_y * dx - p->dir_x * dy) / det;
+    float transformY = (-p->plane_y * dx + p->plane_x * dy) / det;
     if (transformY <= 0.1f) return 0; /* behind camera */
     int screenX = (int)((SCREEN_W / 2.0f) * (1.0f + transformX / transformY));
     int spriteHeight = (int)fabsf((float)SCREEN_H / transformY);
@@ -86,19 +86,19 @@ void weapon_try_fire(WeaponSystem *ws, const Player *p, EnemyList *el,
         }
         /* rotate direction by angle to get ray direction */
         float cosA = cosf(angle), sinA = sinf(angle);
-        float rayDirX = p->dirX * cosA - p->dirY * sinA;
-        float rayDirY = p->dirX * sinA + p->dirY * cosA;
+        float rayDirX = p->dir_x * cosA - p->dir_y * sinA;
+        float rayDirY = p->dir_x * sinA + p->dir_y * cosA;
         /* compute screen column for this ray (cameraX derived from dir/plane) */
-        float det = p->planeX * p->dirY - p->planeY * p->dirX;
+        float det = p->plane_x * p->dir_y - p->plane_y * p->dir_x;
         if (fabsf(det) < 1e-6f) continue;
         /* cameraX satisfies: rayDir = dir + plane*cameraX => solve for cameraX via dot with plane-perp */
         /* We'll instead reuse the standard formula using transform: */
         float perpDist;
         float camX;
-        /* camX such that dirX + planeX*camX = rayDirX and dirY + planeY*camX = rayDirY */
+        /* camX such that dir_x + plane_x*camX = rayDirX and dir_y + plane_y*camX = rayDirY */
         /* Solve via least squares using plane (camX = (ray . plane) / (plane . plane)) */
-        float pp = p->planeX * p->planeX + p->planeY * p->planeY;
-        camX = ((rayDirX - p->dirX) * p->planeX + (rayDirY - p->dirY) * p->planeY) / pp;
+        float pp = p->plane_x * p->plane_x + p->plane_y * p->plane_y;
+        camX = ((rayDirX - p->dir_x) * p->plane_x + (rayDirY - p->dir_y) * p->plane_y) / pp;
         int screenX = (int)((float)SCREEN_W * (1.0f + camX) * 0.5f);
         (void)perpDist;
         (void)det;

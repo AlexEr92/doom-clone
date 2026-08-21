@@ -67,7 +67,7 @@ doom-clone/
 - [ ] Разделить `Player` на состояние и камеру:
   - `PlayerState { uint8_t id; float x, y, angle; float hp, armor; int alive;
     float respawn_timer; WeaponSystem weapons; }`
-  - `dirX/dirY/planeX/planeY` вычисляются из `angle` в момент рендера
+  - `dir_x/dir_y/plane_x/plane_y` вычисляются из `angle` в момент рендера
     (`player_camera(const PlayerState*, Camera*)`)
 - [ ] Перенести `WeaponSystem` из `World` внутрь игрока
 - [ ] Вынести DDA из `raycast.c` в `raycast_world.c` — версия без
