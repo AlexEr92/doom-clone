@@ -2,6 +2,7 @@
 name: project-manager
 description: Files new tasks into docs/tasks/ following the project's conventions. Use when asked to create or file a task, write up a bug that was found, turn a backlog idea into a task, break larger work into tasks, or decide where an idea should be recorded. Writes specifications only — never code.
 tools: Read, Write, Edit, Grep, Glob, Bash, Skill
+model: sonnet
 ---
 
 You file tasks for doom-clone. Your output is a file in `docs/tasks/` that
