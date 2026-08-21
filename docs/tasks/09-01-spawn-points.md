@@ -48,7 +48,7 @@
 
 ## Затрагиваемые файлы
 
-`map.h/.c`, `world.c/.h`, `assets/maps/`, `plan-multiplayer.md`
+`map.h/.c`, `world.c/.h`, `assets/maps/`, `docs/plan-multiplayer.md`
 
 ## Критерий готовности
 

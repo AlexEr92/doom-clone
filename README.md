@@ -65,8 +65,13 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug   # отладочная сборк
 ```
 doom-clone/
 ├── CMakeLists.txt        # кросс-платформенная сборка
-├── plan.md               # детальный план разработки
 ├── README.md
+├── CLAUDE.md             # инструкции для Claude Code
+├── docs/                 # планы, требования, задачи
+│   ├── plan.md           # план разработки одиночной игры
+│   ├── plan-multiplayer.md
+│   ├── requirements.md   # нефункциональные требования
+│   └── tasks/            # задачи с критериями приёмки
 ├── vendor/               # stb_image.h
 ├── src/                  # исходники (.c/.h)
 └── assets/
@@ -96,4 +101,10 @@ A  - патроны
 ## Статус
 
 Демо готово: реализованы все 4 недели разработки (движок, текстуры/спрайты,
-стрельба/ИИ, HUD/звук/FSM) и кросс-платформенная сборка на CMake. См. `plan.md`.
+стрельба/ИИ, HUD/звук/FSM) и кросс-платформенная сборка на CMake.
+См. [docs/plan.md](docs/plan.md).
+
+Ведётся перевод игры в сетевой deathmatch — план в
+[docs/plan-multiplayer.md](docs/plan-multiplayer.md), требования в
+[docs/requirements.md](docs/requirements.md), задачи в
+[docs/tasks/](docs/tasks/).

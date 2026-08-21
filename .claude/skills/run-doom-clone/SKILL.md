@@ -90,8 +90,9 @@ $D stop
 Artifacts: screenshots in `.run/shots/`, logs in `.run/game.log` and
 `.run/xvfb.log`. `.run/` is gitignored.
 
-`diff` is the tool for render refactors — task `tasks/05-03` requires the
-image to stay pixel-identical, and `compare -metric AE` answers that directly.
+`diff` is the tool for render refactors — task `docs/tasks/05-03` requires
+the image to stay pixel-identical, and `compare -metric AE` answers that
+directly.
 
 ## Run (human path)
 
@@ -103,10 +104,10 @@ Useless headless — it needs a real display. Must run from the project root.
 
 ## Test
 
-There is no test suite. `requirements.md` §9 mandates
+There is no test suite. `docs/requirements.md` §9 mandates
 `tests/replay_test.c` (determinism of `world_step()`), introduced by task
-`tasks/06-01`; it does not exist yet. Until then `driver.sh smoke` is the
-regression check.
+`docs/tasks/06-01`; it does not exist yet. Until then `driver.sh smoke` is
+the regression check.
 
 ## Gotchas
 

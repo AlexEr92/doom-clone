@@ -27,8 +27,9 @@
 ```
 doom-clone/
 ├── CMakeLists.txt    # кросс-платформенная сборка (CMake)
-├── plan.md
 ├── README.md
+├── docs/
+│   └── plan.md
 ├── vendor/
 │   └── stb_image.h              # (неделя 2)
 ├── src/
