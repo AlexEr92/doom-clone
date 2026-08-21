@@ -139,7 +139,9 @@ exist yet; until it does, `driver.sh smoke` is the only regression check.
   `docs/tasks/bug-NNN-slug.md` and keep going; do not fix it inside the diff
   of whatever you were doing. The exception is when the current task cannot
   be verified without the fix — then fix it and say so. `docs/tasks/README.md`
-  has the template and the closing procedure.
+  has the template and the closing procedure, and the `project-manager` agent
+  writes the file for you — it checks the existing tasks for overlap first,
+  which is where filing a duplicate usually happens.
 - **Never reference a commit hash** — not in documentation, not in a commit
   message. Hashes do not survive rebase or squash-merge. Name the change and
   the place instead ("the texture format in `engine_init()`"); it stays true
