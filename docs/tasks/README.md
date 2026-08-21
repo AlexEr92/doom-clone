@@ -129,12 +129,14 @@
 | [bug-001](bug-001-enemy-sees-through-walls.md) | Враг преследует игрока сквозь стены | `enemy.c` |
 | [bug-002](bug-002-door-closes-on-player.md) | Дверь закрывается в стоящем в проёме | `door.c` |
 | [bug-003](bug-003-dead-fire-pressed-field.md) | Мёртвое поле `fire_pressed` | `input.h` |
+| [bug-004](bug-004-audio-init-leak.md) | `audio_init()` теряет 8 WAV-буферов при запуске | `audio.c` |
 | [feat-001](feat-001-file-textures-weapon-enemy.md) | Файловые PNG-текстуры оружия и врагов | `assets.c` |
 | [test-001](test-001-unit-test-harness.md) | Подключить Unity, покрыть тестами то, что уже тестируемо | `tests/`, `vendor/unity/` |
 | [chore-001](chore-001-github-actions-ci.md) | CI на трёх платформах через GitHub Actions | `.github/workflows/` |
 | [chore-002](chore-002-dead-ternary-text-width.md) | Убрать неработающий тернарник в `text_width()` | `game.c` |
 | [chore-003](chore-003-const-correctness-lint.md) | Три параметра/переменных без `const` | `game.c`, `item.c`, `map.c` |
 | [chore-004](chore-004-review-agent.md) | Агент-ревьюер: критерии приёмки, `/lint`, smoke, конвенции | `.claude/agents/` |
+| [chore-005](chore-005-sanitizer-build.md) | Сборка с ASan/UBSan для локальных и CI-прогонов | `CMakeLists.txt`, `driver.sh` |
 
 ## Закрытые
 
