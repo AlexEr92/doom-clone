@@ -51,7 +51,7 @@ Verified output:
 [driver] PASS menu -> gameplay (1.024e+06 px changed)
 [driver] PASS movement (854444 px changed)
 [driver] PASS turn right (884812 px changed)
-[driver] PASS rotation is reversible (pixel-identical)
+[driver] PASS turn left (884812 px changed)
 [driver] PASS weapon fired (ammo 50 -> 49)
 [driver] SMOKE OK
 ```
@@ -92,7 +92,10 @@ Artifacts: screenshots in `.run/shots/`, logs in `.run/game.log` and
 
 `diff` is the tool for render refactors — task `docs/tasks/05-03` requires
 the image to stay pixel-identical, and `compare -metric AE` answers that
-directly.
+directly. Compare frames captured at a **deterministic point**: right after
+`start` (menu) or right after `key Return` (spawn position, before any
+movement). Those reproduce across independent runs and across builds; a
+frame taken after `hold`/`turn` does not.
 
 ## Run (human path)
 
@@ -124,8 +127,12 @@ the regression check.
   `SDL_SetRelativeMouseMode(SDL_TRUE)`; SDL then consumes XInput2 raw motion,
   which xdotool's synthetic events do not reliably reach. Measured under Xvfb:
   a 300px `mousemove` changed 0 pixels, a 600px round trip changed 564. Turn
-  with `a`/`d` instead (`driver.sh turn`) — exact, and reversible to a
-  pixel-identical frame.
+  with `a`/`d` instead (`driver.sh turn`).
+- **Timed input is not reproducible.** `hold`/`turn` take a wall-clock
+  duration, so the number of 60Hz ticks that observe the key varies between
+  runs — the same `turn right 600` was measured changing between 232k and
+  544k pixels. Never assert an exact angle or position, and never compare
+  frames captured after timed movement, not even against the same build.
 - **A quick key tap does not fire.** `main.c:166` reads the *held*
   `input.fire`, not the edge `input.fire_pressed`, so keydown+keyup landing in
   one `SDL_PollEvent` sweep is swallowed before the fixed step runs. Hold

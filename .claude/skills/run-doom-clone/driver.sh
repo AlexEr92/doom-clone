@@ -129,8 +129,11 @@ cmd_hold() {
 # raw motion, which xdotool's synthetic events do not reliably reach. Measured
 # under Xvfb: a 300px `mousemove` produced a 0-pixel frame change, and a
 # 600px round trip produced 564px — i.e. mouse look is effectively dead here.
-# Keyboard turning is exact and reversible (turn right then left returns a
-# pixel-identical frame), which makes it usable in assertions.
+#
+# The hold is wall-clock, so the number of 60Hz ticks that observe the key
+# varies between runs: the same `turn right 600` was measured changing
+# anywhere from 232k to 544k pixels. Never assert an exact angle, and never
+# compare frames taken after timed movement.
 cmd_turn() {
   local dir="${1:?left|right}" ms="${2:-500}" k
   case "$dir" in
@@ -210,16 +213,16 @@ cmd_smoke() {
     info "FAIL turning had no effect"; fail=1
   fi
 
-  # Rotation is exact: turning back by the same amount must restore the frame
-  # bit-for-bit. A non-zero diff means rotation accumulated error or input was
-  # dropped — both are real regressions.
+  # Only that the opposite key also moves the view. Turning back by the same
+  # duration does NOT restore the frame: hold times are wall-clock, so the two
+  # turns see different numbers of ticks.
   cmd_turn left 600
   cmd_shot turned_back >/dev/null
-  d="$(cmd_diff moved turned_back)"
-  if [ "$d" = "0" ]; then
-    info "PASS rotation is reversible (pixel-identical)"
+  d="$(cmd_diff turned turned_back)"
+  if [ "$d" != "0" ]; then
+    info "PASS turn left ($d px changed)"
   else
-    info "FAIL turn back differs by $d px"; fail=1
+    info "FAIL turning left had no effect"; fail=1
   fi
 
   local before after
