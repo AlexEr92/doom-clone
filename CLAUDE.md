@@ -135,6 +135,40 @@ exist yet; until it does, `driver.sh smoke` is the only regression check.
   that produced the edit — the reader did not participate in it and git
   already records the history.
 
+### Code style
+
+Formatting is defined by `.clang-format` (K&R, 4-space indent, no tabs) —
+run it on any file you touch:
+
+```bash
+clang-format -i src/foo.c                        # format one file
+clang-format --dry-run -Werror src/*.c src/*.h   # check without writing
+```
+
+Two rules it enforces that are easy to violate by hand: the opening brace
+of a **function** goes on its own line (control statements keep theirs on
+the same line), and every `if`/`else` body is braced and starts on the next
+line — no `if (x) return;` one-liners.
+
+Naming is **not** enforced by clang-format, so it is on you:
+
+| Kind | Case | Example |
+|---|---|---|
+| Functions | `snake_case` | `enemy_update_all`, `map_is_wall_door` |
+| Struct / enum types | `CamelCase` | `WeaponSystem`, `EnemyState` |
+| Struct fields | `snake_case` | `attack_cooldown`, `plane_x` |
+| Enum constants | `SCREAMING_SNAKE` | `WEAPON_SHOTGUN`, `ESTATE_CHASE` |
+
+Enum constants carry a short prefix shared by every member of that enum.
+The prefix is not mechanically derived from the type name — it is chosen to
+stay short and unambiguous, and two enums on the same subject get different
+ones (`EnemyType` → `ENEMY_`, `EnemyState` → `ESTATE_`; `SoundId` → `SND_`,
+`GameState` → `GSTATE_`). Match the existing prefix when adding a member,
+and pick a free one when adding an enum.
+
+Where an enum needs a size sentinel it goes last and is named
+`<PREFIX>_COUNT` (`ENEMY_COUNT`, `WEAPON_COUNT`, `SND_COUNT`).
+
 ### Commits
 
 Written in English, following the 50/72 rule and prefixed with the type of
