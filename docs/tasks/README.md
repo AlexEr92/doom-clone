@@ -119,6 +119,7 @@
 | [bug-002](bug-002-door-closes-on-player.md) | Дверь закрывается в стоящем в проёме | `door.c` |
 | [bug-003](bug-003-dead-fire-pressed-field.md) | Мёртвое поле `fire_pressed` | `input.h` |
 | [feat-001](feat-001-file-textures-weapon-enemy.md) | Файловые PNG-текстуры оружия и врагов | `assets.c` |
+| [test-001](test-001-unit-test-harness.md) | Подключить Unity, покрыть тестами то, что уже тестируемо | `tests/`, `vendor/unity/` |
 
 ## Закрытые
 
