@@ -87,9 +87,9 @@ Game states (`GSTATE_MENU`, `PLAYING`, `PAUSED`, `DEAD`, `WIN`) live in
 The screen texture is created as `SDL_PIXELFORMAT_ABGR8888` to match, and
 `shade_color()`, `overlay_dim()` (`game.c`) and the stb_image conversion in
 `assets.c` all decompose the same way. Changing any one of these in
-isolation swaps red and blue across the entire game — this was a real bug
-(fixed in `851dc22`), and it is invisible in greys because they are
-symmetric.
+isolation swaps red and blue across the entire game — that was a real bug,
+fixed by matching the texture format in `engine_init()` to the packing, and
+it is invisible in greys because they are symmetric.
 
 ### Assets are generated, not loaded
 
@@ -115,7 +115,8 @@ these before making changes:
 | `docs/plan.md` | Original single-player plan (weeks 1–4, complete) |
 | `docs/plan-multiplayer.md` | Multiplayer plan (weeks 5–9), target config, key decisions |
 | `docs/requirements.md` | Non-functional requirements: performance, latency budget, limits, platforms, testing |
-| `docs/tasks/` | 30 task files with dependencies and acceptance criteria; `docs/tasks/README.md` is the index |
+| `docs/tasks/` | Open tasks with dependencies and acceptance criteria; `docs/tasks/README.md` is the index and states how to close one |
+| `docs/closed_tasks/` | Finished and rejected tasks, each ending in a "Закрыто" note |
 
 Target: up to 10 players, authoritative server over ENet, deathmatch as the
 primary mode with co-op second. Task `docs/tasks/05-04` (replace
@@ -134,6 +135,15 @@ exist yet; until it does, `driver.sh smoke` is the only regression check.
   sections, "previously N players, now 10", or any trace of the conversation
   that produced the edit — the reader did not participate in it and git
   already records the history.
+- **A bug you find in passing becomes a task, not a detour.** File it as
+  `docs/tasks/bug-NNN-slug.md` and keep going; do not fix it inside the diff
+  of whatever you were doing. The exception is when the current task cannot
+  be verified without the fix — then fix it and say so. `docs/tasks/README.md`
+  has the template and the closing procedure.
+- **Never reference a commit hash** — not in documentation, not in a commit
+  message. Hashes do not survive rebase or squash-merge. Name the change and
+  the place instead ("the texture format in `engine_init()`"); it stays true
+  and `git log -S` finds the commit anyway.
 
 ### Code style
 
