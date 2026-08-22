@@ -65,6 +65,8 @@ typedef struct {
     int fit;      /* 1 = scale so the largest blob fits the frame */
     float fill;   /* otherwise: share of the frame height the reference takes */
     int per_blob; /* 1 = one file per blob, names come from --names */
+    int per_row;  /* 1 = one file per row, names come from --names */
+    int centred;  /* 1 = anchor on the middle of the box instead of the feet */
 } Profile;
 
 static const Profile PROFILES[] = {
@@ -78,10 +80,13 @@ static const Profile PROFILES[] = {
           {1, {{"death", "", 0}}}},
          0,
          0.85f,
+         0,
+         0,
          0},
-        {"weapon_fp", 128, 128, 1, {{1, {{"", "_fp", 0}}}}, 1, 0.0f, 0},
-        {"strip", 64, 64, 1, {{1, {{"", "", 0}}}}, 1, 0.0f, 0},
-        {"singles", 64, 64, 1, {{1, {{"", "", 0}}}}, 1, 0.0f, 1},
+        {"weapon_fp", 128, 128, 1, {{1, {{"", "_fp", 0}}}}, 1, 0.0f, 0, 0, 0},
+        {"strip", 64, 64, 1, {{1, {{"", "", 0}}}}, 1, 0.0f, 0, 0, 1},
+        {"singles", 64, 64, 1, {{1, {{"", "", 0}}}}, 1, 0.0f, 1, 0, 1},
+        {"rows", 64, 64, 0, {{0, {{"", "", 0}}}}, 1, 0.0f, 0, 1, 1},
 };
 
 static const int PROFILE_COUNT = (int)(sizeof(PROFILES) / sizeof(PROFILES[0]));
@@ -140,7 +145,8 @@ static void build_alpha(Src *s)
 {
     size_t n = (size_t)s->w * s->h;
     for (size_t i = 0; i < n; i++) {
-        int d = chan_dist(s->rgb + i * 3, s->bg);
+        const unsigned char *c = s->rgb + i * 3;
+        int d = chan_dist(c, s->bg);
         int a;
         if (d <= TOL_BG) {
             a = 0;
@@ -148,6 +154,13 @@ static void build_alpha(Src *s)
             a = 255;
         } else {
             a = (d - TOL_BG) * 255 / (TOL_FG - TOL_BG);
+        }
+        /* A pixel on the key axis is the background mixed with something,
+         * however far from it the distance says it is. How far it travelled
+         * along that mix is the honest estimate of its coverage — calling it
+         * solid is what let a fringe survive a heavy downscale. */
+        if (is_key_tinted(c) && d < a) {
+            a = d;
         }
         s->alpha[i] = (unsigned char)a;
     }
@@ -195,7 +208,7 @@ static int find_bands(const unsigned char *occ, int n, int min_gap, int min_len,
     return kept;
 }
 
-static void measure_blob(const Src *s, Blob *b)
+static void measure_blob(const Src *s, Blob *b, int centred)
 {
     int top = b->y1, bot = b->y0;
     for (int y = b->y0; y <= b->y1; y++) {
@@ -214,10 +227,18 @@ static void measure_blob(const Src *s, Blob *b)
     b->y0 = top;
     b->y1 = bot;
 
-    /* Anchor on the bottom fifth of the silhouette — the feet of a character,
-     * the hands of a first-person weapon. The bounding box centre would do
-     * instead, but a muzzle flash sticking out to one side drags it along and
-     * the whole figure jumps sideways on the firing frame. */
+    /* A thing that stands on the ground is anchored by what touches it: the
+     * feet of a character, the hands holding a weapon. The bounding box
+     * centre would do instead, but a muzzle flash sticking out to one side
+     * drags it along and the whole figure jumps sideways when firing.
+     *
+     * A thing that lies on the floor or hangs in the air has no such point,
+     * and a rifle drawn diagonally would be anchored by its butt and hang
+     * out of the frame. Those are centred on the box. */
+    if (centred) {
+        b->anchor_x = (b->x0 + b->x1) / 2;
+        return;
+    }
     int cut = b->y1 - (b->y1 - b->y0) / 5;
     int lo = b->x1, hi = b->x0, any = 0;
     for (int y = cut; y <= b->y1; y++) {
@@ -237,7 +258,8 @@ static void measure_blob(const Src *s, Blob *b)
     b->anchor_x = any ? (lo + hi) / 2 : (b->x0 + b->x1) / 2;
 }
 
-static int segment(const Src *s, SheetRow *rows, int max_rows, int min_gap, int min_len)
+static int segment(const Src *s, SheetRow *rows, int max_rows, int min_gap, int min_len,
+                   int centred)
 {
     unsigned char *occ = (unsigned char *)malloc((size_t)(s->w > s->h ? s->w : s->h));
     int *bands = (int *)malloc(sizeof(int) * 2 * MAX_BLOBS);
@@ -296,7 +318,7 @@ static int segment(const Src *s, SheetRow *rows, int max_rows, int min_gap, int 
             b->y0 = row->y0;
             b->y1 = row->y1;
             b->clip_y0 = row->y0;
-            measure_blob(s, b);
+            measure_blob(s, b, centred);
             if (b->y1 > row->ground) {
                 row->ground = b->y1;
             }
@@ -553,7 +575,8 @@ static void usage(void)
     fprintf(stderr,
             "использование: prepare_sheet <raw.png> --profile <профиль> --out <каталог>\n"
             "               [--name <база>] [--names a,b,c] [--fw N --fh N]\n"
-            "               [--fill 0.85] [--shrink] [--min-gap N] [--min-size N] [--debug]\n"
+            "               [--fill 0.85] [--shrink] [--each-scale] [--min-gap N] [--min-size N]\n"
+            "               [--debug]\n"
             "\nпрофили: ");
     for (int i = 0; i < PROFILE_COUNT; i++) {
         fprintf(stderr, "%s%s", PROFILES[i].name, i + 1 < PROFILE_COUNT ? ", " : "\n");
@@ -565,7 +588,7 @@ int main(int argc, char **argv)
     const char *src_path = NULL, *prof_name = NULL, *out_dir = NULL;
     const char *base = NULL, *names = NULL;
     int fw = 0, fh = 0, shrink = 0, debug = 0;
-    int min_gap = 12, min_size = 16;
+    int min_gap = 12, min_size = 16, each_scale = 0;
     float fill = -1.0f;
 
     for (int i = 1; i < argc; i++) {
@@ -590,6 +613,8 @@ int main(int argc, char **argv)
             min_gap = atoi(argv[++i]);
         } else if (!strcmp(a, "--min-size") && i + 1 < argc) {
             min_size = atoi(argv[++i]);
+        } else if (!strcmp(a, "--each-scale")) {
+            each_scale = 1;
         } else if (!strcmp(a, "--shrink")) {
             shrink = 1;
         } else if (!strcmp(a, "--debug")) {
@@ -642,7 +667,7 @@ int main(int argc, char **argv)
     printf("%s: %dx%d, фон #%02X%02X%02X\n", src_path, s.w, s.h, s.bg[0], s.bg[1], s.bg[2]);
 
     SheetRow rows[MAX_ROWS];
-    int nrows = segment(&s, rows, MAX_ROWS, min_gap, min_size);
+    int nrows = segment(&s, rows, MAX_ROWS, min_gap, min_size, prof->centred);
     if (nrows <= 0) {
         fprintf(stderr, "prepare_sheet: не удалось разобрать лист на объекты\n");
         return 1;
@@ -706,6 +731,43 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    /* per_row: each row of the sheet is one animation, named on the command
+     * line — two unrelated effects ordered on one picture, say. The scale
+     * stays common to the whole sheet, so the rows keep their relative size. */
+    if (prof->per_row) {
+        if (!names) {
+            fprintf(stderr, "prepare_sheet: профиль %s требует --names\n", prof->name);
+            return 2;
+        }
+        char list[512];
+        snprintf(list, sizeof(list), "%.500s", names);
+        char *save = list;
+        for (int r = 0; r < nrows; r++) {
+            char *comma = strchr(save, ',');
+            if (comma) {
+                *comma = '\0';
+            }
+            if (!*save) {
+                fprintf(stderr, "prepare_sheet: имён в --names меньше, чем рядов (%d)\n", nrows);
+                return 1;
+            }
+            int grounds[MAX_BLOBS];
+            for (int i = 0; i < rows[r].n; i++) {
+                grounds[i] = rows[r].ground;
+            }
+            if (write_sheet(&s, rows[r].blobs, grounds, rows[r].n, scale, fw, fh, out_dir, save) !=
+                0) {
+                return 1;
+            }
+            save = comma ? comma + 1 : save + strlen(save);
+        }
+        if (*save) {
+            fprintf(stderr, "prepare_sheet: имён в --names больше, чем рядов (%d)\n", nrows);
+            return 1;
+        }
+        return 0;
+    }
+
     /* per_blob: one file per object, names given on the command line */
     if (prof->per_blob) {
         if (!names) {
@@ -731,8 +793,23 @@ int main(int argc, char **argv)
                             total);
                     return 1;
                 }
-                int g = rows[r].ground;
-                if (write_sheet(&s, &rows[r].blobs[i], &g, 1, scale, fw, fh, out_dir, save) != 0) {
+                /* Each object here is a file of its own, with no animation
+                 * to keep in step, so it stands on its own bottom rather
+                 * than on the line shared by the row. Otherwise a pickup
+                 * drawn higher than its neighbours hovers above the floor. */
+                int g = rows[r].blobs[i].y1;
+                /* A HUD icon is looked at alone, in a box of its own, so it
+                 * should fill that box; a weapon lying on the floor is seen
+                 * next to the others and has to keep its size relative to
+                 * them. Hence the choice rather than a rule. */
+                float sc = scale;
+                if (each_scale) {
+                    const Blob *b = &rows[r].blobs[i];
+                    float sx = (float)(fw - 2) / (float)(b->x1 - b->x0 + 1);
+                    float sy = (float)(fh - 1) / (float)(b->y1 - b->y0 + 1);
+                    sc = sx < sy ? sx : sy;
+                }
+                if (write_sheet(&s, &rows[r].blobs[i], &g, 1, sc, fw, fh, out_dir, save) != 0) {
                     return 1;
                 }
                 used++;

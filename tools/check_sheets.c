@@ -65,8 +65,17 @@ static const struct {
     const char *name;
     int frames;
 } EXPECTED[] = {
-        {"idle", 1}, {"run", 4},       {"shoot", 5}, {"pain", 5}, {"death", 5},
-        {"face", 7}, {"explosion", 6}, {"blood", 3}, {"puff", 3}, {"grenade", 1},
+        {"idle", 1},
+        {"run", 4},
+        {"shoot", 5},
+        {"pain", 5},
+        {"death", 5},
+        {"face", 7},
+        {"explosion", 6},
+        {"blood", 3},
+        {"puff", 3},
+        {"grenade", 1},
+        {"grenade_launcher_fp", 6},
 };
 
 static int expected_frames(const char *base)

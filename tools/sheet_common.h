@@ -28,6 +28,9 @@
  * whether the output pixel is drawn, not what colour it is. */
 #define A_TRUSTED 255
 
+/* Below this brightness a pixel is black, not a colour on any axis. */
+#define TINT_MIN_LEVEL 32
+
 /* A pixel sitting on the magenta axis — red and blue both far above green,
  * and close to each other — is the key colour mixed with something darker,
  * not a colour anyone drew. Distance alone does not catch these: the dark
@@ -39,7 +42,9 @@ static inline int is_key_tinted(const unsigned char *c)
     int lo = c[0] < c[2] ? c[0] : c[2];
     int hi = c[0] > c[2] ? c[0] : c[2];
     int spread = c[0] > c[2] ? c[0] - c[2] : c[2] - c[0];
-    return c[1] * 3 < lo && spread * 4 <= hi;
+    /* Near-black has no hue to lean anywhere: an outline drawn in it trips
+     * every ratio here while being nothing of the sort. */
+    return hi >= TINT_MIN_LEVEL && c[1] * 3 < lo && spread * 4 <= hi;
 }
 
 static inline int chan_dist(const unsigned char *p, const unsigned char *q)
