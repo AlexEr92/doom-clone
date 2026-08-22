@@ -7,6 +7,8 @@ struct PlayerState;
 struct EnemyList;
 struct SpriteList;
 struct Audio;
+struct Map;
+struct DoorList;
 
 typedef enum { WEAPON_PISTOL = 0, WEAPON_SHOTGUN, WEAPON_COUNT } WeaponType;
 
@@ -34,15 +36,16 @@ void weapon_system_init(WeaponSystem *ws);
 /* Switch p's weapon by index (0..WEAPON_COUNT-1). */
 void weapon_switch(struct PlayerState *p, int idx);
 
-/* Try to fire p's current weapon. Performs hitscan against enemies:
- * - ray(s) from player along view dir (+ spread)
- * - finds nearest enemy whose screen AABB contains the ray's screen column
- *   and is not occluded by a wall (zBuffer check)
- * Applies damage and triggers weapon anim + cooldown.
- * au may be NULL (no audio).
+/* Try to fire p's current weapon. One world ray per pellet, cast from the
+ * shooter along its facing plus the weapon's spread, stopped by walls and
+ * closed doors; whatever live entity it reaches first takes the damage.
+ * `players` is the array p itself lives in, so a shot cannot hit its owner.
+ * el and sl may be NULL for a world with no enemies; au may be NULL.
+ * Also triggers the weapon animation and cooldown.
  */
-void weapon_try_fire(struct PlayerState *p, struct EnemyList *el, struct SpriteList *sl,
-                     struct Audio *au);
+void weapon_try_fire(struct PlayerState *p, const struct Map *m, const struct DoorList *dl,
+                     struct PlayerState *players, int player_count, struct EnemyList *el,
+                     struct SpriteList *sl, struct Audio *au);
 
 /* Per-tick update of p's cooldowns / animation. */
 void weapon_update(struct PlayerState *p, double dt);

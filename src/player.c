@@ -24,7 +24,25 @@ void player_init(PlayerState *p, int start_x, int start_y)
     p->armor = 0.0f;
     p->alive = 1;
     p->respawn_timer = 0.0f;
+    p->last_attacker = -1;
     weapon_system_init(&p->weapons);
+}
+
+void player_damage(PlayerState *victim, float dmg, int attacker_id)
+{
+    if (victim->armor > 0.0f) {
+        float absorbed = dmg * 0.5f;
+        if (absorbed > victim->armor) {
+            absorbed = victim->armor;
+        }
+        victim->armor -= absorbed;
+        dmg -= absorbed;
+    }
+    victim->hp -= dmg;
+    if (victim->hp < 0.0f) {
+        victim->hp = 0.0f;
+    }
+    victim->last_attacker = (int8_t)attacker_id;
 }
 
 /* Fold an angle back into [-PI, PI]. Without this the angle drifts over a

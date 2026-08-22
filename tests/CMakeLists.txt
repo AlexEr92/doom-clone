@@ -69,6 +69,9 @@ doom_test(enemy  SRC enemy.c raycast_world.c map.c door.c)
 # item.c вызывает audio_play_volume() без проверки на NULL, поэтому линкуется
 # настоящий audio.c: он безопасен для обнулённого Audio (available == 0).
 doom_test(item   SRC item.c audio.c LINK ${TEST_SDL2_LIBS} ${TEST_SDL2_MIXER_LIBS})
-doom_test(weapon SRC weapon.c)
+# Хитскан стал мировым: тест линкует трассировку, карту, двери и обе
+# сущности, которым он наносит урон. Заглушены только sprite_add() и
+# аудио — ради них тянуть sprite.c (а с ним raycast.c) и audio.c незачем.
+doom_test(weapon SRC weapon.c raycast_world.c enemy.c player.c map.c door.c)
 doom_test(input  SRC input.c)
 doom_test(game   SRC game.c)

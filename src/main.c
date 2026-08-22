@@ -219,7 +219,8 @@ int main(int argc, char **argv)
                 item_update(&world.items, &world.sprites, &world.player, &audio);
                 weapon_update(&world.player, FIXED_DT);
                 if (input.fire) {
-                    weapon_try_fire(&world.player, &world.enemies, &world.sprites, &audio);
+                    weapon_try_fire(&world.player, &world.map, &world.doors, &world.player, 1,
+                                    &world.enemies, &world.sprites, &audio);
                 }
                 input_end_frame(&input);
                 accumulator -= FIXED_DT;

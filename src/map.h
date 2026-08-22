@@ -10,7 +10,7 @@ typedef struct {
     char marker; /* 'E','S','B','M','A','R' */
 } MapSpriteSpawn;
 
-typedef struct {
+typedef struct Map {
     int cells[MAP_MAX_H][MAP_MAX_W];
     int w, h;
     int start_x, start_y;

@@ -61,8 +61,8 @@ only its own sources — not the whole game — and stubs what it does not want 
 drag in, which is how `test_enemy.c` avoids `sprite.c` (and, through it,
 `raycast.c` for `zBuffer`).
 
-Only what runs without a framebuffer is covered. The renderer, the
-screen-space hitscan and `audio.c` are not: see the tables in
+Only what runs without a framebuffer is covered. The renderer and `audio.c`
+are not: see the tables in
 `docs/closed_tasks/test-001-unit-test-harness.md` for what is out of scope
 and why.
 
@@ -90,11 +90,6 @@ any one file:
 
 - **`Player` mixes state with camera.** `player.h` holds `dir_x/dir_y` *and*
   `plane_x/plane_y` — the latter is a rendering artifact (FOV), not gameplay.
-- **Hitscan runs in screen space.** `weapon_try_fire()` (`weapon.c`) finds
-  hits by projecting enemies to screen columns via `enemy_screen_band()`
-  and testing the global `zBuffer[SCREEN_W]`, which is filled by
-  `raycast_render()`. Shooting therefore depends on a frame having been
-  rendered, and on `SCREEN_W`/`SCREEN_H`.
 - **`SpriteList` is not just a render list.** Item positions live *only* in
   their sprite (`item.c` reads `sp->x`/`sp->y`; `Item.x/y` are never
   filled), and enemy positions are mirrored into sprites every tick
@@ -102,6 +97,9 @@ any one file:
 
 Do not deepen this coupling. The multiplayer work exists largely to undo
 it, since none of the above can run on a server with no framebuffer.
+Hitscan used to belong on this list and no longer does: `weapon_try_fire()`
+traces `world_raycast()` (`raycast_world.c`) through walls, doors, enemies
+and players, and reads neither the camera nor `zBuffer`.
 
 ### Entity model
 
@@ -160,8 +158,8 @@ these before making changes:
 | `docs/closed_tasks/` | Finished and rejected tasks, each ending in a "Закрыто" note |
 
 Target: up to 10 players, authoritative server over ENet, deathmatch as the
-primary mode with co-op second. Task `docs/tasks/05-04` (replace
-screen-space hitscan with a world raycast) blocks nearly everything else.
+primary mode with co-op second. Task `docs/tasks/05-05` (get `SCREEN_W/H`
+and SDL out of the simulation) is what stage 6 waits on.
 
 `docs/requirements.md` §9 mandates `tests/replay_test.c` — a determinism
 check on `world_step()` — introduced by task `docs/tasks/06-01`. It does not
