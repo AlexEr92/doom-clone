@@ -147,6 +147,9 @@ exist yet; until it does, `driver.sh smoke` is the only regression check.
 
 ## Conventions
 
+- **Talk to the user in Russian**, whatever language the request arrives in.
+  This covers everything they read: chat replies, questions, plans, progress
+  notes and commit-time explanations.
 - **Prose documentation is written in Russian**; code, identifiers and code
   comments are in English. Follow the language of the file you are editing.
 - **Task and plan files are specifications, not changelogs.** When updating
