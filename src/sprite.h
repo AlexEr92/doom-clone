@@ -1,7 +1,10 @@
 #ifndef SPRITE_H
 #define SPRITE_H
 
-#include "engine.h"
+/* utils.h, not engine.h: SpriteList is simulation state and is reached from
+ * enemy.h and item.h, so this header must stay free of SDL. Framebuffer is
+ * all the renderer needs from it. */
+#include "utils.h"
 #include "player.h"
 #include "camera.h"
 #include "map.h"

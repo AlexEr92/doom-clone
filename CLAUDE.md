@@ -101,6 +101,14 @@ Hitscan used to belong on this list and no longer does: `weapon_try_fire()`
 traces `world_raycast()` (`raycast_world.c`) through walls, doors, enemies
 and players, and reads neither the camera nor `zBuffer`.
 
+Sound is off the list too. The simulation never calls `audio_play()`: it
+appends `GameEvent`s to an `EventQueue` (`event.h`) and the client drains
+the queue after each tick, scaling volume by the distance to *its own*
+player. `enemy.c`, `weapon.c`, `item.c`, `door.c`, `player.c`, `map.c` and
+`raycast_world.c` therefore compile with no SDL headers on the include path
+at all — `gcc -fsyntax-only -Isrc` on them is the check, and keeping it
+passing is a constraint on new code in those files.
+
 ### Entity model
 
 All entity lists are fixed-size arrays with a `count`, and nothing is ever
@@ -158,8 +166,9 @@ these before making changes:
 | `docs/closed_tasks/` | Finished and rejected tasks, each ending in a "Закрыто" note |
 
 Target: up to 10 players, authoritative server over ENet, deathmatch as the
-primary mode with co-op second. Task `docs/tasks/05-05` (get `SCREEN_W/H`
-and SDL out of the simulation) is what stage 6 waits on.
+primary mode with co-op second. Stage 5 is finished; the next task is
+`docs/tasks/06-01` (`world.c/.h` with a single `world_step()`), which the
+rest of stage 6 waits on.
 
 `docs/requirements.md` §9 mandates `tests/replay_test.c` — a determinism
 check on `world_step()` — introduced by task `docs/tasks/06-01`. It does not

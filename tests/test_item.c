@@ -3,15 +3,14 @@
  * Item positions live only in the sprite — Item.x/y are never filled — so the
  * sprite list is what places a pickup on the map here.
  *
- * The real audio.c is linked: item.c calls audio_play_volume() without a NULL
- * check, so the test must pass a zeroed Audio rather than NULL. The call is
- * safe with available == 0, but it dereferences the pointer first. */
+ * item.c makes no sound of its own — it appends to an EventQueue — so a
+ * pickup is checked as the EV_PICKUP it posts. */
 
 #include "unity.h"
 #include "item.h"
 #include "sprite.h"
 #include "player.h"
-#include "audio.h"
+#include "event.h"
 #include "weapon.h"
 #include <string.h>
 
@@ -21,7 +20,7 @@
 static ItemList items;
 static SpriteList sprites;
 static PlayerState player;
-static Audio audio;
+static EventQueue events;
 
 static int add_sprite(float x, float y, int type)
 {
@@ -63,7 +62,7 @@ void setUp(void)
     item_list_init(&items);
     memset(&sprites, 0, sizeof(sprites));
     memset(&player, 0, sizeof(player));
-    memset(&audio, 0, sizeof(audio));
+    event_queue_clear(&events);
 
     player.x = 5.0f;
     player.y = 5.0f;
@@ -91,13 +90,13 @@ static void test_medkit_heals_and_is_consumed(void)
 {
     place(5.0f, 5.0f, SPRITE_MEDKIT, ITEM_MEDKIT, 25.0f, 0);
 
-    TEST_ASSERT_EQUAL_INT(1, item_update(&items, &sprites, &player, &audio));
+    TEST_ASSERT_EQUAL_INT(1, item_update(&items, &sprites, &player, &events));
     TEST_ASSERT_EQUAL_FLOAT(75.0f, player.hp);
     TEST_ASSERT_EQUAL_INT(0, items.items[0].active);
     TEST_ASSERT_EQUAL_INT(0, sprites.items[0].active);
 
     /* nothing left to pick up */
-    TEST_ASSERT_EQUAL_INT(0, item_update(&items, &sprites, &player, &audio));
+    TEST_ASSERT_EQUAL_INT(0, item_update(&items, &sprites, &player, &events));
     TEST_ASSERT_EQUAL_FLOAT(75.0f, player.hp);
 }
 
@@ -106,7 +105,7 @@ static void test_medkit_caps_hp_at_100(void)
     player.hp = 90.0f;
     place(5.0f, 5.0f, SPRITE_MEDKIT, ITEM_MEDKIT, 25.0f, 0);
 
-    TEST_ASSERT_EQUAL_INT(1, item_update(&items, &sprites, &player, &audio));
+    TEST_ASSERT_EQUAL_INT(1, item_update(&items, &sprites, &player, &events));
     TEST_ASSERT_EQUAL_FLOAT(100.0f, player.hp);
 }
 
@@ -116,7 +115,7 @@ static void test_medkit_is_left_alone_at_full_hp(void)
     player.hp = 100.0f;
     place(5.0f, 5.0f, SPRITE_MEDKIT, ITEM_MEDKIT, 25.0f, 0);
 
-    TEST_ASSERT_EQUAL_INT(0, item_update(&items, &sprites, &player, &audio));
+    TEST_ASSERT_EQUAL_INT(0, item_update(&items, &sprites, &player, &events));
     TEST_ASSERT_EQUAL_FLOAT(100.0f, player.hp);
     TEST_ASSERT_EQUAL_INT(1, items.items[0].active);
     TEST_ASSERT_EQUAL_INT(1, sprites.items[0].active);
@@ -127,7 +126,7 @@ static void test_armor_adds_and_caps_at_100(void)
     player.armor = 80.0f;
     place(5.0f, 5.0f, SPRITE_ARMOR, ITEM_ARMOR, 50.0f, 0);
 
-    TEST_ASSERT_EQUAL_INT(1, item_update(&items, &sprites, &player, &audio));
+    TEST_ASSERT_EQUAL_INT(1, item_update(&items, &sprites, &player, &events));
     TEST_ASSERT_EQUAL_FLOAT(100.0f, player.armor);
 }
 
@@ -136,7 +135,7 @@ static void test_armor_is_left_alone_when_full(void)
     player.armor = 100.0f;
     place(5.0f, 5.0f, SPRITE_ARMOR, ITEM_ARMOR, 50.0f, 0);
 
-    TEST_ASSERT_EQUAL_INT(0, item_update(&items, &sprites, &player, &audio));
+    TEST_ASSERT_EQUAL_INT(0, item_update(&items, &sprites, &player, &events));
     TEST_ASSERT_EQUAL_INT(1, items.items[0].active);
 }
 
@@ -146,7 +145,7 @@ static void test_ammo_goes_to_the_named_weapon(void)
     player.weapons.weapons[WEAPON_SHOTGUN].ammo = 5;
     place(5.0f, 5.0f, SPRITE_AMMO, ITEM_AMMO, 8.0f, WEAPON_SHOTGUN);
 
-    TEST_ASSERT_EQUAL_INT(1, item_update(&items, &sprites, &player, &audio));
+    TEST_ASSERT_EQUAL_INT(1, item_update(&items, &sprites, &player, &events));
     TEST_ASSERT_EQUAL_INT(13, player.weapons.weapons[WEAPON_SHOTGUN].ammo);
     TEST_ASSERT_EQUAL_INT(50, player.weapons.weapons[WEAPON_PISTOL].ammo);
 }
@@ -157,7 +156,7 @@ static void test_ammo_caps_at_max_ammo(void)
     w->ammo = w->max_ammo - 2;
     place(5.0f, 5.0f, SPRITE_AMMO, ITEM_AMMO, 30.0f, WEAPON_PISTOL);
 
-    TEST_ASSERT_EQUAL_INT(1, item_update(&items, &sprites, &player, &audio));
+    TEST_ASSERT_EQUAL_INT(1, item_update(&items, &sprites, &player, &events));
     TEST_ASSERT_EQUAL_INT(w->max_ammo, w->ammo);
 }
 
@@ -165,29 +164,29 @@ static void test_full_ammo_is_left_alone(void)
 {
     place(5.0f, 5.0f, SPRITE_AMMO, ITEM_AMMO, 10.0f, WEAPON_PISTOL);
 
-    TEST_ASSERT_EQUAL_INT(0, item_update(&items, &sprites, &player, &audio));
+    TEST_ASSERT_EQUAL_INT(0, item_update(&items, &sprites, &player, &events));
     TEST_ASSERT_EQUAL_INT(1, items.items[0].active);
 }
 
 static void test_ammo_for_an_unknown_weapon_is_not_picked_up(void)
 {
     place(5.0f, 5.0f, SPRITE_AMMO, ITEM_AMMO, 10.0f, WEAPON_COUNT);
-    TEST_ASSERT_EQUAL_INT(0, item_update(&items, &sprites, &player, &audio));
+    TEST_ASSERT_EQUAL_INT(0, item_update(&items, &sprites, &player, &events));
 
     place(5.0f, 5.0f, SPRITE_AMMO, ITEM_AMMO, 10.0f, -1);
-    TEST_ASSERT_EQUAL_INT(0, item_update(&items, &sprites, &player, &audio));
+    TEST_ASSERT_EQUAL_INT(0, item_update(&items, &sprites, &player, &events));
 }
 
 static void test_pickup_needs_the_player_within_the_radius(void)
 {
     place(5.0f + TEST_PICKUP_RADIUS + 0.05f, 5.0f, SPRITE_MEDKIT, ITEM_MEDKIT, 25.0f, 0);
 
-    TEST_ASSERT_EQUAL_INT(0, item_update(&items, &sprites, &player, &audio));
+    TEST_ASSERT_EQUAL_INT(0, item_update(&items, &sprites, &player, &events));
     TEST_ASSERT_EQUAL_FLOAT(50.0f, player.hp);
 
     /* one step closer and it is in reach */
     sprites.items[0].x = 5.0f + TEST_PICKUP_RADIUS - 0.05f;
-    TEST_ASSERT_EQUAL_INT(1, item_update(&items, &sprites, &player, &audio));
+    TEST_ASSERT_EQUAL_INT(1, item_update(&items, &sprites, &player, &events));
     TEST_ASSERT_EQUAL_FLOAT(75.0f, player.hp);
 }
 
@@ -198,11 +197,11 @@ static void test_the_position_comes_from_the_sprite(void)
     TEST_ASSERT_EQUAL_FLOAT(0.0f, items.items[0].x);
     TEST_ASSERT_EQUAL_FLOAT(0.0f, items.items[0].y);
 
-    TEST_ASSERT_EQUAL_INT(0, item_update(&items, &sprites, &player, &audio));
+    TEST_ASSERT_EQUAL_INT(0, item_update(&items, &sprites, &player, &events));
 
     sprites.items[0].x = player.x;
     sprites.items[0].y = player.y;
-    TEST_ASSERT_EQUAL_INT(1, item_update(&items, &sprites, &player, &audio));
+    TEST_ASSERT_EQUAL_INT(1, item_update(&items, &sprites, &player, &events));
 }
 
 /* A sprite switched off elsewhere takes its item with it. */
@@ -211,7 +210,7 @@ static void test_an_inactive_sprite_deactivates_the_item(void)
     place(12.0f, 12.0f, SPRITE_MEDKIT, ITEM_MEDKIT, 25.0f, 0);
     sprites.items[0].active = 0;
 
-    TEST_ASSERT_EQUAL_INT(0, item_update(&items, &sprites, &player, &audio));
+    TEST_ASSERT_EQUAL_INT(0, item_update(&items, &sprites, &player, &events));
     TEST_ASSERT_EQUAL_INT(0, items.items[0].active);
 }
 
@@ -222,7 +221,7 @@ static void test_several_pickups_in_reach_are_all_taken(void)
     place(4.9f, 5.0f, SPRITE_AMMO, ITEM_AMMO, 5.0f, WEAPON_SHOTGUN);
     player.weapons.weapons[WEAPON_SHOTGUN].ammo = 0;
 
-    TEST_ASSERT_EQUAL_INT(1, item_update(&items, &sprites, &player, &audio));
+    TEST_ASSERT_EQUAL_INT(1, item_update(&items, &sprites, &player, &events));
     TEST_ASSERT_EQUAL_FLOAT(70.0f, player.hp);
     TEST_ASSERT_EQUAL_FLOAT(30.0f, player.armor);
     TEST_ASSERT_EQUAL_INT(5, player.weapons.weapons[WEAPON_SHOTGUN].ammo);

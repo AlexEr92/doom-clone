@@ -4,9 +4,9 @@
 #include "map.h"
 #include "player.h"
 #include "sprite.h"
+#include "event.h"
 
 struct DoorList;
-struct Audio;
 
 /* FSM states */
 typedef enum { ESTATE_IDLE = 0, ESTATE_ALERT, ESTATE_CHASE, ESTATE_ATTACK, ESTATE_DEAD } EnemyState;
@@ -57,13 +57,14 @@ void enemy_list_init(EnemyList *el);
 int enemy_spawn(EnemyList *el, SpriteList *sl, float x, float y, int type);
 
 /* Per-tick update: AI state machine, movement, attacks. Modifies player hp.
- * dl may be NULL (no doors). au may be NULL (no audio). */
+ * dl may be NULL (no doors). evq may be NULL (events dropped). */
 void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, struct DoorList *dl,
-                      PlayerState *pl, struct Audio *au, double dt);
+                      PlayerState *pl, EventQueue *evq, double dt);
 
 /* Apply damage to enemy idx; on death switches sprite to corpse.
- * au may be NULL. player_x/y used for spatial audio. */
-void enemy_damage(EnemyList *el, SpriteList *sl, int idx, float dmg, struct Audio *au, float px,
+ * evq may be NULL. px/py is where the damage came from: it is what the enemy
+ * turns to chase. */
+void enemy_damage(EnemyList *el, SpriteList *sl, int idx, float dmg, EventQueue *evq, float px,
                   float py);
 
 /* Returns 1 if all enemies are dead. */

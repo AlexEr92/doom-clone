@@ -56,3 +56,25 @@
 снапшоте (`NetEvent`, см. 07-03) и позволит клиенту играть звук с правильной
 дистанцией до **своего** игрока. Формат `GameEvent` стоит сразу делать
 компактным и сериализуемым.
+
+## Закрыто
+
+2026-08-22 — симуляция развязана от SDL. Заведена очередь событий
+`event.h` (`GameEvent`, `EventQueue`): `enemy.c`, `weapon.c`, `item.c` и
+`door.c` вместо `audio_play()` кладут в неё `EV_*`, а `main.c` разбирает
+очередь после каждого тика и считает громкость от позиции своего игрока.
+Параметр `Audio *au` убран из `enemy_update_all()`, `enemy_damage()`,
+`item_update()` и `weapon_try_fire()`; `door_try_use()` получил `EventQueue *`.
+
+Два оставшихся транзитивных включения SDL закрыты там же: `sprite.h`
+включает `utils.h` вместо `engine.h` (ему нужен только `Framebuffer`), а
+`input.h` объявляет `union SDL_Event` вперёд вместо `#include <SDL.h>` —
+`player.c` доходил до SDL через него.
+
+`tests/test_enemy.c` и `tests/test_weapon.c` больше не заглушают аудио,
+`tests/test_item.c` не линкует `audio.c`; вместо звука проверяется
+содержимое `EventQueue`. Из `tests/CMakeLists.txt` ушли заголовки
+SDL2_mixer — тестам они больше не нужны.
+
+Побочно: `EV_DOOR` проигрывается как `SND_DOOR`. Звук синтезировался в
+`audio.c`, но не был подключён ни к чему.

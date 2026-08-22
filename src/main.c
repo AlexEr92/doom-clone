@@ -12,6 +12,7 @@
 #include "door.h"
 #include "hud.h"
 #include "audio.h"
+#include "event.h"
 #include "game.h"
 #include "utils.h"
 #include <SDL.h>
@@ -25,7 +26,7 @@ typedef struct {
     EnemyList enemies;
     ItemList items;
     DoorList doors;
-    Audio audio;
+    EventQueue events; /* what the last tick produced, drained by the client */
     int loaded;
 } World;
 
@@ -50,6 +51,37 @@ static int world_door_occupants(const World *w, DoorOccupant *occ, int max)
     return n;
 }
 
+/* Drain the queue the last tick filled. Distance is measured from `me` — the
+ * player this client looks through — so the same loop keeps working once the
+ * simulation moves to a server and the queue arrives in a snapshot. */
+static void world_play_events(Audio *au, const EventQueue *q, const PlayerState *players,
+                              int player_count, const PlayerState *me)
+{
+    for (int i = 0; i < q->count; i++) {
+        const GameEvent *e = &q->items[i];
+        float dx = e->x - me->x, dy = e->y - me->y;
+        float dist = sqrtf(dx * dx + dy * dy);
+        switch (e->kind) {
+            case EV_SHOT: {
+                /* which weapon it was is the shooter's state, not the event's */
+                int type = WEAPON_PISTOL;
+                if (e->actor < player_count) {
+                    type = players[e->actor].weapons.current;
+                }
+                audio_play_volume(au, type == WEAPON_PISTOL ? SND_PISTOL : SND_SHOTGUN, 0.5f);
+                break;
+            }
+            case EV_NO_AMMO: audio_play_volume(au, SND_NO_AMMO, 0.5f); break;
+            case EV_PICKUP: audio_play_volume(au, SND_PICKUP, 0.8f); break;
+            case EV_PLAYER_HURT: audio_play(au, SND_PLAYER_HURT, dist, 12.0f); break;
+            case EV_ENEMY_HURT: audio_play(au, SND_ENEMY_HURT, dist, 16.0f); break;
+            case EV_ENEMY_DEATH: audio_play(au, SND_ENEMY_DEATH, dist, 16.0f); break;
+            case EV_DOOR: audio_play(au, SND_DOOR, dist, 16.0f); break;
+            default: break;
+        }
+    }
+}
+
 static int world_load(World *w, const char *map_path)
 {
     if (map_load(&w->map, map_path) != 0) {
@@ -61,6 +93,7 @@ static int world_load(World *w, const char *map_path)
     enemy_list_init(&w->enemies);
     item_list_init(&w->items);
     door_list_init(&w->doors);
+    event_queue_clear(&w->events);
 
     for (int i = 0; i < w->map.sprite_count; i++) {
         float sx = w->map.sprites[i].x;
@@ -135,7 +168,6 @@ int main(int argc, char **argv)
         engine_shutdown(&eng);
         return 1;
     }
-    world.audio = audio;
 
     InputState input;
     input_init(&input);
@@ -183,7 +215,6 @@ int main(int argc, char **argv)
                 eng.running = 0;
                 break;
             }
-            world.audio = audio;
             game.restart = 0;
             input_init(&input);
         }
@@ -207,23 +238,25 @@ int main(int argc, char **argv)
         if (game.state == GSTATE_PLAYING) {
             accumulator += frame_time;
             while (accumulator >= FIXED_DT) {
+                event_queue_clear(&world.events);
                 player_update(&world.player, &world.map, &world.doors, &input, FIXED_DT);
                 if (input.use) {
-                    door_try_use(&world.doors, &world.player, &world.map);
+                    door_try_use(&world.doors, &world.player, &world.map, &world.events);
                 }
                 DoorOccupant occ[1 + MAX_ENEMIES];
                 int occ_count = world_door_occupants(&world, occ, 1 + MAX_ENEMIES);
                 door_update_all(&world.doors, occ, occ_count, FIXED_DT);
                 enemy_update_all(&world.enemies, &world.sprites, &world.map, &world.doors,
-                                 &world.player, &audio, FIXED_DT);
-                item_update(&world.items, &world.sprites, &world.player, &audio);
+                                 &world.player, &world.events, FIXED_DT);
+                item_update(&world.items, &world.sprites, &world.player, &world.events);
                 weapon_update(&world.player, FIXED_DT);
                 if (input.fire) {
                     weapon_try_fire(&world.player, &world.map, &world.doors, &world.player, 1,
-                                    &world.enemies, &world.sprites, &audio);
+                                    &world.enemies, &world.sprites, &world.events);
                 }
                 input_end_frame(&input);
                 accumulator -= FIXED_DT;
+                world_play_events(&audio, &world.events, &world.player, 1, &world.player);
             }
 
             /* Win/Lose transitions */

@@ -25,7 +25,7 @@ int item_add(ItemList *il, int sprite_id, ItemType type, float amount, int weapo
     return il->count++;
 }
 
-static int apply_pickup(Item *it, SpriteList *sl, PlayerState *pl, Audio *au)
+static int apply_pickup(Item *it, SpriteList *sl, PlayerState *pl, EventQueue *evq)
 {
     switch (it->type) {
         case ITEM_MEDKIT: {
@@ -55,16 +55,21 @@ static int apply_pickup(Item *it, SpriteList *sl, PlayerState *pl, Audio *au)
         }
         default: return 0;
     }
-    /* deactivate sprite + item */
+    /* deactivate sprite + item; the pickup's position lives in the sprite,
+     * Item.x/y is never filled */
+    float ix = pl->x, iy = pl->y;
     if (it->sprite_id >= 0 && it->sprite_id < sl->count) {
-        sl->items[it->sprite_id].active = 0;
+        Sprite *sp = &sl->items[it->sprite_id];
+        ix = sp->x;
+        iy = sp->y;
+        sp->active = 0;
     }
     it->active = 0;
-    audio_play_volume(au, SND_PICKUP, 0.8f);
+    event_push(evq, EV_PICKUP, pl->id, ix, iy);
     return 1;
 }
 
-int item_update(ItemList *il, SpriteList *sl, PlayerState *pl, Audio *au)
+int item_update(ItemList *il, SpriteList *sl, PlayerState *pl, EventQueue *evq)
 {
     const float radius = 0.45f;
     int picked = 0;
@@ -84,7 +89,7 @@ int item_update(ItemList *il, SpriteList *sl, PlayerState *pl, Audio *au)
         float dx = sp->x - pl->x;
         float dy = sp->y - pl->y;
         if (dx * dx + dy * dy <= radius * radius) {
-            if (apply_pickup(it, sl, pl, au)) {
+            if (apply_pickup(it, sl, pl, evq)) {
                 picked = 1;
             }
         }

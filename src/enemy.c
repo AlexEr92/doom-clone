@@ -2,7 +2,6 @@
 #include "raycast_world.h"
 #include "sprite.h"
 #include "door.h"
-#include "audio.h"
 #include "utils.h"
 #include <math.h>
 #include <string.h>
@@ -108,7 +107,7 @@ static void move_towards(Enemy *e, const Map *m, DoorList *dl, float tx, float t
 }
 
 void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, DoorList *dl, PlayerState *pl,
-                      Audio *au, double dt)
+                      EventQueue *evq, double dt)
 {
     (void)sl;
     for (int i = 0; i < el->count; i++) {
@@ -198,9 +197,9 @@ void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, DoorList *dl,
                     if (pl->hp < 0.0f) {
                         pl->hp = 0.0f;
                     }
-                    if (au) {
-                        audio_play(au, SND_PLAYER_HURT, dist, 12.0f);
-                    }
+                    /* the enemy is the source: the client measures the
+                     * distance from its own player to it */
+                    event_push(evq, EV_PLAYER_HURT, pl->id, e->x, e->y);
                     e->attack_cooldown = d->attack_cd;
                 }
                 break;
@@ -214,7 +213,8 @@ void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, DoorList *dl,
     }
 }
 
-void enemy_damage(EnemyList *el, SpriteList *sl, int idx, float dmg, Audio *au, float px, float py)
+void enemy_damage(EnemyList *el, SpriteList *sl, int idx, float dmg, EventQueue *evq, float px,
+                  float py)
 {
     if (idx < 0 || idx >= el->count) {
         return;
@@ -234,11 +234,7 @@ void enemy_damage(EnemyList *el, SpriteList *sl, int idx, float dmg, Audio *au, 
             sp->scale = 0.55f;
             sp->vmove = 0;
         }
-        if (au) {
-            float dx = e->x - px, dy = e->y - py;
-            float dist = sqrtf(dx * dx + dy * dy);
-            audio_play(au, SND_ENEMY_DEATH, dist, 16.0f);
-        }
+        event_push(evq, EV_ENEMY_DEATH, idx, e->x, e->y);
     } else {
         /* being shot alerts/chases immediately */
         if (e->state == ESTATE_IDLE || e->state == ESTATE_ALERT) {
@@ -247,11 +243,7 @@ void enemy_damage(EnemyList *el, SpriteList *sl, int idx, float dmg, Audio *au, 
         e->last_seen_x = px;
         e->last_seen_y = py;
         e->search_timer = ENEMY_SEARCH_TIME;
-        if (au) {
-            float dx = e->x - px, dy = e->y - py;
-            float dist = sqrtf(dx * dx + dy * dy);
-            audio_play(au, SND_ENEMY_HURT, dist, 16.0f);
-        }
+        event_push(evq, EV_ENEMY_HURT, idx, e->x, e->y);
     }
 }
 

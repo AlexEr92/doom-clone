@@ -5,14 +5,17 @@
  * so the test depends on neither the working directory nor the level. The step
  * is 1/60 s, as in the game.
  *
- * sprite.c and audio.c are not linked: only sprite_add() and audio_play() are
- * referenced, and both are stubbed below. Linking sprite.c would drag in
- * raycast.c as well, purely to resolve zBuffer. */
+ * sprite.c is not linked: only sprite_add() is referenced, and it is stubbed
+ * below. Linking sprite.c would drag in raycast.c as well, purely to resolve
+ * zBuffer.
+ *
+ * enemy.c makes no sound of its own — it appends to an EventQueue, so the
+ * sounds are checked as the events that would produce them. */
 
 #include "unity.h"
 #include "enemy.h"
 #include "sprite.h"
-#include "audio.h"
+#include "event.h"
 #include "map.h"
 #include "player.h"
 #include <math.h>
@@ -31,6 +34,9 @@ static Map map;
 static EnemyList enemies;
 static SpriteList sprites;
 static PlayerState player;
+/* Filled by the module under test; never cleared inside a test, so a whole
+ * scenario's events can be counted at the end of it. */
+static EventQueue events;
 
 /* ---- stubs ---- */
 
@@ -53,14 +59,6 @@ int sprite_add(SpriteList *sl, float x, float y, int type)
     sp->scale = 1.0f;
     sp->vmove = 0;
     return sl->count++;
-}
-
-void audio_play(Audio *a, SoundId id, float dist, float maxdist)
-{
-    (void)a;
-    (void)id;
-    (void)dist;
-    (void)maxdist;
 }
 
 /* ---- fixture ---- */
@@ -90,7 +88,7 @@ static void build_map(Map *m)
 static void step(int ticks)
 {
     for (int i = 0; i < ticks; i++) {
-        enemy_update_all(&enemies, &sprites, &map, NULL, &player, NULL, TEST_STEP);
+        enemy_update_all(&enemies, &sprites, &map, NULL, &player, &events, TEST_STEP);
     }
 }
 
@@ -104,6 +102,28 @@ static void step_until_state(EnemyState want, int limit)
         step(1);
     }
     TEST_ASSERT_EQUAL_INT(want, enemies.items[0].state);
+}
+
+static int count_events(GameEventKind kind)
+{
+    int n = 0;
+    for (int i = 0; i < events.count; i++) {
+        if (events.items[i].kind == kind) {
+            n++;
+        }
+    }
+    return n;
+}
+
+/* The first event of `kind`, or NULL. */
+static const GameEvent *find_event(GameEventKind kind)
+{
+    for (int i = 0; i < events.count; i++) {
+        if (events.items[i].kind == kind) {
+            return &events.items[i];
+        }
+    }
+    return NULL;
 }
 
 static float dist_to(float x, float y)
@@ -121,6 +141,7 @@ void setUp(void)
     memset(&player, 0, sizeof(player));
     player.hp = 100.0f;
     player.alive = 1;
+    event_queue_clear(&events);
     TEST_ASSERT_EQUAL_INT(0,
                           enemy_spawn(&enemies, &sprites, ENEMY_START_X, ENEMY_START_Y, ENEMY_IMP));
 }
@@ -237,6 +258,14 @@ static void test_enemy_in_line_of_sight_attacks_and_armor_absorbs_half(void)
     /* half of the damage is taken off the armor, the rest off hp */
     TEST_ASSERT_EQUAL_FLOAT(100.0f - d->damage * 0.5f, player.armor);
     TEST_ASSERT_EQUAL_FLOAT(100.0f - d->damage * 0.5f, player.hp);
+
+    /* the hit is announced once, as coming from the enemy: that position is
+     * what a client measures its own distance to */
+    TEST_ASSERT_EQUAL_INT(1, count_events(EV_PLAYER_HURT));
+    const GameEvent *ev = find_event(EV_PLAYER_HURT);
+    TEST_ASSERT_EQUAL_INT(player.id, ev->actor);
+    TEST_ASSERT_EQUAL_FLOAT(enemies.items[0].x, ev->x);
+    TEST_ASSERT_EQUAL_FLOAT(enemies.items[0].y, ev->y);
 }
 
 static void test_without_armor_the_player_takes_full_damage(void)
@@ -271,6 +300,7 @@ static void test_attacks_are_spaced_by_the_cooldown(void)
 
     step((int)(0.4f / (float)TEST_STEP));
     TEST_ASSERT_EQUAL_FLOAT(after_first - d->damage, player.hp);
+    TEST_ASSERT_EQUAL_INT(2, count_events(EV_PLAYER_HURT));
 }
 
 /* ---- losing sight ---- */
@@ -356,13 +386,21 @@ static void test_damage_from_out_of_range_starts_a_chase_at_the_shooter(void)
     step(60);
     TEST_ASSERT_EQUAL_INT(ESTATE_IDLE, enemies.items[0].state);
 
-    enemy_damage(&enemies, &sprites, 0, 10.0f, NULL, shooter_x, shooter_y);
+    enemy_damage(&enemies, &sprites, 0, 10.0f, &events, shooter_x, shooter_y);
 
     TEST_ASSERT_EQUAL_INT(ESTATE_CHASE, enemies.items[0].state);
     TEST_ASSERT_EQUAL_FLOAT(d->max_hp - 10.0f, enemies.items[0].hp);
     TEST_ASSERT_EQUAL_FLOAT(shooter_x, enemies.items[0].last_seen_x);
     TEST_ASSERT_EQUAL_FLOAT(shooter_y, enemies.items[0].last_seen_y);
     TEST_ASSERT_EQUAL_FLOAT(TEST_SEARCH_TIME, enemies.items[0].search_timer);
+
+    /* surviving the hit is EV_ENEMY_HURT, positioned on the enemy */
+    TEST_ASSERT_EQUAL_INT(1, count_events(EV_ENEMY_HURT));
+    TEST_ASSERT_EQUAL_INT(0, count_events(EV_ENEMY_DEATH));
+    const GameEvent *ev = find_event(EV_ENEMY_HURT);
+    TEST_ASSERT_EQUAL_INT(0, ev->actor);
+    TEST_ASSERT_EQUAL_FLOAT(enemies.items[0].x, ev->x);
+    TEST_ASSERT_EQUAL_FLOAT(enemies.items[0].y, ev->y);
 
     step(30);
     TEST_ASSERT_TRUE(enemies.items[0].x > ENEMY_START_X);
@@ -371,24 +409,28 @@ static void test_damage_from_out_of_range_starts_a_chase_at_the_shooter(void)
 
 static void test_lethal_damage_turns_the_sprite_into_a_corpse(void)
 {
-    enemy_damage(&enemies, &sprites, 0, enemy_def(ENEMY_IMP)->max_hp, NULL, 5.5f, 5.5f);
+    enemy_damage(&enemies, &sprites, 0, enemy_def(ENEMY_IMP)->max_hp, &events, 5.5f, 5.5f);
 
     TEST_ASSERT_EQUAL_INT(ESTATE_DEAD, enemies.items[0].state);
     TEST_ASSERT_EQUAL_FLOAT(0.0f, enemies.items[0].hp);
     TEST_ASSERT_EQUAL_INT(SPRITE_ENEMY_DEAD, sprites.items[0].type);
     TEST_ASSERT_EQUAL_FLOAT(0.55f, sprites.items[0].scale);
     TEST_ASSERT_EQUAL_INT(0, sprites.items[0].vmove);
+    TEST_ASSERT_EQUAL_INT(1, count_events(EV_ENEMY_DEATH));
+    TEST_ASSERT_EQUAL_INT(0, count_events(EV_ENEMY_HURT));
     /* a corpse stays a corpse */
-    enemy_damage(&enemies, &sprites, 0, 100.0f, NULL, 5.5f, 5.5f);
+    enemy_damage(&enemies, &sprites, 0, 100.0f, &events, 5.5f, 5.5f);
     TEST_ASSERT_EQUAL_INT(ESTATE_DEAD, enemies.items[0].state);
     TEST_ASSERT_EQUAL_FLOAT(0.0f, enemies.items[0].hp);
+    /* and dies only once */
+    TEST_ASSERT_EQUAL_INT(1, count_events(EV_ENEMY_DEATH));
 }
 
 static void test_a_dead_enemy_does_not_attack(void)
 {
     player.x = ENEMY_START_X + 0.5f;
     player.y = ENEMY_START_Y;
-    enemy_damage(&enemies, &sprites, 0, enemy_def(ENEMY_IMP)->max_hp, NULL, player.x, player.y);
+    enemy_damage(&enemies, &sprites, 0, enemy_def(ENEMY_IMP)->max_hp, &events, player.x, player.y);
 
     step(600);
     TEST_ASSERT_EQUAL_FLOAT(100.0f, player.hp);
@@ -397,9 +439,10 @@ static void test_a_dead_enemy_does_not_attack(void)
 
 static void test_damage_to_an_index_outside_the_list_is_ignored(void)
 {
-    enemy_damage(&enemies, &sprites, -1, 10.0f, NULL, 0.0f, 0.0f);
-    enemy_damage(&enemies, &sprites, enemies.count, 10.0f, NULL, 0.0f, 0.0f);
+    enemy_damage(&enemies, &sprites, -1, 10.0f, &events, 0.0f, 0.0f);
+    enemy_damage(&enemies, &sprites, enemies.count, 10.0f, &events, 0.0f, 0.0f);
     TEST_ASSERT_EQUAL_FLOAT(enemy_def(ENEMY_IMP)->max_hp, enemies.items[0].hp);
+    TEST_ASSERT_EQUAL_INT(0, events.count);
 }
 
 static void test_enemy_all_dead(void)
@@ -412,10 +455,10 @@ static void test_enemy_all_dead(void)
     TEST_ASSERT_EQUAL_INT(1, enemy_spawn(&enemies, &sprites, 8.5f, 5.5f, ENEMY_SERG));
     TEST_ASSERT_EQUAL_INT(0, enemy_all_dead(&enemies));
 
-    enemy_damage(&enemies, &sprites, 0, 1000.0f, NULL, 0.0f, 0.0f);
+    enemy_damage(&enemies, &sprites, 0, 1000.0f, &events, 0.0f, 0.0f);
     TEST_ASSERT_EQUAL_INT(0, enemy_all_dead(&enemies));
 
-    enemy_damage(&enemies, &sprites, 1, 1000.0f, NULL, 0.0f, 0.0f);
+    enemy_damage(&enemies, &sprites, 1, 1000.0f, &events, 0.0f, 0.0f);
     TEST_ASSERT_EQUAL_INT(1, enemy_all_dead(&enemies));
 }
 

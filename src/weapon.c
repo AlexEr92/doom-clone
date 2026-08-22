@@ -4,7 +4,7 @@
 #include "sprite.h"
 #include "door.h"
 #include "raycast_world.h"
-#include "audio.h"
+#include "event.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -69,7 +69,7 @@ void weapon_update(PlayerState *p, double dt)
 }
 
 void weapon_try_fire(PlayerState *p, const Map *m, const DoorList *dl, PlayerState *players,
-                     int player_count, EnemyList *el, SpriteList *sl, Audio *au)
+                     int player_count, EnemyList *el, SpriteList *sl, EventQueue *evq)
 {
     WeaponSystem *ws = &p->weapons;
     Weapon *w = &ws->weapons[ws->current];
@@ -77,9 +77,7 @@ void weapon_try_fire(PlayerState *p, const Map *m, const DoorList *dl, PlayerSta
         return;
     }
     if (w->ammo <= 0) {
-        if (au) {
-            audio_play_volume(au, SND_NO_AMMO, 0.5f);
-        }
+        event_push(evq, EV_NO_AMMO, p->id, p->x, p->y);
         return;
     }
 
@@ -87,9 +85,7 @@ void weapon_try_fire(PlayerState *p, const Map *m, const DoorList *dl, PlayerSta
     w->cooldown = w->fire_cd;
     w->anim = 1.0f;
 
-    if (au) {
-        audio_play_volume(au, ws->current == WEAPON_PISTOL ? SND_PISTOL : SND_SHOTGUN, 0.5f);
-    }
+    event_push(evq, EV_SHOT, p->id, p->x, p->y);
 
     float dir_x = cosf(p->angle);
     float dir_y = sinf(p->angle);
@@ -108,7 +104,7 @@ void weapon_try_fire(PlayerState *p, const Map *m, const DoorList *dl, PlayerSta
         RayHit h = world_raycast(m, dl, el, players, player_count, p->x, p->y, ray_x, ray_y,
                                  WEAPON_RANGE, p->id);
         if (h.kind == HIT_ENEMY) {
-            enemy_damage(el, sl, h.id, w->damage, au, p->x, p->y);
+            enemy_damage(el, sl, h.id, w->damage, evq, p->x, p->y);
         } else if (h.kind == HIT_PLAYER) {
             player_damage(&players[h.id], w->damage, p->id);
         }

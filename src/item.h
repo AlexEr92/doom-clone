@@ -4,7 +4,7 @@
 #include "sprite.h"
 #include "player.h"
 #include "weapon.h"
-#include "audio.h"
+#include "event.h"
 
 typedef enum {
     ITEM_NONE = 0,
@@ -38,6 +38,6 @@ int item_add(ItemList *il, int sprite_id, ItemType type, float amount, int weapo
 /* Check pickups: if player is within radius, apply effect and deactivate the
  * sprite + item. Ammo goes to the weapons of that same player. Returns 1 if
  * something was picked up this call. */
-int item_update(ItemList *il, SpriteList *sl, PlayerState *pl, Audio *au);
+int item_update(ItemList *il, SpriteList *sl, PlayerState *pl, EventQueue *evq);
 
 #endif

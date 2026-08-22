@@ -80,7 +80,7 @@ static PlayerState player_facing_door(void)
 static void open_the_door(void)
 {
     PlayerState p = player_facing_door();
-    door_try_use(&doors, &p, &map);
+    door_try_use(&doors, &p, &map, NULL);
     run_ticks(NULL, 0, ticks_for(TEST_RAMP_TIME));
     TEST_ASSERT_EQUAL_INT(DOOR_OPEN, doors.doors[0].state);
     TEST_ASSERT_EQUAL_FLOAT(1.0f, doors.doors[0].openness);
@@ -135,20 +135,20 @@ static void test_door_try_use_toggles_the_state(void)
 {
     PlayerState p = player_facing_door();
 
-    door_try_use(&doors, &p, &map);
+    door_try_use(&doors, &p, &map, NULL);
     TEST_ASSERT_EQUAL_INT(DOOR_OPENING, doors.doors[0].state);
     TEST_ASSERT_EQUAL_INT(1, doors.doors[0].triggered);
 
     /* using it mid-ramp reverses the direction */
-    door_try_use(&doors, &p, &map);
+    door_try_use(&doors, &p, &map, NULL);
     TEST_ASSERT_EQUAL_INT(DOOR_CLOSING, doors.doors[0].state);
 
-    door_try_use(&doors, &p, &map);
+    door_try_use(&doors, &p, &map, NULL);
     TEST_ASSERT_EQUAL_INT(DOOR_OPENING, doors.doors[0].state);
 
     doors.doors[0].state = DOOR_OPEN;
     doors.doors[0].timer = TEST_DOOR_OPEN_TIME;
-    door_try_use(&doors, &p, &map);
+    door_try_use(&doors, &p, &map, NULL);
     TEST_ASSERT_EQUAL_INT(DOOR_CLOSING, doors.doors[0].state);
     TEST_ASSERT_EQUAL_FLOAT(0.0f, doors.doors[0].timer);
 
@@ -162,7 +162,7 @@ static void test_door_try_use_out_of_range_does_nothing(void)
     PlayerState p = player_facing_door();
     p.y = DOOR_CELL_Y + 2.5f; /* well beyond USE_RANGE, and facing away */
     p.x = 4.5f;
-    door_try_use(&doors, &p, &map);
+    door_try_use(&doors, &p, &map, NULL);
     TEST_ASSERT_EQUAL_INT(DOOR_CLOSED, doors.doors[0].state);
     TEST_ASSERT_EQUAL_INT(0, doors.doors[0].triggered);
 
@@ -170,7 +170,7 @@ static void test_door_try_use_out_of_range_does_nothing(void)
     p.x = DOOR_CELL_X + 0.5f;
     p.y = DOOR_CELL_Y - 0.5f - TEST_USE_RANGE;
     p.angle = TEST_PI / 2.0f;
-    door_try_use(&doors, &p, &map);
+    door_try_use(&doors, &p, &map, NULL);
     TEST_ASSERT_EQUAL_INT(DOOR_CLOSED, doors.doors[0].state);
 }
 
@@ -182,7 +182,7 @@ static void test_door_try_use_from_inside_the_doorway(void)
     p.x = DOOR_CELL_X + 0.5f;
     p.y = DOOR_CELL_Y + 0.5f;
     p.angle = -TEST_PI / 2.0f;
-    door_try_use(&doors, &p, &map);
+    door_try_use(&doors, &p, &map, NULL);
     TEST_ASSERT_EQUAL_INT(DOOR_OPENING, doors.doors[0].state);
 }
 

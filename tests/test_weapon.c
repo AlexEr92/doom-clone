@@ -3,16 +3,18 @@
  *
  * Firing no longer needs a rendered frame, so the trace it uses is linked for
  * real: raycast_world.c against a map and a door built in memory, enemy.c for
- * the damage it applies and player.c for the PvP half of it. Only the two
- * audio calls and sprite_add() are stubbed, to keep audio.c and sprite.c (and,
- * through it, raycast.c) out of the link. */
+ * the damage it applies and player.c for the PvP half of it. Only sprite_add()
+ * is stubbed, to keep sprite.c (and, through it, raycast.c) out of the link.
+ *
+ * Firing makes no sound of its own either: weapon.c posts EV_SHOT / EV_NO_AMMO
+ * into an EventQueue and the client plays them. */
 
 #include "unity.h"
 #include "weapon.h"
 #include "player.h"
 #include "enemy.h"
 #include "sprite.h"
-#include "audio.h"
+#include "event.h"
 #include "door.h"
 #include "map.h"
 #include "raycast_world.h"
@@ -38,6 +40,8 @@ static DoorList doors;
 static EnemyList enemies;
 static SpriteList sprites;
 static PlayerState players[2];
+/* Filled by weapon.c and enemy.c; cleared once per test. */
+static EventQueue events;
 
 /* ---- stubs ---- */
 
@@ -54,21 +58,6 @@ int sprite_add(SpriteList *sl, float x, float y, int type)
     sp->scale = 1.0f;
     sp->vmove = 0;
     return sl->count++;
-}
-
-void audio_play(Audio *a, SoundId id, float dist, float maxdist)
-{
-    (void)a;
-    (void)id;
-    (void)dist;
-    (void)maxdist;
-}
-
-void audio_play_volume(Audio *a, SoundId id, float vol)
-{
-    (void)a;
-    (void)id;
-    (void)vol;
 }
 
 /* ---- fixture ---- */
@@ -101,6 +90,7 @@ void setUp(void)
     player_init(&players[SHOOTER], 2, 2);
     player_init(&players[VICTIM], 17, 10);
     players[VICTIM].id = VICTIM;
+    event_queue_clear(&events);
 }
 
 void tearDown(void)
@@ -116,7 +106,7 @@ static void aim(PlayerState *p, float x, float y, float angle)
 /* Every scenario fires straight down +X (angle 0) from the left of the map. */
 static void fire(void)
 {
-    weapon_try_fire(&players[SHOOTER], &map, &doors, players, 2, &enemies, &sprites, NULL);
+    weapon_try_fire(&players[SHOOTER], &map, &doors, players, 2, &enemies, &sprites, &events);
 }
 
 static int add_enemy(float x, float y)

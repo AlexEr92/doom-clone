@@ -53,7 +53,7 @@ int door_is_blocking(const DoorList *dl, int cellx, int celly)
     return dl->doors[idx].openness < 0.5f;
 }
 
-void door_try_use(DoorList *dl, const PlayerState *p, const Map *m)
+void door_try_use(DoorList *dl, const PlayerState *p, const Map *m, EventQueue *evq)
 {
     (void)m;
     /* Check the cell directly in front of the player (1 cell ahead). */
@@ -86,6 +86,7 @@ void door_try_use(DoorList *dl, const PlayerState *p, const Map *m)
         case DOOR_CLOSING: d->state = DOOR_OPENING; break;
     }
     d->triggered = 1;
+    event_push(evq, EV_DOOR, idx, (float)d->cellx + 0.5f, (float)d->celly + 0.5f);
 }
 
 /* Does anyone overlap the door's cell? Tested as a circle of PLAYER_RADIUS

@@ -63,12 +63,6 @@
 решения» в ../roadmap.md.
 ```
 
-## Этап 5 — Развязка симуляции и рендера
-
-| # | Задача | Зависит от |
-|---|---|---|
-| [05-05](05-05-purge-screen-consts.md) | Убрать `SCREEN_W/H` из игровой логики | 05-04 |
-
 ## Этап 6 — Мультиплеерная логика локально
 
 | # | Задача | Зависит от |
@@ -143,6 +137,7 @@
 | [05-02](../closed_tasks/05-02-weapons-into-player.md) | Перенести `WeaponSystem` внутрь игрока | Сделано |
 | [05-03](../closed_tasks/05-03-world-raycast.md) | Мировой DDA без фреймбуфера | Сделано |
 | [05-04](../closed_tasks/05-04-hitscan-rewrite.md) | Переписать хитскан на мировой рейкаст | Сделано |
+| [05-05](../closed_tasks/05-05-purge-screen-consts.md) | Убрать `SCREEN_W/H` из игровой логики | Сделано |
 | [bug-001](../closed_tasks/bug-001-enemy-sees-through-walls.md) | Враг преследует игрока сквозь стены | Сделано |
 | [bug-002](../closed_tasks/bug-002-door-closes-on-player.md) | Дверь закрывается в стоящем в проёме | Сделано |
 | [test-001](../closed_tasks/test-001-unit-test-harness.md) | Подключить Unity, покрыть тестами то, что уже тестируемо | Сделано |

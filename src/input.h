@@ -1,7 +1,10 @@
 #ifndef INPUT_H
 #define INPUT_H
 
-#include <SDL.h>
+/* SDL_Event is a union tag, so the prototype below can name it without
+ * pulling in SDL: player.c reaches this header for InputState, and the
+ * simulation must not depend on SDL. input.c includes SDL for real. */
+union SDL_Event;
 
 typedef struct InputState {
     int forward, back, turn_left, turn_right, strafe_left, strafe_right;
@@ -15,7 +18,7 @@ typedef struct InputState {
 } InputState;
 
 void input_init(InputState *in);
-void input_handle_event(InputState *in, SDL_Event *ev, int *running);
+void input_handle_event(InputState *in, union SDL_Event *ev, int *running);
 void input_end_frame(InputState *in);
 
 #endif

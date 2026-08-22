@@ -3,6 +3,7 @@
 
 #include "map.h"
 #include "player.h"
+#include "event.h"
 
 typedef enum {
     DOOR_CLOSED = 0,
@@ -41,8 +42,9 @@ int door_discover(DoorList *dl, const Map *m);
 /* Find a door at a given cell, or -1. */
 int door_at(const DoorList *dl, int cellx, int celly);
 
-/* Player "uses" the door nearest to their front within range. */
-void door_try_use(DoorList *dl, const PlayerState *p, const Map *m);
+/* Player "uses" the door nearest to their front within range. Posts EV_DOOR
+ * when a door actually reacts; evq may be NULL. */
+void door_try_use(DoorList *dl, const PlayerState *p, const Map *m, EventQueue *evq);
 
 /* Per-tick update of door openness/timers. A door whose cell is occupied
  * does not start closing, and a closing one reopens — otherwise it turns
