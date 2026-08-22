@@ -34,6 +34,6 @@ void game_update(Game *g, double dt);
 
 /* Draw the overlay for the current state (menu / paused / dead / win).
  * Call AFTER rendering the world so overlays appear on top. */
-void game_draw_overlay(Framebuffer *fb, const Game *g, const Player *pl);
+void game_draw_overlay(Framebuffer *fb, const Game *g, const PlayerState *pl);
 
 #endif

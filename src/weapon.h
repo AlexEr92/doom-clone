@@ -39,7 +39,7 @@ void weapon_switch(WeaponSystem *ws, int idx);
  * Applies damage and triggers weapon anim + cooldown.
  * au may be NULL (no audio).
  */
-void weapon_try_fire(WeaponSystem *ws, const Player *p, EnemyList *el, SpriteList *sl,
+void weapon_try_fire(WeaponSystem *ws, const PlayerState *p, EnemyList *el, SpriteList *sl,
                      struct Audio *au);
 
 /* Per-tick update of cooldowns / animation. */

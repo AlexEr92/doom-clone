@@ -124,7 +124,7 @@ static void move_towards(Enemy *e, const Map *m, DoorList *dl, float tx, float t
     }
 }
 
-void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, DoorList *dl, Player *pl,
+void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, DoorList *dl, PlayerState *pl,
                       Audio *au, double dt)
 {
     (void)sl;

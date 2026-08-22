@@ -165,7 +165,7 @@ static void hud_draw_face(Framebuffer *fb, int x0, int y0, int sz, float hp_frac
     }
 }
 
-void hud_draw(Framebuffer *fb, const Player *pl, const WeaponSystem *ws)
+void hud_draw(Framebuffer *fb, const PlayerState *pl, const WeaponSystem *ws)
 {
     uint32_t bg = make_color(20, 20, 20);
     uint32_t panel = make_color(35, 35, 40);

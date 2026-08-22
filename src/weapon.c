@@ -1,4 +1,5 @@
 #include "weapon.h"
+#include "camera.h"
 #include "raycast.h"
 #include "audio.h"
 #include "utils.h"
@@ -62,17 +63,17 @@ void weapon_update(WeaponSystem *ws, double dt)
 /* For each enemy, compute its screen-space column band (center x + half width)
  * at the player's current view, plus perpWallDist. Returns 1 if computed.
  * The "ray screen x" is the column where the fire ray would be drawn. */
-static int enemy_screen_band(const Player *p, const Enemy *e, int *cx_out, int *halfw_out,
-                             float *depth_out)
+static int enemy_screen_band(const PlayerState *p, const Camera *cam, const Enemy *e, int *cx_out,
+                             int *halfw_out, float *depth_out)
 {
     float dx = e->x - p->x;
     float dy = e->y - p->y;
-    float det = p->plane_x * p->dir_y - p->plane_y * p->dir_x;
+    float det = cam->plane_x * cam->dir_y - cam->plane_y * cam->dir_x;
     if (fabsf(det) < 1e-6f) {
         return 0;
     }
-    float transformX = (p->dir_y * dx - p->dir_x * dy) / det;
-    float transformY = (-p->plane_y * dx + p->plane_x * dy) / det;
+    float transformX = (cam->dir_y * dx - cam->dir_x * dy) / det;
+    float transformY = (-cam->plane_y * dx + cam->plane_x * dy) / det;
     if (transformY <= 0.1f) {
         return 0; /* behind camera */
     }
@@ -85,8 +86,15 @@ static int enemy_screen_band(const Player *p, const Enemy *e, int *cx_out, int *
     return 1;
 }
 
-void weapon_try_fire(WeaponSystem *ws, const Player *p, EnemyList *el, SpriteList *sl, Audio *au)
+void weapon_try_fire(WeaponSystem *ws, const PlayerState *p, EnemyList *el, SpriteList *sl,
+                     Audio *au)
 {
+    /* Hitscan still works in screen space, so it needs the view basis even
+     * though firing is simulation. Rebuilt here rather than taken as an
+     * argument: task 05-04 replaces this whole body with a world raycast. */
+    Camera cam;
+    player_camera(p, &cam);
+
     Weapon *w = &ws->weapons[ws->current];
     if (w->cooldown > 0.0f) {
         return;
@@ -117,10 +125,10 @@ void weapon_try_fire(WeaponSystem *ws, const Player *p, EnemyList *el, SpriteLis
         }
         /* rotate direction by angle to get ray direction */
         float cosA = cosf(angle), sinA = sinf(angle);
-        float rayDirX = p->dir_x * cosA - p->dir_y * sinA;
-        float rayDirY = p->dir_x * sinA + p->dir_y * cosA;
+        float rayDirX = cam.dir_x * cosA - cam.dir_y * sinA;
+        float rayDirY = cam.dir_x * sinA + cam.dir_y * cosA;
         /* compute screen column for this ray (cameraX derived from dir/plane) */
-        float det = p->plane_x * p->dir_y - p->plane_y * p->dir_x;
+        float det = cam.plane_x * cam.dir_y - cam.plane_y * cam.dir_x;
         if (fabsf(det) < 1e-6f) {
             continue;
         }
@@ -131,8 +139,8 @@ void weapon_try_fire(WeaponSystem *ws, const Player *p, EnemyList *el, SpriteLis
         float camX;
         /* camX such that dir_x + plane_x*camX = rayDirX and dir_y + plane_y*camX = rayDirY */
         /* Solve via least squares using plane (camX = (ray . plane) / (plane . plane)) */
-        float pp = p->plane_x * p->plane_x + p->plane_y * p->plane_y;
-        camX = ((rayDirX - p->dir_x) * p->plane_x + (rayDirY - p->dir_y) * p->plane_y) / pp;
+        float pp = cam.plane_x * cam.plane_x + cam.plane_y * cam.plane_y;
+        camX = ((rayDirX - cam.dir_x) * cam.plane_x + (rayDirY - cam.dir_y) * cam.plane_y) / pp;
         int screenX = (int)((float)SCREEN_W * (1.0f + camX) * 0.5f);
         (void)perpDist;
         (void)det;
@@ -156,7 +164,7 @@ void weapon_try_fire(WeaponSystem *ws, const Player *p, EnemyList *el, SpriteLis
             }
             int cx, halfw;
             float depth;
-            if (!enemy_screen_band(p, e, &cx, &halfw, &depth)) {
+            if (!enemy_screen_band(p, &cam, e, &cx, &halfw, &depth)) {
                 continue;
             }
             if (depth >= wallDist) {

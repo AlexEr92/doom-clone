@@ -37,6 +37,6 @@ int item_add(ItemList *il, int sprite_id, ItemType type, float amount, int weapo
 
 /* Check pickups: if player is within radius, apply effect and deactivate the
  * sprite + item. Returns 1 if something was picked up this call. */
-int item_update(ItemList *il, SpriteList *sl, Player *pl, WeaponSystem *ws, Audio *au);
+int item_update(ItemList *il, SpriteList *sl, PlayerState *pl, WeaponSystem *ws, Audio *au);
 
 #endif

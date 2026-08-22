@@ -1,6 +1,7 @@
 #include "engine.h"
 #include "map.h"
 #include "player.h"
+#include "camera.h"
 #include "raycast.h"
 #include "input.h"
 #include "assets.h"
@@ -19,7 +20,7 @@
 
 typedef struct {
     Map map;
-    Player player;
+    PlayerState player;
     SpriteList sprites;
     EnemyList enemies;
     ItemList items;
@@ -221,8 +222,10 @@ int main(int argc, char **argv)
         /* Render world only if playing/paused/dead/win (not menu, where we
          * show a dim background instead). */
         if (game.state != GSTATE_MENU) {
-            raycast_render(&eng.fb, &world.player, &world.map, &assets, &world.doors);
-            sprite_render(&eng.fb, &world.sprites, &world.player, &assets);
+            Camera cam;
+            player_camera(&world.player, &cam);
+            raycast_render(&eng.fb, &world.player, &cam, &world.map, &assets, &world.doors);
+            sprite_render(&eng.fb, &world.sprites, &world.player, &cam, &assets);
             hud_draw_weapon(&eng.fb,
                             world.ws.current == WEAPON_PISTOL ? &assets.weapon_pistol
                                                               : &assets.weapon_shotgun,

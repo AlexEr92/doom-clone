@@ -3,6 +3,7 @@
 
 #include "engine.h"
 #include "player.h"
+#include "camera.h"
 #include "map.h"
 #include "assets.h"
 
@@ -38,6 +39,7 @@ void sprite_clear(SpriteList *sl);
 
 /* Render all sprites with Z-buffer test against zBuffer. Must be called
  * AFTER raycast_render (which fills zBuffer). */
-void sprite_render(Framebuffer *fb, const SpriteList *sl, const Player *p, const Assets *a);
+void sprite_render(Framebuffer *fb, const SpriteList *sl, const PlayerState *p, const Camera *cam,
+                   const Assets *a);
 
 #endif

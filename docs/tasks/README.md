@@ -67,7 +67,6 @@
 
 | # | Задача | Зависит от |
 |---|---|---|
-| [05-01](05-01-player-state-split.md) | Разделить `Player` на состояние и камеру | — |
 | [05-02](05-02-weapons-into-player.md) | Перенести `WeaponSystem` внутрь игрока | 05-01 |
 | [05-03](05-03-world-raycast.md) | Мировой DDA без фреймбуфера | 05-01 |
 | [05-04](05-04-hitscan-rewrite.md) | **Переписать хитскан на мировой рейкаст** | 05-03 |
@@ -130,6 +129,7 @@
 | [bug-002](bug-002-door-closes-on-player.md) | Дверь закрывается в стоящем в проёме | `door.c` |
 | [bug-003](bug-003-dead-fire-pressed-field.md) | Мёртвое поле `fire_pressed` | `input.h` |
 | [bug-004](bug-004-audio-init-leak.md) | `audio_init()` теряет 8 WAV-буферов при запуске | `audio.c` |
+| [bug-005](bug-005-strafe-speed-fov-scaled.md) | Стрейф медленнее ходьбы в `FOV_PLANE` раз | `player.c` |
 | [feat-001](feat-001-file-textures-weapon-enemy.md) | Файловые PNG-текстуры оружия и врагов | `assets.c` |
 | [test-001](test-001-unit-test-harness.md) | Подключить Unity, покрыть тестами то, что уже тестируемо | `tests/`, `vendor/unity/` |
 | [chore-001](chore-001-github-actions-ci.md) | CI на трёх платформах через GitHub Actions | `.github/workflows/` |
@@ -140,5 +140,8 @@
 
 ## Закрытые
 
-Пока ни одной. Закрытые задачи переезжают в
-[../closed_tasks/](../closed_tasks/) и перечисляются здесь.
+Переезжают в [../closed_tasks/](../closed_tasks/) и перечисляются здесь.
+
+| # | Задача | Итог |
+|---|---|---|
+| [05-01](../closed_tasks/05-01-player-state-split.md) | Разделить `Player` на состояние и камеру | Сделано |

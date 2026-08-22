@@ -3,6 +3,7 @@
 
 #include "engine.h"
 #include "player.h"
+#include "camera.h"
 #include "map.h"
 #include "assets.h"
 
@@ -10,7 +11,7 @@ struct DoorList;
 
 extern float zBuffer[SCREEN_W];
 
-void raycast_render(Framebuffer *fb, const Player *p, const Map *m, const Assets *a,
-                    struct DoorList *dl);
+void raycast_render(Framebuffer *fb, const PlayerState *p, const Camera *cam, const Map *m,
+                    const Assets *a, struct DoorList *dl);
 
 #endif

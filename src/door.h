@@ -35,7 +35,7 @@ int door_discover(DoorList *dl, const Map *m);
 int door_at(const DoorList *dl, int cellx, int celly);
 
 /* Player "uses" the door nearest to their front within range. */
-void door_try_use(DoorList *dl, const Player *p, const Map *m);
+void door_try_use(DoorList *dl, const PlayerState *p, const Map *m);
 
 /* Per-tick update of door openness/timers. */
 void door_update_all(DoorList *dl, double dt);

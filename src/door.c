@@ -53,12 +53,12 @@ int door_is_blocking(const DoorList *dl, int cellx, int celly)
     return dl->doors[idx].openness < 0.5f;
 }
 
-void door_try_use(DoorList *dl, const Player *p, const Map *m)
+void door_try_use(DoorList *dl, const PlayerState *p, const Map *m)
 {
     (void)m;
     /* Check the cell directly in front of the player (1 cell ahead). */
-    float fx = p->x + p->dir_x * USE_RANGE;
-    float fy = p->y + p->dir_y * USE_RANGE;
+    float fx = p->x + cosf(p->angle) * USE_RANGE;
+    float fy = p->y + sinf(p->angle) * USE_RANGE;
     int cx = (int)fx;
     int cy = (int)fy;
     int idx = door_at(dl, cx, cy);

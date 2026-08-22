@@ -25,7 +25,7 @@ int item_add(ItemList *il, int sprite_id, ItemType type, float amount, int weapo
     return il->count++;
 }
 
-static int apply_pickup(Item *it, SpriteList *sl, Player *pl, WeaponSystem *ws, Audio *au)
+static int apply_pickup(Item *it, SpriteList *sl, PlayerState *pl, WeaponSystem *ws, Audio *au)
 {
     switch (it->type) {
         case ITEM_MEDKIT: {
@@ -64,7 +64,7 @@ static int apply_pickup(Item *it, SpriteList *sl, Player *pl, WeaponSystem *ws, 
     return 1;
 }
 
-int item_update(ItemList *il, SpriteList *sl, Player *pl, WeaponSystem *ws, Audio *au)
+int item_update(ItemList *il, SpriteList *sl, PlayerState *pl, WeaponSystem *ws, Audio *au)
 {
     const float radius = 0.45f;
     int picked = 0;

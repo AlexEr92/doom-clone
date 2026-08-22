@@ -4,16 +4,40 @@
 #include "utils.h"
 #include <math.h>
 
-void player_init(Player *p, int start_x, int start_y)
+/* M_PI is not standard C11 and the build asks for -std=c11 with extensions
+ * off, so it is not declared by math.h here. */
+#define PLAYER_PI 3.14159265358979323846f
+
+/* Strafing used to follow the camera plane vector directly, and that vector is
+ * FOV_PLANE long rather than 1 — so sideways movement has always been that
+ * much slower than forward. Almost certainly unintended, but preserved here to
+ * keep this refactor free of gameplay changes. */
+#define STRAFE_SPEED (MOVE_SPEED * FOV_PLANE)
+
+void player_init(PlayerState *p, int start_x, int start_y)
 {
+    p->id = 0;
     p->x = start_x + 0.5f;
     p->y = start_y + 0.5f;
-    p->dir_x = -1.0f;
-    p->dir_y = 0.0f;
-    p->plane_x = 0.0f;
-    p->plane_y = FOV_PLANE;
+    p->angle = PLAYER_PI; /* facing -X */
     p->hp = 100.0f;
     p->armor = 0.0f;
+    p->alive = 1;
+    p->respawn_timer = 0.0f;
+}
+
+/* Fold an angle back into [-PI, PI]. Without this the angle drifts over a
+ * long session until float precision degrades, and shortest-arc
+ * interpolation between snapshots takes the long way round. */
+static float wrap_angle(float a)
+{
+    while (a > PLAYER_PI) {
+        a -= 2.0f * PLAYER_PI;
+    }
+    while (a < -PLAYER_PI) {
+        a += 2.0f * PLAYER_PI;
+    }
+    return a;
 }
 
 static int blocked(const Map *m, DoorList *dl, float x, float y)
@@ -21,7 +45,7 @@ static int blocked(const Map *m, DoorList *dl, float x, float y)
     return map_is_wall_door(m, dl, x, y);
 }
 
-static void try_move(Player *p, const Map *m, DoorList *dl, float nx, float ny)
+static void try_move(PlayerState *p, const Map *m, DoorList *dl, float nx, float ny)
 {
     float r = PLAYER_RADIUS;
     if (!blocked(m, dl, nx + (nx > p->x ? r : -r), p->y)) {
@@ -32,23 +56,24 @@ static void try_move(Player *p, const Map *m, DoorList *dl, float nx, float ny)
     }
 }
 
-void player_update(Player *p, const Map *m, DoorList *dl, const InputState *in, double dt)
+void player_update(PlayerState *p, const Map *m, DoorList *dl, const InputState *in, double dt)
 {
+    float ca = cosf(p->angle);
+    float sa = sinf(p->angle);
+    float fwd = MOVE_SPEED * (float)dt;
+    float side = STRAFE_SPEED * (float)dt;
+
     if (in->forward) {
-        try_move(p, m, dl, p->x + p->dir_x * MOVE_SPEED * (float)dt,
-                 p->y + p->dir_y * MOVE_SPEED * (float)dt);
+        try_move(p, m, dl, p->x + ca * fwd, p->y + sa * fwd);
     }
     if (in->back) {
-        try_move(p, m, dl, p->x - p->dir_x * MOVE_SPEED * (float)dt,
-                 p->y - p->dir_y * MOVE_SPEED * (float)dt);
+        try_move(p, m, dl, p->x - ca * fwd, p->y - sa * fwd);
     }
     if (in->strafe_left) {
-        try_move(p, m, dl, p->x - p->plane_x * MOVE_SPEED * (float)dt,
-                 p->y - p->plane_y * MOVE_SPEED * (float)dt);
+        try_move(p, m, dl, p->x - sa * side, p->y + ca * side);
     }
     if (in->strafe_right) {
-        try_move(p, m, dl, p->x + p->plane_x * MOVE_SPEED * (float)dt,
-                 p->y + p->plane_y * MOVE_SPEED * (float)dt);
+        try_move(p, m, dl, p->x + sa * side, p->y - ca * side);
     }
 
     float rot = 0.0f;
@@ -61,13 +86,6 @@ void player_update(Player *p, const Map *m, DoorList *dl, const InputState *in, 
     rot -= in->mouse_dx * MOUSE_SENS;
 
     if (rot != 0.0f) {
-        float cosR = cosf(rot);
-        float sinR = sinf(rot);
-        float oldDirX = p->dir_x;
-        p->dir_x = p->dir_x * cosR - p->dir_y * sinR;
-        p->dir_y = oldDirX * sinR + p->dir_y * cosR;
-        float oldPlaneX = p->plane_x;
-        p->plane_x = p->plane_x * cosR - p->plane_y * sinR;
-        p->plane_y = oldPlaneX * sinR + p->plane_y * cosR;
+        p->angle = wrap_angle(p->angle + rot);
     }
 }

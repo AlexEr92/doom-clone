@@ -79,7 +79,8 @@ static int cmp_order(const void *a, const void *b)
     return 0;
 }
 
-void sprite_render(Framebuffer *fb, const SpriteList *sl, const Player *p, const Assets *a)
+void sprite_render(Framebuffer *fb, const SpriteList *sl, const PlayerState *p, const Camera *cam,
+                   const Assets *a)
 {
     SpriteOrder order[MAX_SPRITES];
     int n = 0;
@@ -104,8 +105,8 @@ void sprite_render(Framebuffer *fb, const SpriteList *sl, const Player *p, const
      * invDet used. We use:
      *   u = (dir_y*dx - dir_x*dy)
      *   v = (-plane_y*dx + plane_x*dy)  ... we need determinant. */
-    float dir_x = p->dir_x, dir_y = p->dir_y;
-    float plane_x = p->plane_x, plane_y = p->plane_y;
+    float dir_x = cam->dir_x, dir_y = cam->dir_y;
+    float plane_x = cam->plane_x, plane_y = cam->plane_y;
     float det =
             plane_x * dir_y - plane_y * dir_x; /* determinant of [plane_x plane_y; dir_x dir_y] */
 

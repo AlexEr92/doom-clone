@@ -56,8 +56,8 @@ int enemy_spawn(EnemyList *el, SpriteList *sl, float x, float y, int type);
 
 /* Per-tick update: AI state machine, movement, attacks. Modifies player hp.
  * dl may be NULL (no doors). au may be NULL (no audio). */
-void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, struct DoorList *dl, Player *pl,
-                      struct Audio *au, double dt);
+void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, struct DoorList *dl,
+                      PlayerState *pl, struct Audio *au, double dt);
 
 /* Apply damage to enemy idx; on death switches sprite to corpse.
  * au may be NULL. player_x/y used for spatial audio. */

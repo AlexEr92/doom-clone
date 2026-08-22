@@ -27,7 +27,8 @@ static const Texture *wall_texture_for(const Assets *a, int cell)
     return cell == 2 ? &a->wall_door : &a->wall_brick;
 }
 
-void raycast_render(Framebuffer *fb, const Player *p, const Map *m, const Assets *a, DoorList *dl)
+void raycast_render(Framebuffer *fb, const PlayerState *p, const Camera *cam, const Map *m,
+                    const Assets *a, DoorList *dl)
 {
     /* Flat ceiling/floor fills */
     uint32_t ceil_color = make_color(40, 40, 50);
@@ -47,8 +48,8 @@ void raycast_render(Framebuffer *fb, const Player *p, const Map *m, const Assets
 
     for (int x = 0; x < SCREEN_W; x++) {
         float cameraX = 2.0f * (float)x / (float)SCREEN_W - 1.0f;
-        float rayDirX = p->dir_x + p->plane_x * cameraX;
-        float rayDirY = p->dir_y + p->plane_y * cameraX;
+        float rayDirX = cam->dir_x + cam->plane_x * cameraX;
+        float rayDirY = cam->dir_y + cam->plane_y * cameraX;
 
         int mapX = (int)p->x;
         int mapY = (int)p->y;

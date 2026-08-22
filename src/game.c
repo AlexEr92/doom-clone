@@ -241,7 +241,7 @@ static void overlay_dim(Framebuffer *fb, float alpha)
     (void)dim;
 }
 
-void game_draw_overlay(Framebuffer *fb, const Game *g, const Player *pl)
+void game_draw_overlay(Framebuffer *fb, const Game *g, const PlayerState *pl)
 {
     switch (g->state) {
         case GSTATE_MENU: {
