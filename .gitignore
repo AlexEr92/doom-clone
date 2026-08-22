@@ -40,5 +40,8 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Сырые картинки от генеративной модели (см. docs/assets-spec.md)
+/raw/
+
 # Артефакты драйвера запуска (.claude/skills/run-doom-clone)
 /.run/
