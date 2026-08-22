@@ -123,7 +123,6 @@
 
 | # | Задача | Где |
 |---|---|---|
-| [bug-001](bug-001-enemy-sees-through-walls.md) | Враг преследует игрока сквозь стены | `enemy.c` |
 | [bug-002](bug-002-door-closes-on-player.md) | Дверь закрывается в стоящем в проёме | `door.c` |
 | [bug-003](bug-003-dead-fire-pressed-field.md) | Мёртвое поле `fire_pressed` | `input.h` |
 | [bug-004](bug-004-audio-init-leak.md) | `audio_init()` теряет 8 WAV-буферов при запуске | `audio.c` |
@@ -146,3 +145,4 @@
 | [05-01](../closed_tasks/05-01-player-state-split.md) | Разделить `Player` на состояние и камеру | Сделано |
 | [05-02](../closed_tasks/05-02-weapons-into-player.md) | Перенести `WeaponSystem` внутрь игрока | Сделано |
 | [05-03](../closed_tasks/05-03-world-raycast.md) | Мировой DDA без фреймбуфера | Сделано |
+| [bug-001](../closed_tasks/bug-001-enemy-sees-through-walls.md) | Враг преследует игрока сквозь стены | Сделано |

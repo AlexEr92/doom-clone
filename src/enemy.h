@@ -25,8 +25,10 @@ typedef struct {
     float hp;
     float anim_timer;
     float attack_cooldown;
-    int sprite_id;     /* index into SpriteList (kept in sync) */
-    float alert_timer; /* time remaining in ALERT before CHASE */
+    int sprite_id;                  /* index into SpriteList (kept in sync) */
+    float alert_timer;              /* time remaining in ALERT before CHASE */
+    float last_seen_x, last_seen_y; /* player position while last visible */
+    float search_timer;             /* time left searching after losing sight */
 } Enemy;
 
 #define MAX_ENEMIES 32

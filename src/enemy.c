@@ -7,6 +7,11 @@
 #include <math.h>
 #include <string.h>
 
+/* CHASE without line of sight: how long the enemy keeps heading for the last
+ * known position, and how close to it counts as having arrived. */
+#define ENEMY_SEARCH_TIME 3.0f
+#define ENEMY_SEARCH_REACH 0.3f
+
 static const EnemyDef defs[ENEMY_COUNT] = {
         [ENEMY_IMP] =
                 {
@@ -71,6 +76,9 @@ int enemy_spawn(EnemyList *el, SpriteList *sl, float x, float y, int type)
     e->attack_cooldown = 0.0f;
     e->sprite_id = sid;
     e->alert_timer = 0.0f;
+    e->last_seen_x = x;
+    e->last_seen_y = y;
+    e->search_timer = 0.0f;
     return el->count++;
 }
 
@@ -116,6 +124,12 @@ void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, DoorList *dl,
         int can_see =
                 (dist <= d->detect_range) && world_line_of_sight(m, dl, e->x, e->y, pl->x, pl->y);
 
+        if (can_see) {
+            e->last_seen_x = pl->x;
+            e->last_seen_y = pl->y;
+            e->search_timer = ENEMY_SEARCH_TIME;
+        }
+
         if (e->attack_cooldown > 0.0f) {
             e->attack_cooldown -= (float)dt;
         }
@@ -146,8 +160,18 @@ void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, DoorList *dl,
                         move_towards(e, m, dl, pl->x, pl->y, dt);
                     }
                 } else {
-                    /* lost sight: keep moving towards last known pos (player's current) briefly */
-                    move_towards(e, m, dl, pl->x, pl->y, dt);
+                    /* lost sight: search the last known position, give up after
+                     * reaching it or running out of time */
+                    e->search_timer -= (float)dt;
+                    float sdx = e->last_seen_x - e->x;
+                    float sdy = e->last_seen_y - e->y;
+                    if (e->search_timer <= 0.0f ||
+                        sdx * sdx + sdy * sdy <= ENEMY_SEARCH_REACH * ENEMY_SEARCH_REACH) {
+                        e->search_timer = 0.0f;
+                        e->state = ESTATE_IDLE;
+                        break;
+                    }
+                    move_towards(e, m, dl, e->last_seen_x, e->last_seen_y, dt);
                 }
                 break;
             case ESTATE_ATTACK:
@@ -220,6 +244,9 @@ void enemy_damage(EnemyList *el, SpriteList *sl, int idx, float dmg, Audio *au, 
         if (e->state == ESTATE_IDLE || e->state == ESTATE_ALERT) {
             e->state = ESTATE_CHASE;
         }
+        e->last_seen_x = px;
+        e->last_seen_y = py;
+        e->search_timer = ENEMY_SEARCH_TIME;
         if (au) {
             float dx = e->x - px, dy = e->y - py;
             float dist = sqrtf(dx * dx + dy * dy);
