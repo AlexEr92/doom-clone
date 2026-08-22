@@ -123,7 +123,6 @@
 
 | # | Задача | Где |
 |---|---|---|
-| [bug-002](bug-002-door-closes-on-player.md) | Дверь закрывается в стоящем в проёме | `door.c` |
 | [bug-003](bug-003-dead-fire-pressed-field.md) | Мёртвое поле `fire_pressed` | `input.h` |
 | [bug-004](bug-004-audio-init-leak.md) | `audio_init()` теряет 8 WAV-буферов при запуске | `audio.c` |
 | [bug-005](bug-005-strafe-speed-fov-scaled.md) | Стрейф медленнее ходьбы в `FOV_PLANE` раз | `player.c` |
@@ -146,3 +145,4 @@
 | [05-02](../closed_tasks/05-02-weapons-into-player.md) | Перенести `WeaponSystem` внутрь игрока | Сделано |
 | [05-03](../closed_tasks/05-03-world-raycast.md) | Мировой DDA без фреймбуфера | Сделано |
 | [bug-001](../closed_tasks/bug-001-enemy-sees-through-walls.md) | Враг преследует игрока сквозь стены | Сделано |
+| [bug-002](../closed_tasks/bug-002-door-closes-on-player.md) | Дверь закрывается в стоящем в проёме | Сделано |

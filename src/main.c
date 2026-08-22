@@ -29,6 +29,27 @@ typedef struct {
     int loaded;
 } World;
 
+/* Collect everyone who should keep a door from closing on them: live
+ * players and live enemies. Moves into world_step() with 06-01. */
+static int world_door_occupants(const World *w, DoorOccupant *occ, int max)
+{
+    int n = 0;
+    if (w->player.hp > 0.0f && n < max) {
+        occ[n].x = w->player.x;
+        occ[n].y = w->player.y;
+        n++;
+    }
+    for (int i = 0; i < w->enemies.count && n < max; i++) {
+        const Enemy *e = &w->enemies.items[i];
+        if (e->state != ESTATE_DEAD) {
+            occ[n].x = e->x;
+            occ[n].y = e->y;
+            n++;
+        }
+    }
+    return n;
+}
+
 static int world_load(World *w, const char *map_path)
 {
     if (map_load(&w->map, map_path) != 0) {
@@ -190,7 +211,9 @@ int main(int argc, char **argv)
                 if (input.use) {
                     door_try_use(&world.doors, &world.player, &world.map);
                 }
-                door_update_all(&world.doors, FIXED_DT);
+                DoorOccupant occ[1 + MAX_ENEMIES];
+                int occ_count = world_door_occupants(&world, occ, 1 + MAX_ENEMIES);
+                door_update_all(&world.doors, occ, occ_count, FIXED_DT);
                 enemy_update_all(&world.enemies, &world.sprites, &world.map, &world.doors,
                                  &world.player, &audio, FIXED_DT);
                 item_update(&world.items, &world.sprites, &world.player, &audio);

@@ -88,10 +88,27 @@ void door_try_use(DoorList *dl, const PlayerState *p, const Map *m)
     d->triggered = 1;
 }
 
-void door_update_all(DoorList *dl, double dt)
+/* Does anyone overlap the door's cell? Tested as a circle of PLAYER_RADIUS
+ * against the cell square, so standing on the threshold counts. */
+static int door_cell_occupied(const Door *d, const DoorOccupant *occ, int occ_count)
+{
+    float r = PLAYER_RADIUS;
+    float x0 = (float)d->cellx, x1 = x0 + 1.0f;
+    float y0 = (float)d->celly, y1 = y0 + 1.0f;
+    for (int i = 0; i < occ_count; i++) {
+        if (occ[i].x + r > x0 && occ[i].x - r < x1 && occ[i].y + r > y0 && occ[i].y - r < y1) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void door_update_all(DoorList *dl, const DoorOccupant *occ, int occ_count, double dt)
 {
     for (int i = 0; i < dl->count; i++) {
         Door *d = &dl->doors[i];
+        int occupied = (d->state == DOOR_OPEN || d->state == DOOR_CLOSING) &&
+                       door_cell_occupied(d, occ, occ_count);
         switch (d->state) {
             case DOOR_CLOSED: break;
             case DOOR_OPENING:
@@ -103,12 +120,21 @@ void door_update_all(DoorList *dl, double dt)
                 }
                 break;
             case DOOR_OPEN:
+                if (occupied) {
+                    /* hold it open as long as the doorway is in use */
+                    d->timer = DOOR_OPEN_TIME;
+                    break;
+                }
                 d->timer -= (float)dt;
                 if (d->timer <= 0.0f) {
                     d->state = DOOR_CLOSING;
                 }
                 break;
             case DOOR_CLOSING:
+                if (occupied) {
+                    d->state = DOOR_OPENING;
+                    break;
+                }
                 d->openness -= DOOR_SPEED * (float)dt;
                 if (d->openness <= 0.0f) {
                     d->openness = 0.0f;
