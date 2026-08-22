@@ -140,7 +140,7 @@
 | [bug-005](bug-005-strafe-speed-fov-scaled.md) | Стрейф медленнее ходьбы в `FOV_PLANE` раз | `player.c` |
 | [bug-006](bug-006-hud-draw-int-digit-order.md) | `draw_int()` рисует цифры HUD в обратном порядке | `hud.c` |
 | [bug-008](bug-008-load-png-leaks-replaced-pixels.md) | `assets_load_png()` теряет пиксели замещаемого слота | `assets.c` |
-| [bug-009](bug-009-sprite-aspect-ignores-fov.md) | Спрайты сжаты по горизонтали на 17.5 % | `sprite.c` |
+| [bug-010](bug-010-sprite-squashed-when-clipped.md) | Спрайт сплющивается при обрезке верхним краем экрана | `sprite.c` |
 | [chore-001](chore-001-github-actions-ci.md) | CI на трёх платформах через GitHub Actions | `.github/workflows/` |
 | [chore-002](chore-002-dead-ternary-text-width.md) | Убрать неработающий тернарник в `text_width()` | `game.c` |
 | [chore-003](chore-003-const-correctness-lint.md) | Три параметра/переменных без `const` | `game.c`, `item.c`, `map.c` |
@@ -165,3 +165,4 @@
 | [10-02](../closed_tasks/10-02-sheet-tools.md) | Подготовка и проверка листов кадров | Сделано |
 | [bug-007](../closed_tasks/bug-007-purple-fringe-prepare-sheet.md) | Пурпурная кайма по контуру после `prepare_sheet` | Сделано |
 | [10-01](../closed_tasks/10-01-sprite-sheet-loader.md) | Формат листа кадров и загрузчик файловых текстур | Сделано |
+| [bug-009](../closed_tasks/bug-009-sprite-aspect-ignores-fov.md) | Спрайты сжаты по горизонтали на 17.5 % | Сделано |

@@ -60,6 +60,13 @@ static const Texture *sprite_texture(const Assets *a, int type)
     }
 }
 
+/* Projection is not isotropic: at unit depth a world unit is SCREEN_H pixels
+ * tall but (SCREEN_W / 2) / FOV_PLANE pixels wide, because the horizontal
+ * projection divides by the length of the camera plane and that length is the
+ * FOV. Deriving the sprite width from its height alone therefore draws a
+ * square frame square on the screen and 17.5% too narrow in the world. */
+#define SPRITE_ASPECT ((float)SCREEN_W / (2.0f * FOV_PLANE * (float)SCREEN_H))
+
 typedef struct {
     int idx;
     float dist;
@@ -140,8 +147,9 @@ void sprite_render(Framebuffer *fb, const SpriteList *sl, const PlayerState *p, 
         int drawEndY = floorY + vMoveScreen;
         int drawStartY = drawEndY - spriteHeight;
 
-        /* Keep aspect ratio of texture (texW:texH). */
-        int spriteWidth = (int)((float)spriteHeight * (float)texW / (float)texH);
+        /* Keep aspect ratio of the frame (texW:texH), in the world rather
+         * than on the screen — hence SPRITE_ASPECT. */
+        int spriteWidth = (int)((float)spriteHeight * (float)texW / (float)texH * SPRITE_ASPECT);
         int drawStartX = -spriteWidth / 2 + spriteScreenX;
         int drawEndX = spriteWidth / 2 + spriteScreenX;
 
@@ -168,7 +176,10 @@ void sprite_render(Framebuffer *fb, const SpriteList *sl, const PlayerState *p, 
                 continue;
             }
 
-            uint32_t *col_ptr = fb->pixels + (size_t)drawStartY * SCREEN_W + x;
+            /* The destination row follows y, not the pixels written: a
+             * running pointer advanced only on an opaque texel packs the
+             * column's opaque pixels against the top of the sprite and
+             * smears whatever is below every transparent run. */
             float stepY = (float)texH / (float)spriteHeight;
             float texPos = 0.0f;
             for (int y = drawStartY; y <= drawEndY; y++) {
@@ -184,8 +195,7 @@ void sprite_render(Framebuffer *fb, const SpriteList *sl, const PlayerState *p, 
                 if ((c & 0xFF000000u) == 0) {
                     continue; /* transparent */
                 }
-                *col_ptr = c;
-                col_ptr += SCREEN_W;
+                fb->pixels[(size_t)y * SCREEN_W + x] = c;
             }
         }
     }
