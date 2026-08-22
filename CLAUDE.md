@@ -66,6 +66,23 @@ are not: see the tables in
 `docs/closed_tasks/test-001-unit-test-harness.md` for what is out of scope
 and why.
 
+### Asset tools
+
+`tools/` holds the two utilities that turn a picture from a generative
+model into loadable sheets. They are off by default and share nothing with
+the game — no SDL, no `src/`:
+
+```bash
+cmake -S . -B build -DBUILD_TOOLS=ON
+cmake --build build --target prepare_sheet check_sheets
+build/prepare_sheet raw/marine.png --profile player --out assets/players/marine --debug
+build/check_sheets assets
+```
+
+`docs/assets-spec.md` is the reference: directory layout, frame grids, the
+prompts the pictures are ordered with, and what the tools do to them. Raw
+model output lives in `raw/`, which is not versioned.
+
 ### Running headless / driving the game
 
 Unit tests do not catch what only shows up on screen. To verify a change

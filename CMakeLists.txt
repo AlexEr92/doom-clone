@@ -85,3 +85,19 @@ if(BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
+
+# ---- Инструменты подготовки графики ----
+# Тоже за отдельной опцией: игра о tools/ не знает, а сами утилиты не тянут
+# ни SDL, ни исходники из src/.
+option(BUILD_TOOLS "Build the asset sheet tools in tools/" OFF)
+
+if(BUILD_TOOLS)
+    foreach(tool prepare_sheet check_sheets)
+        add_executable(${tool} tools/${tool}.c)
+        target_include_directories(${tool} SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/vendor)
+        target_include_directories(${tool} PRIVATE ${CMAKE_SOURCE_DIR}/tools)
+        if(NOT WIN32)
+            target_link_libraries(${tool} PRIVATE m)
+        endif()
+    endforeach()
+endif()
