@@ -9,8 +9,8 @@ struct DoorList;
 
 typedef struct {
     float x, y;
-    float dirX, dirY;
-    float planeX, planeY;
+    float dir_x, dir_y;
+    float plane_x, plane_y;
     float hp;
     float armor;
 } Player;
@@ -18,7 +18,7 @@ typedef struct {
 void player_init(Player *p, int start_x, int start_y);
 
 /* dt update. If dl is non-NULL, doors are respected for collision. */
-void player_update(Player *p, const Map *m, struct DoorList *dl,
-                   const struct InputState *in, double dt);
+void player_update(Player *p, const Map *m, struct DoorList *dl, const struct InputState *in,
+                   double dt);
 
 #endif

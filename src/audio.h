@@ -17,13 +17,13 @@ typedef enum {
 } SoundId;
 
 typedef struct Audio {
-    int available;        /* 1 if SDL_mixer initialized ok */
+    int available; /* 1 if SDL_mixer initialized ok */
     int muted;
     Mix_Chunk *chunks[SND_COUNT];
     Mix_Music *music;
 } Audio;
 
-int  audio_init(Audio *a);
+int audio_init(Audio *a);
 void audio_shutdown(Audio *a);
 
 /* Play a sound with optional 3D position relative to player.

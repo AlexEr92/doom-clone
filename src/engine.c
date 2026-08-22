@@ -3,7 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-int engine_init(Engine *e) {
+int engine_init(Engine *e)
+{
     memset(e, 0, sizeof(*e));
     e->running = 1;
 
@@ -12,17 +13,15 @@ int engine_init(Engine *e) {
         return -1;
     }
 
-    e->window = SDL_CreateWindow("doom-clone",
-                                 SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                                 WINDOW_W, WINDOW_H,
-                                 SDL_WINDOW_SHOWN);
+    e->window = SDL_CreateWindow("doom-clone", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                                 WINDOW_W, WINDOW_H, SDL_WINDOW_SHOWN);
     if (!e->window) {
         fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
         return -1;
     }
 
-    e->renderer = SDL_CreateRenderer(e->window, -1,
-                                     SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    e->renderer =
+            SDL_CreateRenderer(e->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!e->renderer) {
         e->renderer = SDL_CreateRenderer(e->window, -1, SDL_RENDERER_SOFTWARE);
     }
@@ -31,10 +30,11 @@ int engine_init(Engine *e) {
         return -1;
     }
 
-    e->screen_texture = SDL_CreateTexture(e->renderer,
-                                          SDL_PIXELFORMAT_ARGB8888,
-                                          SDL_TEXTUREACCESS_STREAMING,
-                                          SCREEN_W, SCREEN_H);
+    /* Must match the byte order make_color() packs (utils.h): 0xAABBGGRR,
+     * i.e. red in the low byte. ARGB8888 would swap the red and blue
+     * channels of every colour in the game. */
+    e->screen_texture = SDL_CreateTexture(e->renderer, SDL_PIXELFORMAT_ABGR8888,
+                                          SDL_TEXTUREACCESS_STREAMING, SCREEN_W, SCREEN_H);
     if (!e->screen_texture) {
         fprintf(stderr, "SDL_CreateTexture failed: %s\n", SDL_GetError());
         return -1;
@@ -51,34 +51,51 @@ int engine_init(Engine *e) {
     return 0;
 }
 
-void engine_shutdown(Engine *e) {
+void engine_shutdown(Engine *e)
+{
     free(e->fb.pixels);
     e->fb.pixels = NULL;
-    if (e->screen_texture) SDL_DestroyTexture(e->screen_texture);
-    if (e->renderer) SDL_DestroyRenderer(e->renderer);
-    if (e->window) SDL_DestroyWindow(e->window);
+    if (e->screen_texture) {
+        SDL_DestroyTexture(e->screen_texture);
+    }
+    if (e->renderer) {
+        SDL_DestroyRenderer(e->renderer);
+    }
+    if (e->window) {
+        SDL_DestroyWindow(e->window);
+    }
     SDL_Quit();
 }
 
-void engine_present(Engine *e) {
-    SDL_UpdateTexture(e->screen_texture, NULL, e->fb.pixels,
-                      SCREEN_W * (int)sizeof(uint32_t));
+void engine_present(Engine *e)
+{
+    SDL_UpdateTexture(e->screen_texture, NULL, e->fb.pixels, SCREEN_W * (int)sizeof(uint32_t));
     SDL_RenderClear(e->renderer);
     SDL_RenderCopy(e->renderer, e->screen_texture, NULL, NULL);
     SDL_RenderPresent(e->renderer);
 }
 
-void fb_clear(Framebuffer *fb, uint32_t color) {
+void fb_clear(Framebuffer *fb, uint32_t color)
+{
     for (int i = 0; i < SCREEN_W * SCREEN_H; i++) {
         fb->pixels[i] = color;
     }
 }
 
-void fb_vline(Framebuffer *fb, int x, int y0, int y1, uint32_t color) {
-    if (x < 0 || x >= SCREEN_W) return;
-    if (y0 < 0) y0 = 0;
-    if (y1 >= SCREEN_H) y1 = SCREEN_H - 1;
-    if (y0 > y1) return;
+void fb_vline(Framebuffer *fb, int x, int y0, int y1, uint32_t color)
+{
+    if (x < 0 || x >= SCREEN_W) {
+        return;
+    }
+    if (y0 < 0) {
+        y0 = 0;
+    }
+    if (y1 >= SCREEN_H) {
+        y1 = SCREEN_H - 1;
+    }
+    if (y0 > y1) {
+        return;
+    }
     uint32_t *p = fb->pixels + (size_t)y0 * SCREEN_W + x;
     for (int y = y0; y <= y1; y++) {
         *p = color;

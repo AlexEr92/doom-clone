@@ -10,7 +10,7 @@ struct DoorList;
 
 extern float zBuffer[SCREEN_W];
 
-void raycast_render(Framebuffer *fb, const Player *p, const Map *m,
-                    const Assets *a, struct DoorList *dl);
+void raycast_render(Framebuffer *fb, const Player *p, const Map *m, const Assets *a,
+                    struct DoorList *dl);
 
 #endif

@@ -3,7 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
-int map_load(Map *m, const char *path) {
+int map_load(Map *m, const char *path)
+{
     memset(m, 0, sizeof(*m));
     FILE *f = fopen(path, "r");
     if (!f) {
@@ -45,7 +46,7 @@ int map_load(Map *m, const char *path) {
                         m->sprite_count++;
                     }
                     break;
-                default:  m->cells[row][col] = 0; break;
+                default: m->cells[row][col] = 0; break;
             }
         }
         for (int col = len; col < MAP_MAX_W; col++) {
@@ -56,28 +57,37 @@ int map_load(Map *m, const char *path) {
     fclose(f);
 
     while (row < MAP_MAX_H) {
-        for (int col = 0; col < MAP_MAX_W; col++) m->cells[row][col] = 1;
+        for (int col = 0; col < MAP_MAX_W; col++) {
+            m->cells[row][col] = 1;
+        }
         row++;
     }
     return 0;
 }
 
-int map_cell(const Map *m, int x, int y) {
-    if (x < 0 || x >= m->w || y < 0 || y >= m->h) return 1;
+int map_cell(const Map *m, int x, int y)
+{
+    if (x < 0 || x >= m->w || y < 0 || y >= m->h) {
+        return 1;
+    }
     return m->cells[y][x];
 }
 
-int map_is_wall(const Map *m, float x, float y) {
+int map_is_wall(const Map *m, float x, float y)
+{
     int mx = (int)x;
     int my = (int)y;
     return map_cell(m, mx, my) != 0;
 }
 
-int map_is_wall_door(const Map *m, struct DoorList *dl, float x, float y) {
+int map_is_wall_door(const Map *m, struct DoorList *dl, float x, float y)
+{
     int mx = (int)x;
     int my = (int)y;
     int c = map_cell(m, mx, my);
-    if (c == 0) return 0;
+    if (c == 0) {
+        return 0;
+    }
     if (c == 2 && dl) {
         /* door: blocking only if openness < 0.5 */
         return door_is_blocking(dl, mx, my);

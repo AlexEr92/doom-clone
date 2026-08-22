@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Build the game and run the smoke scenario before pushing.
+#
+# This lives in pre-push rather than pre-commit on purpose: it needs a build
+# and an X server and takes seconds, and a slow pre-commit only teaches people
+# to pass --no-verify, after which nothing runs at all.
+#
+# Enabled by: git config core.hooksPath .githooks
+set -uo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+cd "$root" || exit 0
+
+# Nothing to verify when the push only deletes refs.
+only_deletes=1
+while read -r _local_ref local_sha _remote_ref _remote_sha; do
+    [ "$local_sha" = "0000000000000000000000000000000000000000" ] || only_deletes=0
+done
+[ "$only_deletes" -eq 1 ] && exit 0
+
+echo "pre-push: сборка..."
+if ! cmake -S . -B build >/dev/null 2>&1 || ! cmake --build build >/dev/null 2>&1; then
+    echo "Сборка не прошла — push отменён." >&2
+    echo "  cmake --build build" >&2
+    echo "Обойти: git push --no-verify" >&2
+    exit 1
+fi
+
+# Unit tests once they exist; today tests/ is not there yet (see docs/tasks/test-001).
+if [ -d tests ] && [ -f build/CTestTestfile.cmake ]; then
+    echo "pre-push: юнит-тесты..."
+    if ! ctest --test-dir build --output-on-failure >/dev/null 2>&1; then
+        echo "Юнит-тесты не прошли — push отменён." >&2
+        echo "  ctest --test-dir build --output-on-failure" >&2
+        echo "Обойти: git push --no-verify" >&2
+        exit 1
+    fi
+fi
+
+driver=".claude/skills/run-doom-clone/driver.sh"
+if [ ! -x "$driver" ]; then
+    exit 0
+fi
+if ! command -v Xvfb >/dev/null 2>&1 || ! command -v xdotool >/dev/null 2>&1; then
+    echo "pre-push: Xvfb или xdotool не найдены, smoke пропущен." >&2
+    echo "  sudo apt-get install -y xvfb xdotool imagemagick" >&2
+    exit 0
+fi
+
+echo "pre-push: smoke..."
+if ! "$driver" smoke >/dev/null 2>&1; then
+    echo "Smoke не прошёл — push отменён." >&2
+    echo "  $driver smoke" >&2
+    echo "Обойти: git push --no-verify" >&2
+    "$driver" stop >/dev/null 2>&1
+    exit 1
+fi
+"$driver" stop >/dev/null 2>&1
+echo "pre-push: ок"

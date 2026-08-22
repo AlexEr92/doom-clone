@@ -39,3 +39,6 @@ Thumbs.db
 *~
 .vscode/
 .idea/
+
+# Артефакты драйвера запуска (.claude/skills/run-doom-clone)
+/.run/

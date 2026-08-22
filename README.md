@@ -44,6 +44,19 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug   # отладочная сборк
 Цель `run` делает это автоматически. Исполняемый файл: `build/doom-clone`
 (или `build/doom-clone.exe` на Windows).
 
+### Git-хуки
+
+Хуки лежат в `.githooks/` и включаются один раз на клон — каталог
+`.git/hooks/` не версионируется:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Они проверяют сообщение коммита, форматирование проиндексированных
+исходников и — перед push — сборку со smoke-прогоном. Подробности в
+[CLAUDE.md](CLAUDE.md). Обойти любой: `--no-verify`.
+
 ## Управление
 
 | Клавиша | Действие |
@@ -65,8 +78,14 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug   # отладочная сборк
 ```
 doom-clone/
 ├── CMakeLists.txt        # кросс-платформенная сборка
-├── plan.md               # детальный план разработки
 ├── README.md
+├── CLAUDE.md             # инструкции для Claude Code
+├── docs/
+│   ├── architecture.md   # как устроено сейчас и почему
+│   ├── roadmap.md        # куда движется проект
+│   ├── requirements.md   # нефункциональные требования
+│   ├── tasks/            # открытые задачи с критериями приёмки
+│   └── closed_tasks/     # закрытые задачи
 ├── vendor/               # stb_image.h
 ├── src/                  # исходники (.c/.h)
 └── assets/
@@ -95,5 +114,11 @@ A  - патроны
 
 ## Статус
 
-Демо готово: реализованы все 4 недели разработки (движок, текстуры/спрайты,
-стрельба/ИИ, HUD/звук/FSM) и кросс-платформенная сборка на CMake. См. `plan.md`.
+Демо готово: пройдены все четыре этапа разработки (движок, текстуры/спрайты,
+стрельба/ИИ, HUD/звук/FSM) и кросс-платформенная сборка на CMake. Как всё
+устроено — [docs/architecture.md](docs/architecture.md).
+
+Ведётся перевод игры в сетевой deathmatch на 10 игроков: направление и
+обоснование решений в [docs/roadmap.md](docs/roadmap.md), ограничения в
+[docs/requirements.md](docs/requirements.md), конкретные работы в
+[docs/tasks/](docs/tasks/).
