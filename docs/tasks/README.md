@@ -140,6 +140,7 @@
 | [bug-004](bug-004-audio-init-leak.md) | `audio_init()` теряет 8 WAV-буферов при запуске | `audio.c` |
 | [bug-005](bug-005-strafe-speed-fov-scaled.md) | Стрейф медленнее ходьбы в `FOV_PLANE` раз | `player.c` |
 | [bug-006](bug-006-hud-draw-int-digit-order.md) | `draw_int()` рисует цифры HUD в обратном порядке | `hud.c` |
+| [bug-007](bug-007-purple-fringe-prepare-sheet.md) | Пурпурная кайма по контуру после `prepare_sheet` | `tools/` |
 | [chore-001](chore-001-github-actions-ci.md) | CI на трёх платформах через GitHub Actions | `.github/workflows/` |
 | [chore-002](chore-002-dead-ternary-text-width.md) | Убрать неработающий тернарник в `text_width()` | `game.c` |
 | [chore-003](chore-003-const-correctness-lint.md) | Три параметра/переменных без `const` | `game.c`, `item.c`, `map.c` |
