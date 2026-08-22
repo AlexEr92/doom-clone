@@ -129,6 +129,7 @@
 | [bug-003](bug-003-dead-fire-pressed-field.md) | Мёртвое поле `fire_pressed` | `input.h` |
 | [bug-004](bug-004-audio-init-leak.md) | `audio_init()` теряет 8 WAV-буферов при запуске | `audio.c` |
 | [bug-005](bug-005-strafe-speed-fov-scaled.md) | Стрейф медленнее ходьбы в `FOV_PLANE` раз | `player.c` |
+| [bug-006](bug-006-hud-draw-int-digit-order.md) | `draw_int()` рисует цифры HUD в обратном порядке | `hud.c` |
 | [feat-001](feat-001-file-textures-weapon-enemy.md) | Файловые PNG-текстуры оружия и врагов | `assets.c` |
 | [test-001](test-001-unit-test-harness.md) | Подключить Unity, покрыть тестами то, что уже тестируемо | `tests/`, `vendor/unity/` |
 | [chore-001](chore-001-github-actions-ci.md) | CI на трёх платформах через GitHub Actions | `.github/workflows/` |
