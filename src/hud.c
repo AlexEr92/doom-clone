@@ -66,13 +66,14 @@ static void draw_int(Framebuffer *fb, int x0, int y0, int value, uint32_t color,
     }
 }
 
-void hud_draw_weapon(Framebuffer *fb, const Texture *base, float anim)
+void hud_draw_weapon(Framebuffer *fb, const Texture *base, int frame, float anim)
 {
     if (!base || !base->pixels) {
         return;
     }
-    int tw = base->w;
-    int th = base->h;
+    const uint32_t *src = texture_frame(base, frame, 0);
+    int tw = base->fw;
+    int th = base->fh;
     int target_h = (int)(SCREEN_H * 0.40f);
     float scale = (float)target_h / (float)th;
     int draw_w = (int)(tw * scale);
@@ -103,7 +104,7 @@ void hud_draw_weapon(Framebuffer *fb, const Texture *base, float anim)
             if (px < 0 || px >= SCREEN_W) {
                 continue;
             }
-            uint32_t c = base->pixels[(size_t)sy * tw + sx];
+            uint32_t c = src[(size_t)sy * base->w + sx];
             if ((c & 0xFF000000u) == 0) {
                 continue;
             }

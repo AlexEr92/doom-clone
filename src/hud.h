@@ -8,7 +8,8 @@
 
 void hud_draw(Framebuffer *fb, const PlayerState *pl);
 
-/* Weapon sprite at the bottom-center, with recoil offset from anim. */
-void hud_draw_weapon(Framebuffer *fb, const Texture *base, float anim);
+/* Weapon sprite at the bottom-center: frame of the sheet, with recoil offset
+ * from anim. */
+void hud_draw_weapon(Framebuffer *fb, const Texture *base, int frame, float anim);
 
 #endif

@@ -121,8 +121,11 @@ void sprite_render(Framebuffer *fb, const SpriteList *sl, const PlayerState *p, 
         }
 
         const Texture *tex = sprite_texture(a, sp->type);
-        int texW = tex->w;
-        int texH = tex->h;
+        /* Frame 0 until 06-05/10-03 put a frame number in Sprite. Columns are
+         * side by side in one image, so the row stride stays tex->w. */
+        const uint32_t *frame = texture_frame(tex, 0, 0);
+        int texW = tex->fw;
+        int texH = tex->fh;
 
         int spriteScreenX = (int)((SCREEN_W / 2.0f) * (1.0f + transformX / transformY));
 
@@ -177,7 +180,7 @@ void sprite_render(Framebuffer *fb, const SpriteList *sl, const PlayerState *p, 
                 if (texY >= texH) {
                     continue;
                 }
-                uint32_t c = tex->pixels[(size_t)texY * texW + texX];
+                uint32_t c = frame[(size_t)texY * tex->w + texX];
                 if ((c & 0xFF000000u) == 0) {
                     continue; /* transparent */
                 }

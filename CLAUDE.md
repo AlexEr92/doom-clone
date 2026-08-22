@@ -155,12 +155,24 @@ isolation swaps red and blue across the entire game — that was a real bug,
 fixed by matching the texture format in `engine_init()` to the packing, and
 it is invisible in greys because they are symmetric.
 
-### Assets are generated, not loaded
+### Assets are generated, then overridden by files
 
 `assets.c` procedurally generates every wall texture, sprite and weapon
-graphic; `audio.c` synthesises every sound as a WAV in memory. The only
-external asset is the map. `assets_load_png()` (stb_image, in `vendor/`)
-exists but is unused — it is there so file-based assets can be swapped in.
+graphic; `audio.c` synthesises every sound as a WAV in memory. After the
+generators, `assets_init()` walks a table of file-backed slots and replaces
+what it finds under `assets/`: `assets_load_sheet()` checks the `_<w>x<h>`
+suffix of the name against the frame size the code expects, refuses an image
+that does not divide into whole frames, keys `#FF00FF` out and forces the
+remaining alpha to 0 or 255. A missing file is a normal state — the slot
+keeps its procedural texture and nothing is printed; a broken one is a
+warning on `stderr` and, again, the procedural texture.
+
+`Texture` is therefore a sheet of frames rather than one picture: `fw`/`fh`
+is one frame, `cols`/`rows` how many there are, and the row stride stays the
+width of the whole image — `texture_frame()` (`assets.h`) is what the
+renderer addresses a frame through. Everything procedural is a single frame
+(`texture_alloc()` fills the fields). `docs/assets-spec.md` is the reference
+for what the files must contain.
 
 ### Map format
 

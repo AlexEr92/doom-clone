@@ -285,7 +285,7 @@ int main(int argc, char **argv)
             hud_draw_weapon(&eng.fb,
                             ws->current == WEAPON_PISTOL ? &assets.weapon_pistol
                                                          : &assets.weapon_shotgun,
-                            ws->weapons[ws->current].anim);
+                            0, ws->weapons[ws->current].anim);
             hud_draw(&eng.fb, &world.player);
         } else {
             fb_clear(&eng.fb, make_color(15, 10, 20));

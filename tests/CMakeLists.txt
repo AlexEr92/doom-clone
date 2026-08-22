@@ -61,3 +61,6 @@ doom_test(item   SRC item.c)
 doom_test(weapon SRC weapon.c raycast_world.c enemy.c player.c map.c door.c)
 doom_test(input  SRC input.c)
 doom_test(game   SRC game.c)
+# Загрузчик листов: assets.c тянет stb_image по относительному пути, а сами
+# PNG тест пишет сам — фикстур в tests/ нет.
+doom_test(assets SRC assets.c)

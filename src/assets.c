@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stddef.h>
 #include <math.h>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -17,17 +18,20 @@ void texture_free(Texture *t)
         t->pixels = NULL;
     }
     t->w = t->h = 0;
+    t->fw = t->fh = 0;
+    t->cols = t->rows = 0;
 }
 
-/* Allocate a square TEX_SIZE texture with ARGB pixels. */
-static int tex_alloc(Texture *t)
+int texture_alloc(Texture *t, int w, int h)
 {
-    t->w = TEX_SIZE;
-    t->h = TEX_SIZE;
-    t->pixels = (uint32_t *)malloc((size_t)TEX_SIZE * TEX_SIZE * sizeof(uint32_t));
+    t->pixels = (uint32_t *)malloc((size_t)w * (size_t)h * sizeof(uint32_t));
     if (!t->pixels) {
+        t->w = t->h = t->fw = t->fh = t->cols = t->rows = 0;
         return -1;
     }
+    t->w = t->fw = w;
+    t->h = t->fh = h;
+    t->cols = t->rows = 1;
     return 0;
 }
 
@@ -40,7 +44,9 @@ static inline uint32_t col(uint8_t r, uint8_t g, uint8_t b)
 
 static void gen_brick(Texture *t)
 {
-    tex_alloc(t);
+    if (texture_alloc(t, TEX_SIZE, TEX_SIZE) != 0) {
+        return;
+    }
     for (int y = 0; y < TEX_SIZE; y++) {
         for (int x = 0; x < TEX_SIZE; x++) {
             int row = y / 16;
@@ -65,7 +71,9 @@ static void gen_brick(Texture *t)
 
 static void gen_door(Texture *t)
 {
-    tex_alloc(t);
+    if (texture_alloc(t, TEX_SIZE, TEX_SIZE) != 0) {
+        return;
+    }
     for (int y = 0; y < TEX_SIZE; y++) {
         for (int x = 0; x < TEX_SIZE; x++) {
             uint8_t r, g, b;
@@ -86,7 +94,9 @@ static void gen_door(Texture *t)
 
 static void gen_floor(Texture *t)
 {
-    tex_alloc(t);
+    if (texture_alloc(t, TEX_SIZE, TEX_SIZE) != 0) {
+        return;
+    }
     for (int y = 0; y < TEX_SIZE; y++) {
         for (int x = 0; x < TEX_SIZE; x++) {
             int gx = x / 16, gy = y / 16;
@@ -100,7 +110,9 @@ static void gen_floor(Texture *t)
 
 static void gen_ceiling(Texture *t)
 {
-    tex_alloc(t);
+    if (texture_alloc(t, TEX_SIZE, TEX_SIZE) != 0) {
+        return;
+    }
     for (int y = 0; y < TEX_SIZE; y++) {
         for (int x = 0; x < TEX_SIZE; x++) {
             int n = ((x * 11 + y * 7) % 9) - 4;
@@ -112,7 +124,9 @@ static void gen_ceiling(Texture *t)
 
 static void gen_barrel(Texture *t)
 {
-    tex_alloc(t);
+    if (texture_alloc(t, TEX_SIZE, TEX_SIZE) != 0) {
+        return;
+    }
     for (int y = 0; y < TEX_SIZE; y++) {
         for (int x = 0; x < TEX_SIZE; x++) {
             /* transparent border; draw barrel in central band */
@@ -138,7 +152,9 @@ static void gen_barrel(Texture *t)
 
 static void gen_enemy(Texture *t)
 {
-    tex_alloc(t);
+    if (texture_alloc(t, TEX_SIZE, TEX_SIZE) != 0) {
+        return;
+    }
     for (int y = 0; y < TEX_SIZE; y++) {
         for (int x = 0; x < TEX_SIZE; x++) {
             int dx = x - TEX_SIZE / 2;
@@ -165,7 +181,9 @@ static void gen_enemy(Texture *t)
 
 static void gen_enemy_serg(Texture *t)
 {
-    tex_alloc(t);
+    if (texture_alloc(t, TEX_SIZE, TEX_SIZE) != 0) {
+        return;
+    }
     for (int y = 0; y < TEX_SIZE; y++) {
         for (int x = 0; x < TEX_SIZE; x++) {
             int dx = x - TEX_SIZE / 2;
@@ -192,7 +210,9 @@ static void gen_enemy_serg(Texture *t)
 
 static void gen_enemy_dead(Texture *t)
 {
-    tex_alloc(t);
+    if (texture_alloc(t, TEX_SIZE, TEX_SIZE) != 0) {
+        return;
+    }
     for (int y = 0; y < TEX_SIZE; y++) {
         for (int x = 0; x < TEX_SIZE; x++) {
             int dx = x - TEX_SIZE / 2;
@@ -212,7 +232,9 @@ static void gen_enemy_dead(Texture *t)
 
 static void gen_medkit(Texture *t)
 {
-    tex_alloc(t);
+    if (texture_alloc(t, TEX_SIZE, TEX_SIZE) != 0) {
+        return;
+    }
     for (int y = 0; y < TEX_SIZE; y++) {
         for (int x = 0; x < TEX_SIZE; x++) {
             uint32_t c;
@@ -236,7 +258,9 @@ static void gen_medkit(Texture *t)
 
 static void gen_ammo(Texture *t)
 {
-    tex_alloc(t);
+    if (texture_alloc(t, TEX_SIZE, TEX_SIZE) != 0) {
+        return;
+    }
     for (int y = 0; y < TEX_SIZE; y++) {
         for (int x = 0; x < TEX_SIZE; x++) {
             uint32_t c;
@@ -253,7 +277,9 @@ static void gen_ammo(Texture *t)
 
 static void gen_armor(Texture *t)
 {
-    tex_alloc(t);
+    if (texture_alloc(t, TEX_SIZE, TEX_SIZE) != 0) {
+        return;
+    }
     for (int y = 0; y < TEX_SIZE; y++) {
         for (int x = 0; x < TEX_SIZE; x++) {
             int dx = x - TEX_SIZE / 2;
@@ -272,10 +298,7 @@ static void gen_armor(Texture *t)
 static void gen_weapon(Texture *t)
 {
     /* wide aspect pistol at bottom: w=128 h=128 */
-    t->w = 128;
-    t->h = 128;
-    t->pixels = (uint32_t *)malloc(128 * 128 * sizeof(uint32_t));
-    if (!t->pixels) {
+    if (texture_alloc(t, 128, 128) != 0) {
         return;
     }
     memset(t->pixels, 0, 128 * 128 * sizeof(uint32_t));
@@ -306,10 +329,7 @@ static void gen_weapon(Texture *t)
 
 static void gen_weapon_shotgun(Texture *t)
 {
-    t->w = 128;
-    t->h = 128;
-    t->pixels = (uint32_t *)malloc(128 * 128 * sizeof(uint32_t));
-    if (!t->pixels) {
+    if (texture_alloc(t, 128, 128) != 0) {
         return;
     }
     memset(t->pixels, 0, 128 * 128 * sizeof(uint32_t));
@@ -335,6 +355,21 @@ static void gen_weapon_shotgun(Texture *t)
     }
 }
 
+void assets_gen_missing(Texture *t)
+{
+    if (texture_alloc(t, TEX_SIZE, TEX_SIZE) != 0) {
+        return;
+    }
+    for (int y = 0; y < TEX_SIZE; y++) {
+        for (int x = 0; x < TEX_SIZE; x++) {
+            int dark = (((x / 8) + (y / 8)) % 2) == 0;
+            t->pixels[y * TEX_SIZE + x] = dark ? col(0, 0, 0) : col(255, 0, 255);
+        }
+    }
+}
+
+/* ---- File-backed sheets ---- */
+
 int assets_load_png(Texture *tex, const char *path)
 {
     int w, h, ch;
@@ -355,10 +390,123 @@ int assets_load_png(Texture *tex, const char *path)
                 (uint32_t)p[0];
     }
     stbi_image_free(data);
-    tex->w = w;
-    tex->h = h;
+    tex->w = tex->fw = w;
+    tex->h = tex->fh = h;
+    tex->cols = tex->rows = 1;
     tex->pixels = px;
     return 0;
+}
+
+/* Background colour of every prepared sheet, in the make_color() byte order.
+ * Kept in step with KEY_R/G/B in tools/sheet_common.h by hand: the tools are
+ * built separately from the game and share no header with it. */
+#define KEY_COLOR 0x00FF00FFu
+
+int assets_parse_frame_size(const char *path, int *fw, int *fh)
+{
+    const char *base = strrchr(path, '/');
+    base = base ? base + 1 : path;
+    const char *dot = strrchr(base, '.');
+    if (!dot) {
+        return -1;
+    }
+    for (const char *p = dot - 1; p > base; p--) {
+        if (*p != '_') {
+            continue;
+        }
+        int w = 0, h = 0, n = 0;
+        if (sscanf(p + 1, "%dx%d%n", &w, &h, &n) == 2 && p + 1 + n == dot && w > 0 && h > 0) {
+            *fw = w;
+            *fh = h;
+            return 0;
+        }
+    }
+    return -1;
+}
+
+int assets_load_sheet(Texture *t, const char *path, int fw, int fh)
+{
+    int name_fw = 0, name_fh = 0;
+    if (fw <= 0 || fh <= 0) {
+        fprintf(stderr, "assets: %s: frame size %dx%d requested\n", path, fw, fh);
+        return -1;
+    }
+    if (assets_parse_frame_size(path, &name_fw, &name_fh) != 0) {
+        fprintf(stderr, "assets: %s: name carries no _<w>x<h> frame size\n", path);
+        return -1;
+    }
+    if (name_fw != fw || name_fh != fh) {
+        fprintf(stderr, "assets: %s: name says %dx%d, code expects %dx%d\n", path, name_fw, name_fh,
+                fw, fh);
+        return -1;
+    }
+
+    Texture tmp;
+    memset(&tmp, 0, sizeof(tmp));
+    if (assets_load_png(&tmp, path) != 0) {
+        return -1;
+    }
+    if (tmp.w % fw != 0 || tmp.h % fh != 0) {
+        fprintf(stderr, "assets: %s: %dx%d is not a whole number of %dx%d frames\n", path, tmp.w,
+                tmp.h, fw, fh);
+        texture_free(&tmp);
+        return -1;
+    }
+
+    /* Binary transparency. The renderer skips a pixel only at alpha 0 and
+     * draws every other one fully opaque, so a soft edge from the model would
+     * come out as a rim and the key colour as a pink border. */
+    size_t n = (size_t)tmp.w * (size_t)tmp.h;
+    for (size_t i = 0; i < n; i++) {
+        uint32_t c = tmp.pixels[i];
+        uint32_t rgb = c & 0x00FFFFFFu;
+        if (rgb == KEY_COLOR) {
+            tmp.pixels[i] = rgb;
+            continue;
+        }
+        tmp.pixels[i] = rgb | (((c >> 24) < 128u) ? 0u : 0xFF000000u);
+    }
+
+    tmp.fw = fw;
+    tmp.fh = fh;
+    tmp.cols = tmp.w / fw;
+    tmp.rows = tmp.h / fh;
+    texture_free(t);
+    *t = tmp;
+    return 0;
+}
+
+/* One file-backed slot: the name the sheet is looked for under (without the
+ * extension), the frame size the code expects it in, and the field it takes
+ * over. A missing file is a normal state — the slot keeps whatever the
+ * generators put there and nothing is printed. */
+typedef struct {
+    const char *path;
+    int fw, fh;
+    size_t field; /* offset into Assets */
+} SheetSlot;
+
+static const SheetSlot SHEETS[] = {
+        {"assets/weapons/pistol_fp_128x128", 128, 128, offsetof(Assets, weapon_pistol)},
+        {"assets/weapons/shotgun_fp_128x128", 128, 128, offsetof(Assets, weapon_shotgun)},
+        {"assets/players/marine/idle_64x64", 64, 64, offsetof(Assets, sprite_enemy)},
+        {"assets/players/swat/idle_64x64", 64, 64, offsetof(Assets, sprite_enemy_serg)},
+        {"assets/players/marine/death_64x64", 64, 64, offsetof(Assets, sprite_enemy_dead)},
+};
+
+static void load_sheets(Assets *a)
+{
+    for (size_t i = 0; i < sizeof(SHEETS) / sizeof(SHEETS[0]); i++) {
+        char path[256];
+        snprintf(path, sizeof(path), "%s.png", SHEETS[i].path);
+        FILE *f = fopen(path, "rb");
+        if (!f) {
+            continue;
+        }
+        fclose(f);
+        assets_load_sheet((Texture *)((char *)a + SHEETS[i].field), path, SHEETS[i].fw,
+                          SHEETS[i].fh);
+    }
 }
 
 int assets_init(Assets *a)
@@ -390,6 +538,10 @@ int assets_init(Assets *a)
             return -1;
         }
     }
+
+    /* Files win over the generators where they exist; a rejected file leaves
+     * the procedural texture in place, so this cannot fail the init. */
+    load_sheets(a);
     return 0;
 }
 
