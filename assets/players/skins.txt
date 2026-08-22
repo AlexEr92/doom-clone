@@ -1,2 +1,10 @@
 marine
 swat
+rebel
+mercenary
+prisoner
+ranger
+pilot
+medic
+raider
+veteran

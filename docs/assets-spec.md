@@ -311,12 +311,12 @@ build/check_sheets assets
 
 | Готово | Файлы |
 |---|---|
-| ☐ | `players/skins.txt` |
-| ☐ | `players/*/idle_64x64.png` (10) |
-| ☐ | `players/*/run_64x64.png` (10) |
-| ☐ | `players/*/shoot_64x64.png` (10) |
-| ☐ | `players/*/pain_64x64.png` (10) |
-| ☐ | `players/*/death_64x64.png` (10) |
+| ☑ | `players/skins.txt` |
+| ☑ | `players/*/idle_64x64.png` (10) |
+| ☑ | `players/*/run_64x64.png` (10) |
+| ☑ | `players/*/shoot_64x64.png` (10) |
+| ☑ | `players/*/pain_64x64.png` (10) |
+| ☑ | `players/*/death_64x64.png` (10) |
 | ☐ | `weapons/*_fp_128x128.png` (5) |
 | ☐ | `world_weapons/*_64x64.png` (5) |
 | ☐ | `items/ammo_*_64x64.png` (5) |
