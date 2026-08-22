@@ -162,6 +162,7 @@ these before making changes:
 | `docs/architecture.md` | How the game works today and why, with a diagram of the frame |
 | `docs/roadmap.md` | Where it is going: target config, key decisions, risks, unscheduled ideas |
 | `docs/requirements.md` | Non-functional requirements: performance, latency budget, limits, platforms, testing |
+| `docs/assets-spec.md` | What the graphics files must contain: directory layout, frame grids, transparency rules |
 | `docs/tasks/` | Open tasks with dependencies and acceptance criteria; `docs/tasks/README.md` is the index and states how to close one |
 | `docs/closed_tasks/` | Finished and rejected tasks, each ending in a "Закрыто" note |
 
