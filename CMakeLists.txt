@@ -29,6 +29,7 @@ add_executable(doom-clone
     src/map.c
     src/player.c
     src/raycast.c
+    src/raycast_world.c
     src/sprite.c
     src/enemy.c
     src/weapon.c

@@ -1,4 +1,5 @@
 #include "raycast.h"
+#include "raycast_world.h"
 #include "door.h"
 #include "utils.h"
 #include <math.h>
@@ -51,70 +52,11 @@ void raycast_render(Framebuffer *fb, const PlayerState *p, const Camera *cam, co
         float rayDirX = cam->dir_x + cam->plane_x * cameraX;
         float rayDirY = cam->dir_y + cam->plane_y * cameraX;
 
-        int mapX = (int)p->x;
-        int mapY = (int)p->y;
+        RayHit h = raycast_walls(m, dl, p->x, p->y, rayDirX, rayDirY, 1e30f);
 
-        float deltaDistX = rayDirX == 0.0f ? 1e30f : fabsf(1.0f / rayDirX);
-        float deltaDistY = rayDirY == 0.0f ? 1e30f : fabsf(1.0f / rayDirY);
-
-        int stepX, stepY;
-        float sideDistX, sideDistY;
-
-        if (rayDirX < 0) {
-            stepX = -1;
-            sideDistX = (p->x - mapX) * deltaDistX;
-        } else {
-            stepX = 1;
-            sideDistX = (mapX + 1.0f - p->x) * deltaDistX;
-        }
-        if (rayDirY < 0) {
-            stepY = -1;
-            sideDistY = (p->y - mapY) * deltaDistY;
-        } else {
-            stepY = 1;
-            sideDistY = (mapY + 1.0f - p->y) * deltaDistY;
-        }
-
-        int hit = 0;
-        int side = 0;
-        int cell = 0;
-        float door_openness = 0.0f;
-        int guard = 0;
-        while (!hit && guard++ < 64) {
-            if (sideDistX < sideDistY) {
-                sideDistX += deltaDistX;
-                mapX += stepX;
-                side = 0;
-            } else {
-                sideDistY += deltaDistY;
-                mapY += stepY;
-                side = 1;
-            }
-            cell = map_cell(m, mapX, mapY);
-            if (cell > 0) {
-                if (cell == 2 && dl) {
-                    /* door: if not blocking, pass through */
-                    int did = door_at(dl, mapX, mapY);
-                    if (did >= 0) {
-                        door_openness = dl->doors[did].openness;
-                        if (!door_is_blocking(dl, mapX, mapY)) {
-                            continue; /* open door: ray continues */
-                        }
-                    }
-                }
-                hit = 1;
-            }
-        }
-
-        float perpWallDist;
-        if (side == 0) {
-            perpWallDist = sideDistX - deltaDistX;
-        } else {
-            perpWallDist = sideDistY - deltaDistY;
-        }
-        if (perpWallDist < 0.0001f) {
-            perpWallDist = 0.0001f;
-        }
+        float perpWallDist = h.dist;
+        int side = h.side;
+        int cell = (h.kind == HIT_WALL) ? map_cell(m, h.map_x, h.map_y) : 1;
 
         zBuffer[x] = perpWallDist;
 
@@ -123,15 +65,10 @@ void raycast_render(Framebuffer *fb, const PlayerState *p, const Camera *cam, co
         int drawEnd = lineHeight / 2 + SCREEN_H / 2;
 
         /* texture coordinate */
-        float wallX;
-        if (side == 0) {
-            wallX = p->y + perpWallDist * rayDirY;
-        } else {
-            wallX = p->x + perpWallDist * rayDirX;
-        }
+        float wallX = (side == 0) ? h.y : h.x;
         wallX -= floorf(wallX);
 
-        const Texture *tex = wall_texture_for(a, hit ? cell : 1);
+        const Texture *tex = wall_texture_for(a, cell);
         int texW = tex->w;
         int texH = tex->h;
         int texX = (int)(wallX * (float)texW);
@@ -146,8 +83,11 @@ void raycast_render(Framebuffer *fb, const PlayerState *p, const Camera *cam, co
          * by openness * lineHeight, revealing the floor/ceiling gap below.
          * Only applies when we actually hit a door cell. */
         int door_shift = 0;
-        if (hit && cell == 2 && dl) {
-            door_shift = (int)(door_openness * (float)lineHeight);
+        if (h.kind == HIT_WALL && cell == 2 && dl) {
+            int did = door_at(dl, h.map_x, h.map_y);
+            if (did >= 0) {
+                door_shift = (int)(dl->doors[did].openness * (float)lineHeight);
+            }
         }
 
         int drawStartClamped = drawStart + door_shift;

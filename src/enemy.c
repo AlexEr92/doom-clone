@@ -1,4 +1,5 @@
 #include "enemy.h"
+#include "raycast_world.h"
 #include "sprite.h"
 #include "door.h"
 #include "audio.h"
@@ -73,32 +74,6 @@ int enemy_spawn(EnemyList *el, SpriteList *sl, float x, float y, int type)
     return el->count++;
 }
 
-/* Lightweight DDA line-of-sight: returns 1 if no wall between (x0,y0) and (x1,y1). */
-static int line_of_sight(const Map *m, DoorList *dl, float x0, float y0, float x1, float y1)
-{
-    float dx = x1 - x0;
-    float dy = y1 - y0;
-    float dist = sqrtf(dx * dx + dy * dy);
-    if (dist < 1e-3f) {
-        return 1;
-    }
-    int steps = (int)(dist / 0.1f);
-    if (steps < 1) {
-        steps = 1;
-    }
-    float sx = dx / (float)steps;
-    float sy = dy / (float)steps;
-    float cx = x0, cy = y0;
-    for (int i = 0; i < steps; i++) {
-        cx += sx;
-        cy += sy;
-        if (map_is_wall_door(m, dl, cx, cy)) {
-            return 0;
-        }
-    }
-    return 1;
-}
-
 static void move_towards(Enemy *e, const Map *m, DoorList *dl, float tx, float ty, double dt)
 {
     const EnemyDef *d = &defs[e->type];
@@ -138,7 +113,8 @@ void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, DoorList *dl,
         float dx = pl->x - e->x;
         float dy = pl->y - e->y;
         float dist = sqrtf(dx * dx + dy * dy);
-        int can_see = (dist <= d->detect_range) && line_of_sight(m, dl, e->x, e->y, pl->x, pl->y);
+        int can_see =
+                (dist <= d->detect_range) && world_line_of_sight(m, dl, e->x, e->y, pl->x, pl->y);
 
         if (e->attack_cooldown > 0.0f) {
             e->attack_cooldown -= (float)dt;

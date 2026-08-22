@@ -80,7 +80,7 @@ int map_is_wall(const Map *m, float x, float y)
     return map_cell(m, mx, my) != 0;
 }
 
-int map_is_wall_door(const Map *m, struct DoorList *dl, float x, float y)
+int map_is_wall_door(const Map *m, const struct DoorList *dl, float x, float y)
 {
     int mx = (int)x;
     int my = (int)y;
