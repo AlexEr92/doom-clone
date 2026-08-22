@@ -21,6 +21,27 @@
 #define TOL_BG 48
 #define TOL_FG 96
 
+/* Alpha at which a source pixel is trusted to carry the real colour of the
+ * silhouette. Everything below it sits on the ramp, which means it is part
+ * background — letting those into the colour average paints a purple rim
+ * around anything dark. They still count towards coverage: they decide
+ * whether the output pixel is drawn, not what colour it is. */
+#define A_TRUSTED 255
+
+/* A pixel sitting on the magenta axis — red and blue both far above green,
+ * and close to each other — is the key colour mixed with something darker,
+ * not a colour anyone drew. Distance alone does not catch these: the dark
+ * end of the fringe lands past any threshold that still keeps a real edge,
+ * yet it is background all the same. The spec forbids the key colour inside
+ * a silhouette, so nothing legitimate is lost by refusing them. */
+static inline int is_key_tinted(const unsigned char *c)
+{
+    int lo = c[0] < c[2] ? c[0] : c[2];
+    int hi = c[0] > c[2] ? c[0] : c[2];
+    int spread = c[0] > c[2] ? c[0] - c[2] : c[2] - c[0];
+    return c[1] * 3 < lo && spread * 4 <= hi;
+}
+
 static inline int chan_dist(const unsigned char *p, const unsigned char *q)
 {
     int dr = p[0] > q[0] ? p[0] - q[0] : q[0] - p[0];

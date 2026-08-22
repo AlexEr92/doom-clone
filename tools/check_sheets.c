@@ -27,6 +27,10 @@
 #define SKIN_HEIGHT_TOL 4
 #define SKIN_BOTTOM_TOL 2
 
+/* Share of a picture that may sit on the key colour axis before it counts
+ * as a fringe rather than as art that happens to border on that hue. */
+#define TINT_LIMIT_PCT 1
+
 static int errors = 0;
 static int warnings = 0;
 
@@ -109,7 +113,28 @@ static Silhouette measure_first_frame(const unsigned char *px, int w, int fw, in
     return s;
 }
 
-static void check_file(const char *path, Silhouette *out)
+/* Measure only: walk() has already validated every sheet, and running the
+ * whole check again would report the same fault twice. */
+static Silhouette measure_file(const char *path)
+{
+    Silhouette s = {0, 0, 0};
+    int fw = 0, fh = 0;
+    if (parse_frame_size(path, &fw, &fh) != 0) {
+        return s;
+    }
+    int w = 0, h = 0, comp = 0;
+    unsigned char *px = stbi_load(path, &w, &h, &comp, 4);
+    if (!px) {
+        return s;
+    }
+    if (w % fw == 0 && h % fh == 0) {
+        s = measure_first_frame(px, w, fw, fh);
+    }
+    stbi_image_free(px);
+    return s;
+}
+
+static void check_file(const char *path)
 {
     int fw = 0, fh = 0;
     if (parse_frame_size(path, &fw, &fh) != 0) {
@@ -129,15 +154,21 @@ static void check_file(const char *path, Silhouette *out)
     }
     int cols = w / fw, rows = h / fh;
 
-    int soft = 0, pink = 0;
+    int soft = 0, pink = 0, tinted = 0, opaque = 0;
     unsigned char key[3] = {KEY_R, KEY_G, KEY_B};
     for (size_t i = 0; i < (size_t)w * h; i++) {
         unsigned char a = px[i * 4 + 3];
         if (a != 0 && a != 255) {
             soft++;
         }
-        if (a != 0 && chan_dist(px + i * 4, key) <= TOL_FG) {
+        if (a == 0) {
+            continue;
+        }
+        opaque++;
+        if (chan_dist(px + i * 4, key) <= TOL_FG) {
             pink++;
+        } else if (is_key_tinted(px + i * 4)) {
+            tinted++;
         }
     }
     if (soft) {
@@ -145,6 +176,14 @@ static void check_file(const char *path, Silhouette *out)
     }
     if (pink) {
         fail(path, "%d непрозрачных пикселей близки к фону — розовая кайма", pink);
+    }
+    /* Dark blends of the key colour read as a purple rim around the
+     * silhouette. A handful is unavoidable where the art itself borders on
+     * the key hue; a percent of the picture is a fringe that was averaged in. */
+    if (opaque && tinted * 100 > opaque * TINT_LIMIT_PCT) {
+        fail(path,
+             "%d из %d непрозрачных пикселей на оси ключевого цвета (%.1f%%) — пурпурная кайма",
+             tinted, opaque, 100.0 * tinted / opaque);
     }
 
     /* An opaque pixel on a frame edge means the picture is cropped: fine along
@@ -173,7 +212,7 @@ static void check_file(const char *path, Silhouette *out)
     const char *b = strrchr(path, '/');
     b = b ? b + 1 : path;
     char base[128];
-    snprintf(base, sizeof(base), "%s", b);
+    snprintf(base, sizeof(base), "%.100s", b);
     char *us = strrchr(base, '_');
     if (us) {
         *us = '\0';
@@ -183,9 +222,6 @@ static void check_file(const char *path, Silhouette *out)
         warn(path, "кадров %d, по спецификации ожидалось %d", cols, want);
     }
 
-    if (out) {
-        *out = measure_first_frame(px, w, fw, fh);
-    }
     stbi_image_free(px);
 }
 
@@ -209,7 +245,7 @@ static void walk(const char *dir)
         char path[512];
         snprintf(path, sizeof(path), "%.400s/%.100s", dir, e->d_name);
         if (is_png(e->d_name)) {
-            check_file(path, NULL);
+            check_file(path);
         } else {
             walk(path); /* opendir fails harmlessly on plain files */
         }
@@ -258,8 +294,7 @@ static void check_skins(const char *root)
             if (strcmp(SKIN_ANIMS[a], "idle")) {
                 continue;
             }
-            Silhouette s;
-            check_file(path, &s);
+            Silhouette s = measure_file(path);
             if (!s.ok) {
                 fail(path, "кадр пуст");
                 continue;

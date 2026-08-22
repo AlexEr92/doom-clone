@@ -30,6 +30,9 @@
 #define MAX_BLOBS 16
 #define MAX_OUTS 4
 
+/* How far the colour search widens when the box holds no silhouette pixel */
+#define COLOUR_SEARCH 2
+
 typedef struct {
     int x0, x1, y0, y1;
     int clip_y0;  /* top of the row this blob belongs to */
@@ -331,6 +334,25 @@ static int ensure_dir(const char *path)
     return 0;
 }
 
+/* A ramp pixel is a mix of the silhouette and the background in proportion
+ * to its alpha. With the background known, the original colour comes back
+ * out — which is the only honest thing to do when a detail is so thin that
+ * the box holds no fully opaque pixel at all. */
+static void unmix_background(const unsigned char *c, const unsigned char *bg, int a,
+                             unsigned char *out)
+{
+    for (int k = 0; k < 3; k++) {
+        int v = (c[k] * 255 - bg[k] * (255 - a)) / (a > 0 ? a : 1);
+        if (v < 0) {
+            v = 0;
+        }
+        if (v > 255) {
+            v = 255;
+        }
+        out[k] = (unsigned char)v;
+    }
+}
+
 /* One output frame: box-average the source region that maps onto it, with the
  * colour weighted by alpha so the magenta never bleeds into the edge, then
  * snap coverage to fully opaque or fully transparent. */
@@ -360,40 +382,77 @@ static void render_frame(const Src *s, const Blob *b, int ground, float scale, i
                 iy1 = iy0;
             }
 
-            double sa = 0.0, sr = 0.0, sg = 0.0, sb = 0.0;
+            /* coverage decides whether the pixel is drawn, and every source
+             * pixel in the box has a say in it */
+            double sa = 0.0;
             int cnt = 0;
             for (int y = iy0; y <= iy1; y++) {
-                if (y < 0 || y >= s->h || y < b->clip_y0 || y > ground) {
-                    cnt++;
-                    continue;
-                }
                 for (int x = ix0; x <= ix1; x++) {
-                    if (x < 0 || x >= s->w || x < b->x0 || x > b->x1) {
-                        cnt++;
+                    cnt++;
+                    if (y < 0 || y >= s->h || y < b->clip_y0 || y > ground) {
                         continue;
                     }
-                    size_t i = (size_t)y * s->w + x;
-                    double a = s->alpha[i];
-                    sa += a;
-                    sr += s->rgb[i * 3 + 0] * a;
-                    sg += s->rgb[i * 3 + 1] * a;
-                    sb += s->rgb[i * 3 + 2] * a;
-                    cnt++;
+                    if (x < 0 || x >= s->w || x < b->x0 || x > b->x1) {
+                        continue;
+                    }
+                    sa += s->alpha[(size_t)y * s->w + x];
                 }
             }
 
             unsigned char *p = dst + ((size_t)oy * dst_stride_px + frame_x + ox) * 4;
-            if (cnt > 0 && sa >= 0.5 * cnt * 255.0) {
-                p[0] = (unsigned char)(sr / sa + 0.5);
-                p[1] = (unsigned char)(sg / sa + 0.5);
-                p[2] = (unsigned char)(sb / sa + 0.5);
-                p[3] = 255;
-            } else {
+            if (cnt <= 0 || sa < 0.5 * cnt * 255.0) {
                 p[0] = KEY_R;
                 p[1] = KEY_G;
                 p[2] = KEY_B;
                 p[3] = 0;
+                continue;
             }
+
+            /* colour comes only from pixels that are the silhouette rather
+             * than a mix of it with the background, and the search widens by
+             * a couple of pixels so a one-pixel outline still finds some */
+            long sr = 0, sg = 0, sb = 0;
+            int taken = 0;
+            int best_a = -1;
+            const unsigned char *best = NULL;
+            for (int pass = 0; pass < 2 && taken == 0; pass++) {
+                int m = pass * COLOUR_SEARCH;
+                for (int y = iy0 - m; y <= iy1 + m; y++) {
+                    if (y < 0 || y >= s->h || y < b->clip_y0 || y > ground) {
+                        continue;
+                    }
+                    for (int x = ix0 - m; x <= ix1 + m; x++) {
+                        if (x < 0 || x >= s->w || x < b->x0 || x > b->x1) {
+                            continue;
+                        }
+                        size_t i = (size_t)y * s->w + x;
+                        int a = s->alpha[i];
+                        const unsigned char *c = s->rgb + i * 3;
+                        if (a >= A_TRUSTED && !is_key_tinted(c)) {
+                            sr += c[0];
+                            sg += c[1];
+                            sb += c[2];
+                            taken++;
+                        } else if (a > best_a) {
+                            best_a = a;
+                            best = c;
+                        }
+                    }
+                }
+            }
+
+            if (taken > 0) {
+                p[0] = (unsigned char)(sr / taken);
+                p[1] = (unsigned char)(sg / taken);
+                p[2] = (unsigned char)(sb / taken);
+            } else if (best) {
+                unmix_background(best, s->bg, best_a, p);
+            } else {
+                p[0] = KEY_R;
+                p[1] = KEY_G;
+                p[2] = KEY_B;
+            }
+            p[3] = 255;
         }
     }
 }
