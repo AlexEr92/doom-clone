@@ -25,7 +25,7 @@ int item_add(ItemList *il, int sprite_id, ItemType type, float amount, int weapo
     return il->count++;
 }
 
-static int apply_pickup(Item *it, SpriteList *sl, PlayerState *pl, WeaponSystem *ws, Audio *au)
+static int apply_pickup(Item *it, SpriteList *sl, PlayerState *pl, Audio *au)
 {
     switch (it->type) {
         case ITEM_MEDKIT: {
@@ -46,7 +46,7 @@ static int apply_pickup(Item *it, SpriteList *sl, PlayerState *pl, WeaponSystem 
             if (it->weapon < 0 || it->weapon >= WEAPON_COUNT) {
                 return 0;
             }
-            Weapon *w = &ws->weapons[it->weapon];
+            Weapon *w = &pl->weapons.weapons[it->weapon];
             if (w->ammo >= w->max_ammo) {
                 return 0;
             }
@@ -64,7 +64,7 @@ static int apply_pickup(Item *it, SpriteList *sl, PlayerState *pl, WeaponSystem 
     return 1;
 }
 
-int item_update(ItemList *il, SpriteList *sl, PlayerState *pl, WeaponSystem *ws, Audio *au)
+int item_update(ItemList *il, SpriteList *sl, PlayerState *pl, Audio *au)
 {
     const float radius = 0.45f;
     int picked = 0;
@@ -84,7 +84,7 @@ int item_update(ItemList *il, SpriteList *sl, PlayerState *pl, WeaponSystem *ws,
         float dx = sp->x - pl->x;
         float dy = sp->y - pl->y;
         if (dx * dx + dy * dy <= radius * radius) {
-            if (apply_pickup(it, sl, pl, ws, au)) {
+            if (apply_pickup(it, sl, pl, au)) {
                 picked = 1;
             }
         }

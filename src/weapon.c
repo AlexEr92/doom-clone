@@ -1,4 +1,7 @@
 #include "weapon.h"
+#include "player.h"
+#include "enemy.h"
+#include "sprite.h"
 #include "camera.h"
 #include "raycast.h"
 #include "audio.h"
@@ -34,27 +37,28 @@ void weapon_system_init(WeaponSystem *ws)
     ws->current = WEAPON_PISTOL;
 }
 
-void weapon_switch(WeaponSystem *ws, int idx)
+void weapon_switch(PlayerState *p, int idx)
 {
     if (idx < 0 || idx >= WEAPON_COUNT) {
         return;
     }
-    if (idx == ws->current) {
+    if (idx == p->weapons.current) {
         return;
     }
-    ws->current = idx;
+    p->weapons.current = idx;
 }
 
-void weapon_update(WeaponSystem *ws, double dt)
+void weapon_update(PlayerState *p, double dt)
 {
     for (int i = 0; i < WEAPON_COUNT; i++) {
-        if (ws->weapons[i].cooldown > 0.0f) {
-            ws->weapons[i].cooldown -= (float)dt;
+        Weapon *w = &p->weapons.weapons[i];
+        if (w->cooldown > 0.0f) {
+            w->cooldown -= (float)dt;
         }
-        if (ws->weapons[i].anim > 0.0f) {
-            ws->weapons[i].anim -= (float)dt * 4.0f;
-            if (ws->weapons[i].anim < 0.0f) {
-                ws->weapons[i].anim = 0.0f;
+        if (w->anim > 0.0f) {
+            w->anim -= (float)dt * 4.0f;
+            if (w->anim < 0.0f) {
+                w->anim = 0.0f;
             }
         }
     }
@@ -86,8 +90,7 @@ static int enemy_screen_band(const PlayerState *p, const Camera *cam, const Enem
     return 1;
 }
 
-void weapon_try_fire(WeaponSystem *ws, const PlayerState *p, EnemyList *el, SpriteList *sl,
-                     Audio *au)
+void weapon_try_fire(PlayerState *p, EnemyList *el, SpriteList *sl, Audio *au)
 {
     /* Hitscan still works in screen space, so it needs the view basis even
      * though firing is simulation. Rebuilt here rather than taken as an
@@ -95,6 +98,7 @@ void weapon_try_fire(WeaponSystem *ws, const PlayerState *p, EnemyList *el, Spri
     Camera cam;
     player_camera(p, &cam);
 
+    WeaponSystem *ws = &p->weapons;
     Weapon *w = &ws->weapons[ws->current];
     if (w->cooldown > 0.0f) {
         return;

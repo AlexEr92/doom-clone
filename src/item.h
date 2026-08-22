@@ -36,7 +36,8 @@ void item_list_init(ItemList *il);
 int item_add(ItemList *il, int sprite_id, ItemType type, float amount, int weapon);
 
 /* Check pickups: if player is within radius, apply effect and deactivate the
- * sprite + item. Returns 1 if something was picked up this call. */
-int item_update(ItemList *il, SpriteList *sl, PlayerState *pl, WeaponSystem *ws, Audio *au);
+ * sprite + item. Ammo goes to the weapons of that same player. Returns 1 if
+ * something was picked up this call. */
+int item_update(ItemList *il, SpriteList *sl, PlayerState *pl, Audio *au);
 
 #endif

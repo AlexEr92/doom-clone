@@ -25,7 +25,6 @@ typedef struct {
     EnemyList enemies;
     ItemList items;
     DoorList doors;
-    WeaponSystem ws;
     Audio audio;
     int loaded;
 } World;
@@ -41,7 +40,6 @@ static int world_load(World *w, const char *map_path)
     enemy_list_init(&w->enemies);
     item_list_init(&w->items);
     door_list_init(&w->doors);
-    weapon_system_init(&w->ws);
 
     for (int i = 0; i < w->map.sprite_count; i++) {
         float sx = w->map.sprites[i].x;
@@ -139,9 +137,10 @@ int main(int argc, char **argv)
         frames++;
         if (fps_timer >= 0.5) {
             eng.fps = (double)frames / fps_timer;
+            const WeaponSystem *ws = &world.player.weapons;
             snprintf(title, sizeof(title), "doom-clone | %.0f FPS | HP %.0f | ammo %d/%d", eng.fps,
-                     world.player.hp, world.ws.weapons[world.ws.current].ammo,
-                     world.ws.weapons[world.ws.current].max_ammo);
+                     world.player.hp, ws->weapons[ws->current].ammo,
+                     ws->weapons[ws->current].max_ammo);
             SDL_SetWindowTitle(eng.window, title);
             fps_timer = 0.0;
             frames = 0;
@@ -177,10 +176,10 @@ int main(int argc, char **argv)
                 game.state = GSTATE_PAUSED;
             }
             if (input.switch1) {
-                weapon_switch(&world.ws, WEAPON_PISTOL);
+                weapon_switch(&world.player, WEAPON_PISTOL);
             }
             if (input.switch2) {
-                weapon_switch(&world.ws, WEAPON_SHOTGUN);
+                weapon_switch(&world.player, WEAPON_SHOTGUN);
             }
         }
 
@@ -194,11 +193,10 @@ int main(int argc, char **argv)
                 door_update_all(&world.doors, FIXED_DT);
                 enemy_update_all(&world.enemies, &world.sprites, &world.map, &world.doors,
                                  &world.player, &audio, FIXED_DT);
-                item_update(&world.items, &world.sprites, &world.player, &world.ws, &audio);
-                weapon_update(&world.ws, FIXED_DT);
+                item_update(&world.items, &world.sprites, &world.player, &audio);
+                weapon_update(&world.player, FIXED_DT);
                 if (input.fire) {
-                    weapon_try_fire(&world.ws, &world.player, &world.enemies, &world.sprites,
-                                    &audio);
+                    weapon_try_fire(&world.player, &world.enemies, &world.sprites, &audio);
                 }
                 input_end_frame(&input);
                 accumulator -= FIXED_DT;
@@ -226,11 +224,12 @@ int main(int argc, char **argv)
             player_camera(&world.player, &cam);
             raycast_render(&eng.fb, &world.player, &cam, &world.map, &assets, &world.doors);
             sprite_render(&eng.fb, &world.sprites, &world.player, &cam, &assets);
+            const WeaponSystem *ws = &world.player.weapons;
             hud_draw_weapon(&eng.fb,
-                            world.ws.current == WEAPON_PISTOL ? &assets.weapon_pistol
-                                                              : &assets.weapon_shotgun,
-                            world.ws.weapons[world.ws.current].anim);
-            hud_draw(&eng.fb, &world.player, &world.ws);
+                            ws->current == WEAPON_PISTOL ? &assets.weapon_pistol
+                                                         : &assets.weapon_shotgun,
+                            ws->weapons[ws->current].anim);
+            hud_draw(&eng.fb, &world.player);
         } else {
             fb_clear(&eng.fb, make_color(15, 10, 20));
         }

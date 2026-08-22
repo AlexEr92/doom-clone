@@ -165,7 +165,7 @@ static void hud_draw_face(Framebuffer *fb, int x0, int y0, int sz, float hp_frac
     }
 }
 
-void hud_draw(Framebuffer *fb, const PlayerState *pl, const WeaponSystem *ws)
+void hud_draw(Framebuffer *fb, const PlayerState *pl)
 {
     uint32_t bg = make_color(20, 20, 20);
     uint32_t panel = make_color(35, 35, 40);
@@ -179,8 +179,10 @@ void hud_draw(Framebuffer *fb, const PlayerState *pl, const WeaponSystem *ws)
         }
     }
 
-    /* HP (red) bottom-left with numeric */
+    const WeaponSystem *ws = &pl->weapons;
     const Weapon *w = &ws->weapons[ws->current];
+
+    /* HP (red) bottom-left with numeric */
     int by = SCREEN_H - panel_h + 4;
 
     /* HP bar */

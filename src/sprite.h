@@ -27,7 +27,7 @@ typedef struct {
 
 #define MAX_SPRITES 96
 
-typedef struct {
+typedef struct SpriteList {
     Sprite items[MAX_SPRITES];
     int count;
 } SpriteList;

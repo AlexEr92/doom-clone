@@ -24,6 +24,7 @@ void player_init(PlayerState *p, int start_x, int start_y)
     p->armor = 0.0f;
     p->alive = 1;
     p->respawn_timer = 0.0f;
+    weapon_system_init(&p->weapons);
 }
 
 /* Fold an angle back into [-PI, PI]. Without this the angle drifts over a

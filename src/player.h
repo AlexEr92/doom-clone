@@ -2,6 +2,7 @@
 #define PLAYER_H
 
 #include "map.h"
+#include "weapon.h"
 #include <stdint.h>
 
 /* InputState is defined in input.h to avoid a circular dependency. */
@@ -11,7 +12,7 @@ struct DoorList;
 /* Simulation state of one player. Nothing here comes from the renderer:
  * facing is a single angle, which packs into one float on the wire and
  * interpolates along the shortest arc between snapshots. */
-typedef struct {
+typedef struct PlayerState {
     uint8_t id;
     float x, y;
     float angle; /* radians, normalised to [-PI, PI] */
@@ -19,6 +20,7 @@ typedef struct {
     float armor;
     int alive;
     float respawn_timer;
+    WeaponSystem weapons; /* ammo, cooldowns and selection are per player */
 } PlayerState;
 
 void player_init(PlayerState *p, int start_x, int start_y);

@@ -31,7 +31,7 @@ typedef struct {
 
 #define MAX_ENEMIES 32
 
-typedef struct {
+typedef struct EnemyList {
     Enemy items[MAX_ENEMIES];
     int count;
 } EnemyList;
