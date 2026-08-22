@@ -44,10 +44,14 @@
 - [ ] Убрать `in->mouse_dx` из `player_update()` (`player.c:58`): движение
       использует `angle` из `PlayerInput`
 - [ ] `input_end_frame()` вызывать один раз за кадр, после всех тиков
+- [ ] Обновить `tests/test_input.c` под разделение `InputState`/`PlayerInput`:
+      кадр с несколькими тиками отдаёт edge-флаг (`BTN_FIRE`, `BTN_USE`) ровно
+      одному `PlayerInput`, маска кнопок собирается из тех же клавиш, что и
+      сейчас, а `player_update()` больше не читает `mouse_dx`
 
 ## Затрагиваемые файлы
 
-`input.h/.c`, `player.c`, `world.c`, `main.c`
+`input.h/.c`, `player.c`, `world.c`, `main.c`, `tests/test_input.c`
 
 ## Критерий готовности
 

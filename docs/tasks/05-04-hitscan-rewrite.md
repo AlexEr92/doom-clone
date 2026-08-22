@@ -51,14 +51,21 @@
       делается сразу рабочим, а не заглушкой
 - [ ] Удалить `enemy_screen_band()` и все обращения к `zBuffer` из `weapon.c`
 - [ ] Убрать `#include "raycast.h"` из `weapon.c`
+- [ ] Переписать `tests/test_weapon.c` под мировой хитскан: заглушки
+      `zBuffer` и `enemy_damage()` больше не нужны, вместо них тест линкует
+      `raycast_world.c`, `enemy.c`, `map.c` и `door.c` (функция `doom_test()`
+      в `tests/CMakeLists.txt`). Сценарии: попадание по врагу в прямой
+      видимости, промах сквозь стену и закрытую дверь, попадание по игроку с
+      учётом брони, невозможность попасть в себя, одинаковый результат при
+      разных `SCREEN_W`/`SCREEN_H`
 
 ## Затрагиваемые файлы
 
-`raycast_world.c/.h`, `weapon.c`
+`raycast_world.c/.h`, `weapon.c`, `tests/test_weapon.c`, `tests/CMakeLists.txt`
 
 ## Критерий готовности
 
-- [ ] `grep -n "zBuffer\|SCREEN_" src/weapon.c` — пусто
+- [ ] `grep -rn "zBuffer\|SCREEN_" src/weapon.c tests/test_weapon.c` — пусто
 - [ ] Пистолет попадает по врагу под прицелом, не пробивает стены и
       закрытые двери
 - [ ] Дробовик на дистанции даёт частичные попадания (часть дробин мимо)

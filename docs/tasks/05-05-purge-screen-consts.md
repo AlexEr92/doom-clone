@@ -31,11 +31,16 @@
       Логика пишет события в очередь, клиент после тика их проигрывает.
 - [ ] Убрать параметр `Audio *au` из `enemy_update_all()`, `enemy_damage()`,
       `item_update()`, `weapon_try_fire()`
+- [ ] Обновить тесты под новые сигнатуры: из `tests/test_enemy.c` уходит
+      заглушка `audio_play()`, из `tests/test_item.c` — линковка `audio.c` и
+      обнулённый `Audio` (`tests/CMakeLists.txt`). Вместо звука проверять
+      содержимое `EventQueue` после тика: подбор предмета кладёт `EV_PICKUP`,
+      удар врага — `EV_PLAYER_HURT`, смерть — `EV_ENEMY_DEATH`
 
 ## Затрагиваемые файлы
 
 `event.h` (новый), `enemy.c/.h`, `weapon.c/.h`, `item.c/.h`, `door.c/.h`,
-`main.c`
+`main.c`, `tests/test_enemy.c`, `tests/test_item.c`, `tests/CMakeLists.txt`
 
 ## Критерий готовности
 

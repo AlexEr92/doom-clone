@@ -44,11 +44,33 @@ git config core.hooksPath .githooks
 rewrites files — run `clang-format -i` yourself and re-stage. `--no-verify`
 bypasses any of them.
 
+### Tests
+
+Unit tests live in `tests/`, one `test_<module>.c` per module, on a vendored
+Unity (`vendor/unity/`). They are built by default and run through CTest:
+
+```bash
+ctest --test-dir build --output-on-failure       # all suites
+ctest --test-dir build -R door --output-on-failure   # one of them
+cmake -S . -B build -DBUILD_TESTS=OFF            # game only, no Unity
+```
+
+New test files must be added to `tests/CMakeLists.txt`; `doom_test()` there
+takes the module name and the `src/*.c` each executable needs. Each one links
+only its own sources — not the whole game — and stubs what it does not want to
+drag in, which is how `test_enemy.c` avoids `sprite.c` (and, through it,
+`raycast.c` for `zBuffer`).
+
+Only what runs without a framebuffer is covered. The renderer, the
+screen-space hitscan and `audio.c` are not: see the tables in
+`docs/closed_tasks/test-001-unit-test-harness.md` for what is out of scope
+and why.
+
 ### Running headless / driving the game
 
-There is no test suite (see [Ongoing work](#ongoing-work)). To verify a
-change actually works, use the run skill — it builds, launches under Xvfb,
-injects input and captures frames:
+Unit tests do not catch what only shows up on screen. To verify a change
+actually works in the game, use the run skill — it builds, launches under
+Xvfb, injects input and captures frames:
 
 ```bash
 .claude/skills/run-doom-clone/driver.sh smoke
@@ -143,7 +165,12 @@ screen-space hitscan with a world raycast) blocks nearly everything else.
 
 `docs/requirements.md` §9 mandates `tests/replay_test.c` — a determinism
 check on `world_step()` — introduced by task `docs/tasks/06-01`. It does not
-exist yet; until it does, `driver.sh smoke` is the only regression check.
+exist yet; when it lands it plugs into the CTest wiring already in
+`tests/CMakeLists.txt` rather than getting a runner of its own.
+
+Stages 5–6 change the very structures the tests pin down (`PlayerState`,
+`WeaponSystem`, `enemy_update_all`, `door_update_all`). Updating the matching
+`tests/test_*.c` is part of those tasks, not follow-up work.
 
 ## Conventions
 

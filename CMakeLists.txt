@@ -75,3 +75,13 @@ add_custom_target(run
 )
 
 install(TARGETS doom-clone RUNTIME DESTINATION bin)
+
+# ---- Юнит-тесты ----
+# Отдельная опция: основной таргет doom-clone не зависит ни от Unity, ни от
+# tests/, поэтому сборку тестов можно выключить целиком.
+option(BUILD_TESTS "Build unit tests" ON)
+
+if(BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

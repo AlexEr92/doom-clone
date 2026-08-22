@@ -142,8 +142,9 @@ teaches people to pass --no-verify»). Санитайзерная сборка �
   endif()
   ```
   Опция ставится до `add_executable(doom-clone ...)`, чтобы автоматически
-  распространиться на будущие цели в том же каталоге (`tests/` из
-  `test-001-unit-test-harness.md`), без отдельной правки на каждую цель.
+  распространиться и на цели в том же каталоге, и на `tests/`
+  (`add_subdirectory` наследует флаги каталога), без отдельной правки на
+  каждую цель.
   По умолчанию `OFF` — ничего не меняется ни в одной существующей сборке.
 - [ ] Добавить `/build-san/` в `.gitignore` — отдельной строкой, тем же
       стилем, что уже есть у `/build/` и `/out/` (`.gitignore:2-3`), а не
@@ -190,6 +191,9 @@ teaches people to pass --no-verify»). Санитайзерная сборка �
       обычной сборке)
 - [ ] `git status --short` после конфигурации `build-san/` не показывает его
       как untracked
+- [ ] `ctest --test-dir build-san --output-on-failure` проходит: юнит-тесты
+      исполняются под ASan/UBSan без находок — это самый дешёвый прогон под
+      санитайзерами и покрывает логику, до которой smoke не доходит
 - [ ] `BUILD_DIR=build-san .claude/skills/run-doom-clone/driver.sh smoke`
       проходит (все `PASS`, как в обычной сборке)
 - [ ] `BUILD_DIR=build-san .claude/skills/run-doom-clone/driver.sh start

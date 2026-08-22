@@ -128,7 +128,6 @@
 | [bug-005](bug-005-strafe-speed-fov-scaled.md) | Стрейф медленнее ходьбы в `FOV_PLANE` раз | `player.c` |
 | [bug-006](bug-006-hud-draw-int-digit-order.md) | `draw_int()` рисует цифры HUD в обратном порядке | `hud.c` |
 | [feat-001](feat-001-file-textures-weapon-enemy.md) | Файловые PNG-текстуры оружия и врагов | `assets.c` |
-| [test-001](test-001-unit-test-harness.md) | Подключить Unity, покрыть тестами то, что уже тестируемо | `tests/`, `vendor/unity/` |
 | [chore-001](chore-001-github-actions-ci.md) | CI на трёх платформах через GitHub Actions | `.github/workflows/` |
 | [chore-002](chore-002-dead-ternary-text-width.md) | Убрать неработающий тернарник в `text_width()` | `game.c` |
 | [chore-003](chore-003-const-correctness-lint.md) | Три параметра/переменных без `const` | `game.c`, `item.c`, `map.c` |
@@ -146,3 +145,4 @@
 | [05-03](../closed_tasks/05-03-world-raycast.md) | Мировой DDA без фреймбуфера | Сделано |
 | [bug-001](../closed_tasks/bug-001-enemy-sees-through-walls.md) | Враг преследует игрока сквозь стены | Сделано |
 | [bug-002](../closed_tasks/bug-002-door-closes-on-player.md) | Дверь закрывается в стоящем в проёме | Сделано |
+| [test-001](../closed_tasks/test-001-unit-test-harness.md) | Подключить Unity, покрыть тестами то, что уже тестируемо | Сделано |

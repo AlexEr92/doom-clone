@@ -38,6 +38,8 @@ cmake --build build           # сборка
 cmake --build build --target run    # запуск из корня проекта (пересоберёт проект, если нужно)
 cmake --build build --target clean  # очистка
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug   # отладочная сборка
+ctest --test-dir build --output-on-failure      # юнит-тесты
+cmake -S . -B build -DBUILD_TESTS=OFF           # собрать только игру, без тестов
 ```
 
 Запускать нужно из корня проекта — ассеты грузятся по относительным путям.
@@ -54,7 +56,7 @@ git config core.hooksPath .githooks
 ```
 
 Они проверяют сообщение коммита, форматирование проиндексированных
-исходников и — перед push — сборку со smoke-прогоном. Подробности в
+исходников и — перед push — сборку, юнит-тесты и smoke-прогон. Подробности в
 [CLAUDE.md](CLAUDE.md). Обойти любой: `--no-verify`.
 
 ## Управление
@@ -86,8 +88,9 @@ doom-clone/
 │   ├── requirements.md   # нефункциональные требования
 │   ├── tasks/            # открытые задачи с критериями приёмки
 │   └── closed_tasks/     # закрытые задачи
-├── vendor/               # stb_image.h
+├── vendor/               # stb_image.h, unity/ (юнит-тесты)
 ├── src/                  # исходники (.c/.h)
+├── tests/                # юнит-тесты на Unity, по файлу на модуль
 └── assets/
     ├── maps/             # ASCII-карты (level1.txt)
     ├── sounds/           # звуки

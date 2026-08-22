@@ -26,7 +26,7 @@ if ! cmake -S . -B build >/dev/null 2>&1 || ! cmake --build build >/dev/null 2>&
     exit 1
 fi
 
-# Unit tests once they exist; today tests/ is not there yet (see docs/tasks/test-001).
+# Юнит-тесты на Unity; собираются вместе с игрой, если BUILD_TESTS не выключен.
 if [ -d tests ] && [ -f build/CTestTestfile.cmake ]; then
     echo "pre-push: юнит-тесты..."
     if ! ctest --test-dir build --output-on-failure >/dev/null 2>&1; then

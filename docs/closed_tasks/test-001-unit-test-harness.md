@@ -232,3 +232,39 @@ smoke` (headless-запуск под Xvfb со скриншотами). `require
 Когда 06-01 закроется и появится `tests/replay_test.c`, его стоит подключить
 тем же механизмом `add_test()`/CTest, который заводит эта задача, а не
 отдельным ad hoc раннером.
+
+## Закрыто
+
+2026-08-22 — подключён Unity v2.7.0 (`vendor/unity/`: `unity.c`, `unity.h`,
+`unity_internals.h`, `LICENSE.txt`; версия и порядок обновления записаны в
+`vendor/unity/README.md`). В `CMakeLists.txt` добавлена опция `BUILD_TESTS`
+(по умолчанию `ON`) с `enable_testing()` и `add_subdirectory(tests)`;
+`tests/CMakeLists.txt` собирает Unity одной статической библиотекой и
+заводит по исполняемому файлу на модуль функцией `doom_test()`, которой
+передаётся список нужных этому тесту `src/*.c`. Написаны все девять наборов,
+`ctest` проходит целиком, сборка `doom-clone` не изменилась.
+
+Отклонения от постановки:
+
+- `player_init()` вызывает `weapon_system_init()`, поэтому `test_player.c`
+  заменяет её заглушкой: иначе тест движения потянул бы `weapon.c`, а с ним
+  `zBuffer` и `enemy_damage()`. Причина та же, что у заглушек `sprite_add()`
+  и `audio_play()` в `test_enemy.c`, но в разделе «Замечания» этот случай не
+  назван.
+- `test_weapon.c` линкует `weapon.c` целиком, поэтому определяет `zBuffer` и
+  заглушки `enemy_damage()`/`audio_play_volume()`: экранный хитскан не
+  проверяется, но его символы обязаны разрешиться при линковке.
+- `test_item.c` расставляет предметы через `SpriteList`, но `weapon.c` не
+  линкует: из оружия `apply_pickup()` читает только `ammo` и `max_ammo`, и
+  они заполняются в самом тесте.
+- `DOOR_OPEN_TIME`, `DOOR_SPEED`, `USE_RANGE`, `ENEMY_SEARCH_TIME` и
+  `ENEMY_SEARCH_REACH` объявлены внутри `door.c` и `enemy.c` и снаружи не
+  видны — в тестах они продублированы константами `TEST_*`.
+- Вендоренный Unity собирается без предупреждений при `-Wall -Wextra`,
+  ослаблять флаги через `target_compile_options` не потребовалось.
+
+Критерий «`grep -rn "weapon_try_fire\|world_step" tests/` ничего не находит»
+относится к моменту закрытия: 05-04 и 06-01 заводят тесты именно на них.
+Обязанность править соответствующий `tests/test_*.c` в рамках своей задачи
+внесена в 05-04, 05-05, 06-01 — 06-06, в chore-001, chore-004 и chore-005, а
+общим правилом — в `CLAUDE.md`.
