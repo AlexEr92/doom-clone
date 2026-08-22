@@ -11,7 +11,12 @@
 #define MAP_MAX_W 24
 #define MAP_MAX_H 24
 
-#define FOV_PLANE 0.66f
+/* Half-width of the camera plane at unit view distance, i.e. tan(FOV / 2):
+ * 77 degrees across. It is tied to the screen, not free — SCREEN_W / (2 *
+ * FOV_PLANE) is the horizontal focal length in pixels and SCREEN_H the
+ * vertical one, and the two have to agree or the world is drawn anamorphic:
+ * stretched sideways, with everything vertical too tall for its width. */
+#define FOV_PLANE 0.8f
 #define MOVE_SPEED 3.0f
 #define ROT_SPEED 3.0f
 #define MOUSE_SENS 0.002f
