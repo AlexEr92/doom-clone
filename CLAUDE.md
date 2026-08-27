@@ -214,8 +214,9 @@ these before making changes:
 | `docs/closed_tasks/` | Finished and rejected tasks, each ending in a "Закрыто" note |
 
 Target: up to 10 players, authoritative server over ENet, deathmatch as the
-primary mode with co-op second. Stage 5 and task 06-01 are finished; the
-rest of stage 6 (`06-02` onwards) is what the network stages wait on.
+primary mode with co-op second. Stage 5 and tasks 06-01 to 06-03 are
+finished; the rest of stage 6 (`06-04` onwards) is what the network stages
+wait on.
 
 `tests/replay_test.c` — the determinism check on `world_step()` mandated by
 `docs/requirements.md` §9 — exists and runs under CTest with the rest.

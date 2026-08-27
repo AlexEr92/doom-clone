@@ -67,7 +67,6 @@
 
 | # | Задача | Зависит от |
 |---|---|---|
-| [06-03](06-03-enemy-target-selection.md) | ИИ: выбор цели среди N игроков *(только co-op)* | 06-02 |
 | [06-04](06-04-items-doors-multiplayer.md) | Предметы и двери на N игроков | 06-02 |
 | [06-05](06-05-sprites-client-side.md) | Спрайты — клиентская сущность, `SPRITE_PLAYER` | 06-02 |
 | [06-06](06-06-input-per-tick.md) | Ввод на тик вместо на кадр | 06-01 |
@@ -166,3 +165,4 @@
 | [bug-009](../closed_tasks/bug-009-sprite-aspect-ignores-fov.md) | Спрайты сжаты по горизонтали на 17.5 % | Сделано |
 | [06-01](../closed_tasks/06-01-world-module.md) | `world.c/.h` + единый `world_step()` | Сделано |
 | [06-02](../closed_tasks/06-02-players-array.md) | Массив `players[MAX_PLAYERS]` | Сделано |
+| [06-03](../closed_tasks/06-03-enemy-target-selection.md) | ИИ: выбор цели среди N игроков | Сделано |

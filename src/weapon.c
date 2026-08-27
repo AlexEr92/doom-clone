@@ -104,7 +104,7 @@ void weapon_try_fire(PlayerState *p, const Map *m, const DoorList *dl, PlayerSta
         RayHit h = world_raycast(m, dl, el, players, player_count, p->x, p->y, ray_x, ray_y,
                                  WEAPON_RANGE, p->id);
         if (h.kind == HIT_ENEMY) {
-            enemy_damage(el, sl, h.id, w->damage, evq, p->x, p->y);
+            enemy_damage(el, sl, h.id, w->damage, evq, p->id, p->x, p->y);
         } else if (h.kind == HIT_PLAYER) {
             player_damage(&players[h.id], w->damage, p->id);
         }

@@ -203,20 +203,19 @@ void world_step(World *w, const PlayerInput inputs[], int count, double dt)
     int occ_count = world_door_occupants(w, occ, (int)(sizeof(occ) / sizeof(occ[0])));
     door_update_all(&w->doors, occ, occ_count, dt);
 
-    /* Enemies and items still take a single player: widening them to the whole
-     * array is tasks 06-03 and 06-04. Until then they are driven by the first
-     * player in the world, which in a one-player game is the only one there
-     * is, and an empty world skips them entirely. */
+    /* enemies */
+    enemy_update_all(&w->enemies, &w->sprites, &w->map, &w->doors, w->players, w->player_count,
+                     &w->events, dt);
+
+    /* Items still take a single player: widening them to the whole array is
+     * task 06-04. Until then they are collected by the first player in the
+     * world, which in a one-player game is the only one there is, and an empty
+     * world skips them entirely. */
     PlayerState *first = NULL;
     for (int i = 0; i < w->player_count && !first; i++) {
         if (w->players[i].active) {
             first = &w->players[i];
         }
-    }
-
-    /* enemies */
-    if (first) {
-        enemy_update_all(&w->enemies, &w->sprites, &w->map, &w->doors, first, &w->events, dt);
     }
 
     /* items */

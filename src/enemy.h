@@ -28,7 +28,9 @@ typedef struct {
     float attack_cooldown;
     int sprite_id;                  /* index into SpriteList (kept in sync) */
     float alert_timer;              /* time remaining in ALERT before CHASE */
-    float last_seen_x, last_seen_y; /* player position while last visible */
+    int target;                     /* id of the player being chased, -1 for nobody */
+    float retarget_timer;           /* time left before a chase looks around again */
+    float last_seen_x, last_seen_y; /* target position while last visible */
     float search_timer;             /* time left searching after losing sight */
 } Enemy;
 
@@ -55,16 +57,18 @@ void enemy_list_init(EnemyList *el);
 /* Spawn an enemy; creates a matching sprite in `sl` and stores its id. */
 int enemy_spawn(EnemyList *el, SpriteList *sl, float x, float y, int type);
 
-/* Per-tick update: AI state machine, movement, attacks. Modifies player hp.
+/* Per-tick update: pick a target out of `players`, run the AI state machine,
+ * move and attack. Modifies the hp of whoever each enemy is attacking.
  * dl may be NULL (no doors). evq may be NULL (events dropped). */
 void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, struct DoorList *dl,
-                      PlayerState *pl, EventQueue *evq, double dt);
+                      PlayerState *players, int player_count, EventQueue *evq, double dt);
 
 /* Apply damage to enemy idx; on death switches sprite to corpse.
- * evq may be NULL. px/py is where the damage came from: it is what the enemy
- * turns to chase. */
-void enemy_damage(EnemyList *el, SpriteList *sl, int idx, float dmg, EventQueue *evq, float px,
-                  float py);
+ * evq may be NULL. `attacker` is the id of the player who dealt the damage —
+ * the enemy turns on them — or -1 for damage that belongs to no player.
+ * px/py is where the damage came from: it is what the enemy heads for. */
+void enemy_damage(EnemyList *el, SpriteList *sl, int idx, float dmg, EventQueue *evq, int attacker,
+                  float px, float py);
 
 /* Returns 1 if all enemies are dead. */
 int enemy_all_dead(const EnemyList *el);
