@@ -274,6 +274,60 @@ static void test_occupant_on_the_threshold_holds_the_door(void)
     TEST_ASSERT_EQUAL_INT(1, door_is_blocking(&doors, DOOR_CELL_X, DOOR_CELL_Y));
 }
 
+/* Any one occupant is enough to hold the doorway, and it is free only once
+ * the last of them has walked out of it. */
+static void test_the_door_waits_for_the_last_occupant_to_leave(void)
+{
+    const DoorOccupant elsewhere = {4.5f, 4.5f};
+    DoorOccupant occ[3];
+    occ[0].x = DOOR_CELL_X + 0.3f;
+    occ[0].y = DOOR_CELL_Y + 0.5f;
+    occ[1].x = DOOR_CELL_X + 0.7f;
+    occ[1].y = DOOR_CELL_Y + 0.5f;
+    occ[2] = elsewhere;
+
+    open_the_door();
+    run_ticks(occ, 3, ticks_for(2.0f * TEST_DOOR_OPEN_TIME));
+    TEST_ASSERT_EQUAL_INT(DOOR_OPEN, doors.doors[0].state);
+
+    /* the first of them walks off; the second is still standing in it */
+    occ[0] = elsewhere;
+    run_ticks(occ, 3, ticks_for(2.0f * TEST_DOOR_OPEN_TIME));
+    TEST_ASSERT_EQUAL_INT(DOOR_OPEN, doors.doors[0].state);
+    TEST_ASSERT_EQUAL_INT(0, door_is_blocking(&doors, DOOR_CELL_X, DOOR_CELL_Y));
+
+    /* and once that one leaves too, the door finally closes */
+    occ[1] = elsewhere;
+    run_ticks(occ, 3, ticks_for(TEST_DOOR_OPEN_TIME + TEST_RAMP_TIME + 0.5f));
+    TEST_ASSERT_EQUAL_INT(DOOR_CLOSED, doors.doors[0].state);
+    TEST_ASSERT_EQUAL_INT(1, door_is_blocking(&doors, DOOR_CELL_X, DOOR_CELL_Y));
+}
+
+/* A door belongs to the world and not to whoever opened it: what player 0
+ * opened, player 1 walks through — and can shut again from the far side. */
+static void test_a_door_opened_by_one_player_serves_the_others(void)
+{
+    PlayerState p0 = player_facing_door();
+    PlayerState p1 = player_facing_door();
+    p1.id = 1;
+    p1.y = DOOR_CELL_Y + 1.5f;  /* the far side of the doorway */
+    p1.angle = -TEST_PI / 2.0f; /* -Y, back towards the door */
+
+    door_try_use(&doors, &p0, &map, NULL);
+    run_ticks(NULL, 0, ticks_for(TEST_RAMP_TIME));
+    TEST_ASSERT_EQUAL_INT(DOOR_OPEN, doors.doors[0].state);
+    TEST_ASSERT_EQUAL_INT(0, door_is_blocking(&doors, DOOR_CELL_X, DOOR_CELL_Y));
+
+    /* player 1 steps into the opening and holds it well past its timer */
+    const DoorOccupant occ = {DOOR_CELL_X + 0.5f, DOOR_CELL_Y + 0.5f};
+    run_ticks(&occ, 1, ticks_for(2.0f * TEST_DOOR_OPEN_TIME));
+    TEST_ASSERT_EQUAL_INT(0, door_is_blocking(&doors, DOOR_CELL_X, DOOR_CELL_Y));
+
+    /* and closes it behind them */
+    door_try_use(&doors, &p1, &map, NULL);
+    TEST_ASSERT_EQUAL_INT(DOOR_CLOSING, doors.doors[0].state);
+}
+
 static void test_occupant_in_another_cell_is_ignored(void)
 {
     const DoorOccupant occ = {4.5f, 4.5f};
@@ -298,5 +352,7 @@ int main(void)
     RUN_TEST(test_closing_door_reopens_for_an_occupant);
     RUN_TEST(test_occupant_on_the_threshold_holds_the_door);
     RUN_TEST(test_occupant_in_another_cell_is_ignored);
+    RUN_TEST(test_the_door_waits_for_the_last_occupant_to_leave);
+    RUN_TEST(test_a_door_opened_by_one_player_serves_the_others);
     return UNITY_END();
 }
