@@ -58,11 +58,19 @@ static void build_map(Map *m)
     m->start_y = 1;
 }
 
+/* The lone player is passed the array they live in — themselves and nobody
+ * else — which is what a one-player world looks like. */
 static void step(int ticks)
 {
     for (int i = 0; i < ticks; i++) {
-        player_update(&player, &map, &doors, &in, TEST_STEP);
+        player_update(&player, &map, &doors, &in, &player, 1, TEST_STEP);
     }
+}
+
+static float distance(const PlayerState *a, const PlayerState *b)
+{
+    float dx = a->x - b->x, dy = a->y - b->y;
+    return sqrtf(dx * dx + dy * dy);
 }
 
 void setUp(void)
@@ -88,6 +96,7 @@ static void test_player_init_centres_the_player_in_the_start_cell(void)
     TEST_ASSERT_EQUAL_INT(1, player.alive);
     TEST_ASSERT_EQUAL_FLOAT(0.0f, player.respawn_timer);
     TEST_ASSERT_EQUAL_UINT8(0, player.id);
+    TEST_ASSERT_EQUAL_INT(1, player.active);
     /* the weapon system belongs to the player and is initialised with them */
     TEST_ASSERT_EQUAL_INT(1, weapon_system_init_calls);
 }
@@ -248,9 +257,70 @@ static void test_without_a_door_list_the_door_is_solid(void)
 
     in.forward = 1;
     for (int i = 0; i < 240; i++) {
-        player_update(&player, &map, NULL, &in, TEST_STEP);
+        player_update(&player, &map, NULL, &in, &player, 1, TEST_STEP);
     }
     TEST_ASSERT_TRUE(player.y + PLAYER_RADIUS <= (float)DOOR_CELL_Y);
+}
+
+/* Another player is a solid body: walking at one closes the gap down to two
+ * radii and stops there, and the one standing still is not pushed. */
+static void test_a_second_player_blocks_the_way(void)
+{
+    PlayerState two[2];
+    player_init(&two[0], 2, 4);
+    player_init(&two[1], 4, 4);
+    two[1].id = 1;
+    two[0].angle = 0.0f; /* +X, straight at the other one */
+
+    in.forward = 1;
+    for (int i = 0; i < 240; i++) {
+        player_update(&two[0], &map, &doors, &in, two, 2, TEST_STEP);
+        TEST_ASSERT_TRUE(distance(&two[0], &two[1]) >= 2.0f * PLAYER_RADIUS - 1e-4f);
+    }
+
+    TEST_ASSERT_TRUE(two[0].x > 2.5f); /* it did walk up to them */
+    TEST_ASSERT_TRUE(two[0].x < 4.5f); /* and not through them */
+    TEST_ASSERT_EQUAL_FLOAT(4.5f, two[1].x);
+    TEST_ASSERT_EQUAL_FLOAT(4.5f, two[1].y);
+}
+
+/* A player who has left their slot is not a wall: the body goes with them. */
+static void test_an_inactive_player_does_not_block(void)
+{
+    PlayerState two[2];
+    player_init(&two[0], 2, 4);
+    player_init(&two[1], 4, 4);
+    two[1].id = 1;
+    two[1].active = 0;
+    two[0].angle = 0.0f;
+
+    in.forward = 1;
+    for (int i = 0; i < 240; i++) {
+        player_update(&two[0], &map, &doors, &in, two, 2, TEST_STEP);
+    }
+    TEST_ASSERT_TRUE(two[0].x > 4.5f);
+}
+
+/* Alone in the world, movement is what it was before anyone else could get in
+ * the way: passing the one-element array and passing none agree exactly. */
+static void test_a_lone_player_moves_as_without_the_array(void)
+{
+    player.x = 3.5f;
+    player.y = 4.5f;
+    player.angle = 0.6f;
+    in.forward = 1;
+    in.strafe_left = 1;
+    step(30);
+    float alone_x = player.x, alone_y = player.y;
+
+    player.x = 3.5f;
+    player.y = 4.5f;
+    player.angle = 0.6f;
+    for (int i = 0; i < 30; i++) {
+        player_update(&player, &map, &doors, &in, NULL, 0, TEST_STEP);
+    }
+    TEST_ASSERT_EQUAL_FLOAT(alone_x, player.x);
+    TEST_ASSERT_EQUAL_FLOAT(alone_y, player.y);
 }
 
 int main(void)
@@ -268,5 +338,8 @@ int main(void)
     RUN_TEST(test_a_closed_door_blocks_the_player);
     RUN_TEST(test_an_open_door_lets_the_player_through);
     RUN_TEST(test_without_a_door_list_the_door_is_solid);
+    RUN_TEST(test_a_second_player_blocks_the_way);
+    RUN_TEST(test_an_inactive_player_does_not_block);
+    RUN_TEST(test_a_lone_player_moves_as_without_the_array);
     return UNITY_END();
 }

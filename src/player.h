@@ -14,6 +14,7 @@ struct DoorList;
  * interpolates along the shortest arc between snapshots. */
 typedef struct PlayerState {
     uint8_t id;
+    int active; /* the slot is taken: someone joined it and has not left */
     float x, y;
     float angle; /* radians, normalised to [-PI, PI] */
     float hp;
@@ -32,8 +33,10 @@ void player_init(PlayerState *p, int start_x, int start_y);
  * to no player. */
 void player_damage(PlayerState *victim, float dmg, int attacker_id);
 
-/* dt update. If dl is non-NULL, doors are respected for collision. */
+/* dt update. If dl is non-NULL, doors are respected for collision.
+ * `players` is the array p itself lives in: the others are solid, so nobody
+ * walks through anybody. Pass NULL and 0 for a world with no one else in it. */
 void player_update(PlayerState *p, const Map *m, struct DoorList *dl, const struct InputState *in,
-                   double dt);
+                   const PlayerState *players, int player_count, double dt);
 
 #endif

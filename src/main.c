@@ -139,6 +139,8 @@ int main(int argc, char **argv)
         engine_shutdown(&eng);
         return 1;
     }
+    /* A freshly loaded world has every slot free, so this cannot fail. */
+    world.local_player = world_add_player(&world, 0);
 
     InputState input;
     input_init(&input);
@@ -148,6 +150,10 @@ int main(int argc, char **argv)
     double fps_timer = 0.0;
     int frames = 0;
     char title[128];
+
+    /* A client always looks through a player of its own; a dedicated server has
+     * none, which is what local_player < 0 means, and renders nothing. */
+    PlayerState *me = &world.players[world.local_player];
 
     while (eng.running) {
         double now = get_time_seconds();
@@ -161,10 +167,9 @@ int main(int argc, char **argv)
         frames++;
         if (fps_timer >= 0.5) {
             eng.fps = (double)frames / fps_timer;
-            const WeaponSystem *ws = &world.player.weapons;
+            const WeaponSystem *ws = &me->weapons;
             snprintf(title, sizeof(title), "doom-clone | %.0f FPS | HP %.0f | ammo %d/%d", eng.fps,
-                     world.player.hp, ws->weapons[ws->current].ammo,
-                     ws->weapons[ws->current].max_ammo);
+                     me->hp, ws->weapons[ws->current].ammo, ws->weapons[ws->current].max_ammo);
             SDL_SetWindowTitle(eng.window, title);
             fps_timer = 0.0;
             frames = 0;
@@ -186,6 +191,8 @@ int main(int argc, char **argv)
                 eng.running = 0;
                 break;
             }
+            world.local_player = world_add_player(&world, 0);
+            me = &world.players[world.local_player];
             game.restart = 0;
             input_init(&input);
         }
@@ -203,15 +210,15 @@ int main(int argc, char **argv)
         if (game.state == GSTATE_PLAYING) {
             accumulator += frame_time;
             while (accumulator >= FIXED_DT) {
-                PlayerInput pi = sample_input(&input, world.player.angle, world.tick);
+                PlayerInput pi = sample_input(&input, me->angle, world.tick);
                 world_step(&world, &pi, 1, FIXED_DT);
                 input_end_frame(&input);
                 accumulator -= FIXED_DT;
-                world_play_events(&audio, &world.events, &world.player, 1, &world.player);
+                world_play_events(&audio, &world.events, world.players, world.player_count, me);
             }
 
             /* Win/Lose transitions */
-            if (world.player.hp <= 0.0f) {
+            if (me->hp <= 0.0f) {
                 game.state = GSTATE_DEAD;
             } else if (enemy_all_dead(&world.enemies)) {
                 game.state = GSTATE_WIN;
@@ -229,20 +236,20 @@ int main(int argc, char **argv)
          * show a dim background instead). */
         if (game.state != GSTATE_MENU) {
             Camera cam;
-            player_camera(&world.player, &cam);
-            raycast_render(&eng.fb, &world.player, &cam, &world.map, &assets, &world.doors);
-            sprite_render(&eng.fb, &world.sprites, &world.player, &cam, &assets);
-            const WeaponSystem *ws = &world.player.weapons;
+            player_camera(me, &cam);
+            raycast_render(&eng.fb, me, &cam, &world.map, &assets, &world.doors);
+            sprite_render(&eng.fb, &world.sprites, me, &cam, &assets);
+            const WeaponSystem *ws = &me->weapons;
             hud_draw_weapon(&eng.fb,
                             ws->current == WEAPON_PISTOL ? &assets.weapon_pistol
                                                          : &assets.weapon_shotgun,
                             0, ws->weapons[ws->current].anim);
-            hud_draw(&eng.fb, &world.player);
+            hud_draw(&eng.fb, me);
         } else {
             fb_clear(&eng.fb, make_color(15, 10, 20));
         }
 
-        game_draw_overlay(&eng.fb, &game, &world.player);
+        game_draw_overlay(&eng.fb, &game, me);
         engine_present(&eng);
     }
 

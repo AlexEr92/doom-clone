@@ -9,7 +9,9 @@ int world_load(World *w, const char *map_path)
         w->loaded = 0;
         return -1;
     }
-    player_init(&w->player, w->map.start_x, w->map.start_y);
+    memset(w->players, 0, sizeof(w->players));
+    w->player_count = 0;
+    w->local_player = -1;
     sprite_init(&w->sprites);
     enemy_list_init(&w->enemies);
     item_list_init(&w->items);
@@ -49,15 +51,87 @@ int world_load(World *w, const char *map_path)
     return 0;
 }
 
+/* Where the player joining at `spawn_index` starts out. The map knows a single
+ * start cell and nothing else until task 09-01 gives it a spawn pool, so index
+ * 0 is that cell and the rest are the free cells that follow it in scan order:
+ * enough to put ten players on a map without stacking them on one another.
+ * An index past the last free cell falls back to the start. */
+static void world_spawn_cell(const World *w, int spawn_index, int *cx, int *cy)
+{
+    *cx = w->map.start_x;
+    *cy = w->map.start_y;
+    if (spawn_index <= 0) {
+        return;
+    }
+    int seen = 0;
+    for (int y = 0; y < w->map.h; y++) {
+        for (int x = 0; x < w->map.w; x++) {
+            if (map_cell(&w->map, x, y) != 0) {
+                continue;
+            }
+            if (x == w->map.start_x && y == w->map.start_y) {
+                continue;
+            }
+            if (++seen == spawn_index) {
+                *cx = x;
+                *cy = y;
+                return;
+            }
+        }
+    }
+}
+
+int world_add_player(World *w, int spawn_index)
+{
+    int id = -1;
+    for (int i = 0; i < w->player_count; i++) {
+        if (!w->players[i].active) {
+            id = i;
+            break;
+        }
+    }
+    if (id < 0) {
+        if (w->player_count >= MAX_PLAYERS) {
+            return -1;
+        }
+        id = w->player_count++;
+    }
+
+    int cx, cy;
+    world_spawn_cell(w, spawn_index, &cx, &cy);
+    PlayerState *p = &w->players[id];
+    player_init(p, cx, cy);
+    p->id = (uint8_t)id;
+    return id;
+}
+
+void world_remove_player(World *w, int id)
+{
+    if (id < 0 || id >= w->player_count) {
+        return;
+    }
+    /* Dead as well as gone: a free slot must be invisible to everything that
+     * scans the array — hitscan, collision, doors — and every one of them
+     * already skips a player who is not alive. */
+    w->players[id].active = 0;
+    w->players[id].alive = 0;
+    if (w->local_player == id) {
+        w->local_player = -1;
+    }
+}
+
 /* Collect everyone who should keep a door from closing on them: live players
  * and live enemies. */
 static int world_door_occupants(const World *w, DoorOccupant *occ, int max)
 {
     int n = 0;
-    if (w->player.hp > 0.0f && n < max) {
-        occ[n].x = w->player.x;
-        occ[n].y = w->player.y;
-        n++;
+    for (int i = 0; i < w->player_count && n < max; i++) {
+        const PlayerState *p = &w->players[i];
+        if (p->active && p->hp > 0.0f) {
+            occ[n].x = p->x;
+            occ[n].y = p->y;
+            n++;
+        }
     }
     for (int i = 0; i < w->enemies.count && n < max; i++) {
         const Enemy *e = &w->enemies.items[i];
@@ -89,47 +163,85 @@ void world_step(World *w, const PlayerInput inputs[], int count, double dt)
 {
     event_queue_clear(&w->events);
 
-    /* No input for this tick — a dropped packet, or a player who is not being
+    /* One input per player, resolved once and read by every phase below. An
+     * input is matched to a player by id, which is the index it sits at: the
+     * server fills the array by id and leaves a gap where a slot is free.
+     * No input for this tick — a dropped packet, or a player who is not being
      * driven at all — means standing still, facing the way they already do. */
-    PlayerInput in = {w->tick, 0, w->player.angle};
-    if (inputs && count > 0) {
-        in = inputs[0];
+    PlayerInput tick_input[MAX_PLAYERS];
+    for (int i = 0; i < MAX_PLAYERS; i++) {
+        const PlayerState *p = &w->players[i];
+        PlayerInput idle = {w->tick, 0, p->angle};
+        tick_input[i] = (inputs && p->active && p->id < count) ? inputs[p->id] : idle;
     }
 
     /* The order below is part of the contract, not an accident of how main.c
      * happened to be written: reconciliation replays these ticks and has to
-     * land on the same state the server did. */
+     * land on the same state the server did. Within a phase, players are
+     * walked by ascending id for the same reason — who moves first decides
+     * which of two players ends up standing where they collided. */
 
     /* players */
-    w->player.angle = wrap_angle(in.angle);
-    InputState move = buttons_to_input_state(in.buttons);
-    player_update(&w->player, &w->map, &w->doors, &move, dt);
+    for (int i = 0; i < w->player_count; i++) {
+        PlayerState *p = &w->players[i];
+        if (!p->active) {
+            continue;
+        }
+        p->angle = wrap_angle(tick_input[i].angle);
+        InputState move = buttons_to_input_state(tick_input[i].buttons);
+        player_update(p, &w->map, &w->doors, &move, w->players, w->player_count, dt);
+    }
 
     /* doors */
-    if (in.buttons & BTN_USE) {
-        door_try_use(&w->doors, &w->player, &w->map, &w->events);
+    for (int i = 0; i < w->player_count; i++) {
+        PlayerState *p = &w->players[i];
+        if (p->active && (tick_input[i].buttons & BTN_USE)) {
+            door_try_use(&w->doors, p, &w->map, &w->events);
+        }
     }
     DoorOccupant occ[MAX_PLAYERS + MAX_ENEMIES];
     int occ_count = world_door_occupants(w, occ, (int)(sizeof(occ) / sizeof(occ[0])));
     door_update_all(&w->doors, occ, occ_count, dt);
 
+    /* Enemies and items still take a single player: widening them to the whole
+     * array is tasks 06-03 and 06-04. Until then they are driven by the first
+     * player in the world, which in a one-player game is the only one there
+     * is, and an empty world skips them entirely. */
+    PlayerState *first = NULL;
+    for (int i = 0; i < w->player_count && !first; i++) {
+        if (w->players[i].active) {
+            first = &w->players[i];
+        }
+    }
+
     /* enemies */
-    enemy_update_all(&w->enemies, &w->sprites, &w->map, &w->doors, &w->player, &w->events, dt);
+    if (first) {
+        enemy_update_all(&w->enemies, &w->sprites, &w->map, &w->doors, first, &w->events, dt);
+    }
 
     /* items */
-    item_update(&w->items, &w->sprites, &w->player, &w->events);
+    if (first) {
+        item_update(&w->items, &w->sprites, first, &w->events);
+    }
 
     /* weapons */
-    if (in.buttons & BTN_WEAPON1) {
-        weapon_switch(&w->player, WEAPON_PISTOL);
-    }
-    if (in.buttons & BTN_WEAPON2) {
-        weapon_switch(&w->player, WEAPON_SHOTGUN);
-    }
-    weapon_update(&w->player, dt);
-    if (in.buttons & BTN_FIRE) {
-        weapon_try_fire(&w->player, &w->map, &w->doors, &w->player, 1, &w->enemies, &w->sprites,
-                        &w->events);
+    for (int i = 0; i < w->player_count; i++) {
+        PlayerState *p = &w->players[i];
+        if (!p->active) {
+            continue;
+        }
+        uint16_t buttons = tick_input[i].buttons;
+        if (buttons & BTN_WEAPON1) {
+            weapon_switch(p, WEAPON_PISTOL);
+        }
+        if (buttons & BTN_WEAPON2) {
+            weapon_switch(p, WEAPON_SHOTGUN);
+        }
+        weapon_update(p, dt);
+        if (buttons & BTN_FIRE) {
+            weapon_try_fire(p, &w->map, &w->doors, w->players, w->player_count, &w->enemies,
+                            &w->sprites, &w->events);
+        }
     }
 
     w->tick++;

@@ -133,6 +133,9 @@ static void run_replay(World *w, unsigned seed)
     /* Seeded differently per run: a tick that reads rand() lands elsewhere. */
     srand(seed);
     TEST_ASSERT_EQUAL_INT(0, world_load(w, MAP_PATH));
+    /* A loaded world is empty of players; the one this run drives joins at the
+     * map's start cell and takes id 0, which is the input's index. */
+    TEST_ASSERT_EQUAL_INT(0, world_add_player(w, 0));
     for (uint32_t t = 0; t < REPLAY_TICKS; t++) {
         PlayerInput in = scripted_input(t);
         world_step(w, &in, 1, FIXED_DT);
@@ -155,16 +158,17 @@ static void assert_worlds_match(const World *a, const World *b)
 {
     TEST_ASSERT_EQUAL_UINT32(a->tick, b->tick);
 
-    ASSERT_SAME_FLOAT(a->player.x, b->player.x, "player.x");
-    ASSERT_SAME_FLOAT(a->player.y, b->player.y, "player.y");
-    ASSERT_SAME_FLOAT(a->player.angle, b->player.angle, "player.angle");
-    ASSERT_SAME_FLOAT(a->player.hp, b->player.hp, "player.hp");
-    ASSERT_SAME_FLOAT(a->player.armor, b->player.armor, "player.armor");
-    TEST_ASSERT_EQUAL_INT(a->player.weapons.current, b->player.weapons.current);
+    ASSERT_SAME_FLOAT(a->players[0].x, b->players[0].x, "player.x");
+    ASSERT_SAME_FLOAT(a->players[0].y, b->players[0].y, "player.y");
+    ASSERT_SAME_FLOAT(a->players[0].angle, b->players[0].angle, "player.angle");
+    ASSERT_SAME_FLOAT(a->players[0].hp, b->players[0].hp, "player.hp");
+    ASSERT_SAME_FLOAT(a->players[0].armor, b->players[0].armor, "player.armor");
+    TEST_ASSERT_EQUAL_INT(a->players[0].weapons.current, b->players[0].weapons.current);
     for (int i = 0; i < WEAPON_COUNT; i++) {
-        TEST_ASSERT_EQUAL_INT(a->player.weapons.weapons[i].ammo, b->player.weapons.weapons[i].ammo);
-        ASSERT_SAME_FLOAT(a->player.weapons.weapons[i].cooldown,
-                          b->player.weapons.weapons[i].cooldown, "weapon.cooldown");
+        TEST_ASSERT_EQUAL_INT(a->players[0].weapons.weapons[i].ammo,
+                              b->players[0].weapons.weapons[i].ammo);
+        ASSERT_SAME_FLOAT(a->players[0].weapons.weapons[i].cooldown,
+                          b->players[0].weapons.weapons[i].cooldown, "weapon.cooldown");
     }
 
     TEST_ASSERT_EQUAL_INT(a->enemies.count, b->enemies.count);
@@ -238,11 +242,11 @@ static void test_the_scripted_run_exercises_the_world(void)
     TEST_ASSERT_EQUAL_INT(3, first.items.count);
 
     /* out of the west room entirely: the door was opened and walked through */
-    TEST_ASSERT_TRUE(first.player.x > 6.0f);
+    TEST_ASSERT_TRUE(first.players[0].x > 6.0f);
     TEST_ASSERT_TRUE(first.doors.doors[0].openness > 0.0f);
 
-    TEST_ASSERT_TRUE(first.player.weapons.weapons[WEAPON_PISTOL].ammo < 50);
-    TEST_ASSERT_TRUE(first.player.hp < 100.0f);
+    TEST_ASSERT_TRUE(first.players[0].weapons.weapons[WEAPON_PISTOL].ammo < 50);
+    TEST_ASSERT_TRUE(first.players[0].hp < 100.0f);
 
     /* The medkit is walked over at full health and stays: that refusal is a
      * path through item_update() as much as a pickup is. */
@@ -273,6 +277,7 @@ static void test_the_scripted_run_exercises_the_world(void)
 static void test_a_tick_clears_the_event_queue_it_fills(void)
 {
     TEST_ASSERT_EQUAL_INT(0, world_load(&first, MAP_PATH));
+    TEST_ASSERT_EQUAL_INT(0, world_add_player(&first, 0));
 
     PlayerInput in = scripted_input(0);
     in.buttons = BTN_FIRE;
@@ -289,14 +294,15 @@ static void test_a_tick_clears_the_event_queue_it_fills(void)
 static void test_a_tick_without_input_keeps_the_facing(void)
 {
     TEST_ASSERT_EQUAL_INT(0, world_load(&first, MAP_PATH));
-    float angle = first.player.angle;
-    float x = first.player.x, y = first.player.y;
+    TEST_ASSERT_EQUAL_INT(0, world_add_player(&first, 0));
+    float angle = first.players[0].angle;
+    float x = first.players[0].x, y = first.players[0].y;
 
     world_step(&first, NULL, 0, FIXED_DT);
 
-    ASSERT_SAME_FLOAT(angle, first.player.angle, "player.angle");
-    ASSERT_SAME_FLOAT(x, first.player.x, "player.x");
-    ASSERT_SAME_FLOAT(y, first.player.y, "player.y");
+    ASSERT_SAME_FLOAT(angle, first.players[0].angle, "player.angle");
+    ASSERT_SAME_FLOAT(x, first.players[0].x, "player.x");
+    ASSERT_SAME_FLOAT(y, first.players[0].y, "player.y");
     TEST_ASSERT_EQUAL_UINT32(1, first.tick);
 }
 

@@ -13,6 +13,7 @@
 void player_init(PlayerState *p, int start_x, int start_y)
 {
     p->id = 0;
+    p->active = 1;
     p->x = start_x + 0.5f;
     p->y = start_y + 0.5f;
     p->angle = MATH_PI; /* facing -X */
@@ -46,18 +47,51 @@ static int blocked(const Map *m, DoorList *dl, float x, float y)
     return map_is_wall_door(m, dl, x, y);
 }
 
-static void try_move(PlayerState *p, const Map *m, DoorList *dl, float nx, float ny)
+/* Bodies are cylinders of PLAYER_RADIUS, so two of them touch at twice that
+ * and (nx,ny) is refused while it would put p any closer.
+ *
+ * Refused only while it does not increase the distance, because two players
+ * can start out overlapping — spawned on the same point, or dropped into an
+ * occupied slot — and a flat refusal would then freeze both of them where
+ * they stand instead of letting them walk apart. */
+static int player_blocked(const PlayerState *p, const PlayerState *players, int player_count,
+                          float nx, float ny)
+{
+    const float touch = 2.0f * PLAYER_RADIUS;
+    for (int i = 0; i < player_count; i++) {
+        const PlayerState *o = &players[i];
+        if (o == p || !o->active || !o->alive) {
+            continue;
+        }
+        float ndx = nx - o->x, ndy = ny - o->y;
+        float nd2 = ndx * ndx + ndy * ndy;
+        if (nd2 >= touch * touch) {
+            continue;
+        }
+        float odx = p->x - o->x, ody = p->y - o->y;
+        if (nd2 <= odx * odx + ody * ody) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void try_move(PlayerState *p, const Map *m, DoorList *dl, const PlayerState *players,
+                     int player_count, float nx, float ny)
 {
     float r = PLAYER_RADIUS;
-    if (!blocked(m, dl, nx + (nx > p->x ? r : -r), p->y)) {
+    if (!blocked(m, dl, nx + (nx > p->x ? r : -r), p->y) &&
+        !player_blocked(p, players, player_count, nx, p->y)) {
         p->x = nx;
     }
-    if (!blocked(m, dl, p->x, ny + (ny > p->y ? r : -r))) {
+    if (!blocked(m, dl, p->x, ny + (ny > p->y ? r : -r)) &&
+        !player_blocked(p, players, player_count, p->x, ny)) {
         p->y = ny;
     }
 }
 
-void player_update(PlayerState *p, const Map *m, DoorList *dl, const InputState *in, double dt)
+void player_update(PlayerState *p, const Map *m, DoorList *dl, const InputState *in,
+                   const PlayerState *players, int player_count, double dt)
 {
     float ca = cosf(p->angle);
     float sa = sinf(p->angle);
@@ -65,16 +99,16 @@ void player_update(PlayerState *p, const Map *m, DoorList *dl, const InputState 
     float side = STRAFE_SPEED * (float)dt;
 
     if (in->forward) {
-        try_move(p, m, dl, p->x + ca * fwd, p->y + sa * fwd);
+        try_move(p, m, dl, players, player_count, p->x + ca * fwd, p->y + sa * fwd);
     }
     if (in->back) {
-        try_move(p, m, dl, p->x - ca * fwd, p->y - sa * fwd);
+        try_move(p, m, dl, players, player_count, p->x - ca * fwd, p->y - sa * fwd);
     }
     if (in->strafe_left) {
-        try_move(p, m, dl, p->x - sa * side, p->y + ca * side);
+        try_move(p, m, dl, players, player_count, p->x - sa * side, p->y + ca * side);
     }
     if (in->strafe_right) {
-        try_move(p, m, dl, p->x + sa * side, p->y - ca * side);
+        try_move(p, m, dl, players, player_count, p->x + sa * side, p->y - ca * side);
     }
 
     float rot = 0.0f;
