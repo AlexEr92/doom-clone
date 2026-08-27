@@ -19,9 +19,8 @@
 
 - [ ] Новый маркер `s` в формате карты — точка спавна; клетка проходима.
       Буква `P` остаётся стартом solo-режима
-- [ ] В `Map`:
+- [ ] В `Map` (лимит `MAX_SPAWNS` уже лежит в `config.h`):
   ```c
-  #define MAX_SPAWNS 24
   typedef struct { float x, y, angle; } SpawnPoint;
   /* ... */
   SpawnPoint spawns[MAX_SPAWNS];

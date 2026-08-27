@@ -1,0 +1,50 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+/* Limits and tunables of the whole game, in one place. The values here are the
+ * ones docs/requirements.md, section 5, requires: changing one of them means
+ * changing that document too.
+ *
+ * Nothing is included here on purpose. A dedicated server includes this file
+ * and must not pick up SDL — or anything else — through it, so the contents
+ * are limited to #define and _Static_assert. */
+
+/* ---- Capacity ---- */
+
+#define MAX_PLAYERS 10  /* snapshot size and map density */
+#define MAX_ENEMIES 32  /* co-op only */
+#define MAX_ITEMS 64    /* bounded by the uint64_t pickup mask in a snapshot */
+#define MAX_DOORS 64    /* */
+#define MAX_SPRITES 192 /* enemies + items + barrels + 9 other players */
+#define MAX_SPAWNS 24   /* twice as many as there are players */
+#define MAX_EVENTS 32   /* per tick; on overflow the farthest are dropped */
+
+/* ---- Simulation ---- */
+
+#define TICK_RATE 60
+#define FIXED_DT (1.0 / (double)TICK_RATE)
+
+#define RESPAWN_TIME 2.0f
+#define SPAWN_PROTECT_TIME 2.0f
+#define ITEM_RESPAWN_TIME 30.0f
+
+/* ---- Network ---- */
+
+#define SNAPSHOT_RATE 20 /* Hz, overridable by a launch flag */
+#define NET_PORT_DEFAULT 27015
+
+/* One frame can show every enemy, every item and every player but the one
+ * holding the camera. Barrels come on top of that and are already counted in
+ * the value above. */
+_Static_assert(MAX_SPRITES >= MAX_ENEMIES + MAX_ITEMS + MAX_PLAYERS - 1,
+               "MAX_SPRITES cannot hold one frame's worth of entities");
+
+/* Which items are gone travels in a snapshot as a single bitmask. */
+_Static_assert(MAX_ITEMS <= 64, "the pickup mask in a snapshot is 64 bits wide");
+
+/* GameEvent.actor (event.h) is a uint8_t index into whichever list the kind
+ * names, so no list may outgrow what that index addresses. */
+_Static_assert(MAX_PLAYERS <= 256 && MAX_ENEMIES <= 256 && MAX_ITEMS <= 256 && MAX_DOORS <= 256,
+               "GameEvent.actor is a uint8_t");
+
+#endif

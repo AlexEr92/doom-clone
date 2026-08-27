@@ -4,10 +4,6 @@
 #include "utils.h"
 #include <math.h>
 
-/* M_PI is not standard C11 and the build asks for -std=c11 with extensions
- * off, so it is not declared by math.h here. */
-#define PLAYER_PI 3.14159265358979323846f
-
 /* Strafing used to follow the camera plane vector directly, and that vector is
  * FOV_PLANE long rather than 1 — so sideways movement has always been that
  * much slower than forward. Almost certainly unintended, but preserved here to
@@ -19,7 +15,7 @@ void player_init(PlayerState *p, int start_x, int start_y)
     p->id = 0;
     p->x = start_x + 0.5f;
     p->y = start_y + 0.5f;
-    p->angle = PLAYER_PI; /* facing -X */
+    p->angle = MATH_PI; /* facing -X */
     p->hp = 100.0f;
     p->armor = 0.0f;
     p->alive = 1;
@@ -43,20 +39,6 @@ void player_damage(PlayerState *victim, float dmg, int attacker_id)
         victim->hp = 0.0f;
     }
     victim->last_attacker = (int8_t)attacker_id;
-}
-
-/* Fold an angle back into [-PI, PI]. Without this the angle drifts over a
- * long session until float precision degrades, and shortest-arc
- * interpolation between snapshots takes the long way round. */
-static float wrap_angle(float a)
-{
-    while (a > PLAYER_PI) {
-        a -= 2.0f * PLAYER_PI;
-    }
-    while (a < -PLAYER_PI) {
-        a += 2.0f * PLAYER_PI;
-    }
-    return a;
 }
 
 static int blocked(const Map *m, DoorList *dl, float x, float y)

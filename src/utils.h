@@ -22,7 +22,9 @@
 #define MOUSE_SENS 0.002f
 #define PLAYER_RADIUS 0.2f
 
-#define FIXED_DT (1.0 / 60.0)
+/* M_PI is not standard C11 and the build asks for -std=c11 with extensions
+ * off, so math.h does not declare it here. */
+#define MATH_PI 3.14159265358979323846f
 
 typedef struct {
     uint32_t *pixels;
@@ -48,6 +50,20 @@ static inline int clampi(int v, int lo, int hi)
         return hi;
     }
     return v;
+}
+
+/* Fold an angle back into [-PI, PI]. Without this the angle drifts over a
+ * long session until float precision degrades, and shortest-arc
+ * interpolation between snapshots takes the long way round. */
+static inline float wrap_angle(float a)
+{
+    while (a > MATH_PI) {
+        a -= 2.0f * MATH_PI;
+    }
+    while (a < -MATH_PI) {
+        a += 2.0f * MATH_PI;
+    }
+    return a;
 }
 
 static inline uint32_t make_color(uint8_t r, uint8_t g, uint8_t b)

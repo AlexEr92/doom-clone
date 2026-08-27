@@ -27,15 +27,20 @@ if(NOT TEST_SDL2_INCLUDES)
 endif()
 
 # ---- Один тест на модуль ----
-# doom_test(<модуль> [SRC <файлы из src/>...] [LINK <библиотеки>...])
+# doom_test(<модуль> [FILE <файл теста>] [SRC <файлы из src/>...] [LINK <библиотеки>...])
+# FILE нужен только там, где имя файла не test_<модуль>.c: replay-тест назван
+# в requirements.md, раздел 9, как tests/replay_test.c.
 function(doom_test module)
-    cmake_parse_arguments(T "" "" "SRC;LINK" ${ARGN})
+    cmake_parse_arguments(T "" "FILE" "SRC;LINK" ${ARGN})
+    if(NOT T_FILE)
+        set(T_FILE test_${module}.c)
+    endif()
     set(sources "")
     foreach(s IN LISTS T_SRC)
         list(APPEND sources ${CMAKE_SOURCE_DIR}/src/${s})
     endforeach()
 
-    add_executable(test_${module} test_${module}.c ${sources})
+    add_executable(test_${module} ${T_FILE} ${sources})
     target_include_directories(test_${module} PRIVATE
         ${CMAKE_SOURCE_DIR}/src
         ${TEST_SDL2_INCLUDES}
@@ -64,3 +69,7 @@ doom_test(game   SRC game.c)
 # Загрузчик листов: assets.c тянет stb_image по относительному пути, а сами
 # PNG тест пишет сам — фикстур в tests/ нет.
 doom_test(assets SRC assets.c)
+# Детерминизм world_step() — требование requirements.md, раздел 9. Линкует всю
+# симуляцию; из графики нужен только sprite_add(), он заглушен в самом тесте.
+doom_test(replay FILE replay_test.c
+    SRC world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)

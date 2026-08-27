@@ -56,7 +56,8 @@ cmake -S . -B build -DBUILD_TESTS=OFF            # game only, no Unity
 ```
 
 New test files must be added to `tests/CMakeLists.txt`; `doom_test()` there
-takes the module name and the `src/*.c` each executable needs. Each one links
+takes the module name and the `src/*.c` each executable needs (plus `FILE`
+where the file is not named `test_<module>.c`, as `replay_test.c` is not). Each one links
 only its own sources — not the whole game — and stubs what it does not want to
 drag in, which is how `test_enemy.c` avoids `sprite.c` (and, through it,
 `raycast.c` for `zBuffer`).
@@ -121,10 +122,25 @@ and players, and reads neither the camera nor `zBuffer`.
 Sound is off the list too. The simulation never calls `audio_play()`: it
 appends `GameEvent`s to an `EventQueue` (`event.h`) and the client drains
 the queue after each tick, scaling volume by the distance to *its own*
-player. `enemy.c`, `weapon.c`, `item.c`, `door.c`, `player.c`, `map.c` and
-`raycast_world.c` therefore compile with no SDL headers on the include path
-at all — `gcc -fsyntax-only -Isrc` on them is the check, and keeping it
-passing is a constraint on new code in those files.
+player. `world.c`, `enemy.c`, `weapon.c`, `item.c`, `door.c`, `player.c`,
+`map.c` and `raycast_world.c` therefore compile with no SDL headers on the
+include path at all — `gcc -fsyntax-only -Isrc` on them is the check, and
+keeping it passing is a constraint on new code in those files.
+
+### One tick is one function
+
+`world_step()` (`world.c`) is the whole tick, and it takes a `PlayerInput`
+per player rather than the raw `InputState`. The server will run it and the
+client will run it again to predict, so the order inside it — players,
+doors, enemies, items, weapons — is fixed, and nothing in it may read the
+wall clock or `rand()`. `tests/replay_test.c` holds that line: two runs of
+one input sequence from one `world_load()` must come out bit-identical.
+
+`src/config.h` is the single source of truth for the limits (`MAX_PLAYERS`,
+`MAX_ENEMIES`, `MAX_SPRITES`, …), the tick rate and the network constants.
+It includes nothing at all — a headless server includes it, and anything it
+drags in propagates there — so it holds `#define` and `_Static_assert` only.
+Its values are what `docs/requirements.md` §5 requires.
 
 ### Entity model
 
@@ -132,15 +148,17 @@ All entity lists are fixed-size arrays with a `count`, and nothing is ever
 removed: items deactivate (`active = 0`), enemies become corpses
 (`ESTATE_DEAD`). An index into the array is therefore a stable id, and
 `Enemy.sprite_id` / `Item.sprite_id` are indices into `SpriteList`. Limits
-live in the individual headers (`MAX_ENEMIES`, `MAX_SPRITES`, …).
+live in `config.h`.
 
 ### Main loop
 
 `main.c` runs a fixed-timestep loop: `FIXED_DT` (1/60) with an accumulator,
-rendering once per frame. Note that `input_end_frame()` is called *inside*
-the fixed step, and `mouse_dx` accumulates per frame — so input is coupled
-to frames, not to ticks, and a frame containing two ticks feeds the second
-one empty input.
+one `world_step()` per fixed step, rendering once per frame. Note that
+`input_end_frame()` is called *inside* the fixed step, and `mouse_dx`
+accumulates per frame — so input is still coupled to frames, not to ticks,
+and a frame containing two ticks feeds the second one empty input. Task
+`docs/tasks/06-06` is what fixes that; until then `sample_input()` in
+`main.c` builds the per-tick `PlayerInput` out of the per-frame state.
 
 Game states (`GSTATE_MENU`, `PLAYING`, `PAUSED`, `DEAD`, `WIN`) live in
 `game.c`, which also owns the 3×5 bitmap font used by every overlay.
@@ -196,14 +214,13 @@ these before making changes:
 | `docs/closed_tasks/` | Finished and rejected tasks, each ending in a "Закрыто" note |
 
 Target: up to 10 players, authoritative server over ENet, deathmatch as the
-primary mode with co-op second. Stage 5 is finished; the next task is
-`docs/tasks/06-01` (`world.c/.h` with a single `world_step()`), which the
-rest of stage 6 waits on.
+primary mode with co-op second. Stage 5 and task 06-01 are finished; the
+rest of stage 6 (`06-02` onwards) is what the network stages wait on.
 
-`docs/requirements.md` §9 mandates `tests/replay_test.c` — a determinism
-check on `world_step()` — introduced by task `docs/tasks/06-01`. It does not
-exist yet; when it lands it plugs into the CTest wiring already in
-`tests/CMakeLists.txt` rather than getting a runner of its own.
+`tests/replay_test.c` — the determinism check on `world_step()` mandated by
+`docs/requirements.md` §9 — exists and runs under CTest with the rest.
+Stages 6–10 change the very things it pins down, so keeping it passing is
+part of those tasks, not follow-up work.
 
 Stages 5–6 change the very structures the tests pin down (`PlayerState`,
 `WeaponSystem`, `enemy_update_all`, `door_update_all`). Updating the matching

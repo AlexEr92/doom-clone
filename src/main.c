@@ -1,6 +1,4 @@
 #include "engine.h"
-#include "map.h"
-#include "player.h"
 #include "camera.h"
 #include "raycast.h"
 #include "input.h"
@@ -8,47 +6,65 @@
 #include "sprite.h"
 #include "enemy.h"
 #include "weapon.h"
-#include "item.h"
-#include "door.h"
 #include "hud.h"
 #include "audio.h"
 #include "event.h"
 #include "game.h"
+#include "world.h"
+#include "config.h"
 #include "utils.h"
 #include <SDL.h>
 #include <stdio.h>
 #include <math.h>
 
-typedef struct {
-    Map map;
-    PlayerState player;
-    SpriteList sprites;
-    EnemyList enemies;
-    ItemList items;
-    DoorList doors;
-    EventQueue events; /* what the last tick produced, drained by the client */
-    int loaded;
-} World;
-
-/* Collect everyone who should keep a door from closing on them: live
- * players and live enemies. Moves into world_step() with 06-01. */
-static int world_door_occupants(const World *w, DoorOccupant *occ, int max)
+/* One tick's worth of input, taken from the frame's raw SDL state. The angle
+ * is worked out here, on the client, because turning must be immediate and
+ * the simulation accepts the facing as given.
+ *
+ * Edge flags (fire, use, weapon switch) are still cleared once per frame
+ * rather than once per tick, so a frame holding two ticks feeds the second an
+ * empty one — task 06-06 moves this into input.c as input_sample() and fixes
+ * that. */
+static PlayerInput sample_input(const InputState *in, float angle, uint32_t tick)
 {
-    int n = 0;
-    if (w->player.hp > 0.0f && n < max) {
-        occ[n].x = w->player.x;
-        occ[n].y = w->player.y;
-        n++;
+    PlayerInput pi;
+    pi.tick = tick;
+    pi.buttons = 0;
+    if (in->forward) {
+        pi.buttons |= BTN_FORWARD;
     }
-    for (int i = 0; i < w->enemies.count && n < max; i++) {
-        const Enemy *e = &w->enemies.items[i];
-        if (e->state != ESTATE_DEAD) {
-            occ[n].x = e->x;
-            occ[n].y = e->y;
-            n++;
-        }
+    if (in->back) {
+        pi.buttons |= BTN_BACK;
     }
-    return n;
+    if (in->strafe_left) {
+        pi.buttons |= BTN_LEFT;
+    }
+    if (in->strafe_right) {
+        pi.buttons |= BTN_RIGHT;
+    }
+    if (in->fire) {
+        pi.buttons |= BTN_FIRE;
+    }
+    if (in->use) {
+        pi.buttons |= BTN_USE;
+    }
+    if (in->switch1) {
+        pi.buttons |= BTN_WEAPON1;
+    }
+    if (in->switch2) {
+        pi.buttons |= BTN_WEAPON2;
+    }
+
+    float rot = 0.0f;
+    if (in->turn_left) {
+        rot += ROT_SPEED * (float)FIXED_DT;
+    }
+    if (in->turn_right) {
+        rot -= ROT_SPEED * (float)FIXED_DT;
+    }
+    rot -= in->mouse_dx * MOUSE_SENS;
+    pi.angle = angle + rot;
+    return pi;
 }
 
 /* Drain the queue the last tick filled. Distance is measured from `me` — the
@@ -80,51 +96,6 @@ static void world_play_events(Audio *au, const EventQueue *q, const PlayerState 
             default: break;
         }
     }
-}
-
-static int world_load(World *w, const char *map_path)
-{
-    if (map_load(&w->map, map_path) != 0) {
-        w->loaded = 0;
-        return -1;
-    }
-    player_init(&w->player, w->map.start_x, w->map.start_y);
-    sprite_init(&w->sprites);
-    enemy_list_init(&w->enemies);
-    item_list_init(&w->items);
-    door_list_init(&w->doors);
-    event_queue_clear(&w->events);
-
-    for (int i = 0; i < w->map.sprite_count; i++) {
-        float sx = w->map.sprites[i].x;
-        float sy = w->map.sprites[i].y;
-        char mk = w->map.sprites[i].marker;
-        switch (mk) {
-            case 'E': enemy_spawn(&w->enemies, &w->sprites, sx, sy, ENEMY_IMP); break;
-            case 'S': enemy_spawn(&w->enemies, &w->sprites, sx, sy, ENEMY_SERG); break;
-            case 'B': sprite_add(&w->sprites, sx, sy, SPRITE_BARREL); break;
-            case 'M': {
-                int sid = sprite_add(&w->sprites, sx, sy, SPRITE_MEDKIT);
-                item_add(&w->items, sid, ITEM_MEDKIT, 25.0f, 0);
-                break;
-            }
-            case 'A': {
-                int sid = sprite_add(&w->sprites, sx, sy, SPRITE_AMMO);
-                /* Give ammo to the current "primary" weapon: pistol. */
-                item_add(&w->items, sid, ITEM_AMMO, 12.0f, WEAPON_PISTOL);
-                break;
-            }
-            case 'R': {
-                int sid = sprite_add(&w->sprites, sx, sy, SPRITE_ARMOR);
-                item_add(&w->items, sid, ITEM_ARMOR, 50.0f, 0);
-                break;
-            }
-        }
-    }
-
-    door_discover(&w->doors, &w->map);
-    w->loaded = 1;
-    return 0;
 }
 
 int main(int argc, char **argv)
@@ -227,33 +198,13 @@ int main(int argc, char **argv)
             if (input.pause_toggle) {
                 game.state = GSTATE_PAUSED;
             }
-            if (input.switch1) {
-                weapon_switch(&world.player, WEAPON_PISTOL);
-            }
-            if (input.switch2) {
-                weapon_switch(&world.player, WEAPON_SHOTGUN);
-            }
         }
 
         if (game.state == GSTATE_PLAYING) {
             accumulator += frame_time;
             while (accumulator >= FIXED_DT) {
-                event_queue_clear(&world.events);
-                player_update(&world.player, &world.map, &world.doors, &input, FIXED_DT);
-                if (input.use) {
-                    door_try_use(&world.doors, &world.player, &world.map, &world.events);
-                }
-                DoorOccupant occ[1 + MAX_ENEMIES];
-                int occ_count = world_door_occupants(&world, occ, 1 + MAX_ENEMIES);
-                door_update_all(&world.doors, occ, occ_count, FIXED_DT);
-                enemy_update_all(&world.enemies, &world.sprites, &world.map, &world.doors,
-                                 &world.player, &world.events, FIXED_DT);
-                item_update(&world.items, &world.sprites, &world.player, &world.events);
-                weapon_update(&world.player, FIXED_DT);
-                if (input.fire) {
-                    weapon_try_fire(&world.player, &world.map, &world.doors, &world.player, 1,
-                                    &world.enemies, &world.sprites, &world.events);
-                }
+                PlayerInput pi = sample_input(&input, world.player.angle, world.tick);
+                world_step(&world, &pi, 1, FIXED_DT);
                 input_end_frame(&input);
                 accumulator -= FIXED_DT;
                 world_play_events(&audio, &world.events, &world.player, 1, &world.player);

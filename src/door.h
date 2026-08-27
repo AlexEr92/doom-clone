@@ -1,6 +1,7 @@
 #ifndef DOOR_H
 #define DOOR_H
 
+#include "config.h"
 #include "map.h"
 #include "player.h"
 #include "event.h"
@@ -19,8 +20,6 @@ typedef struct Door {
     float timer;    /* seconds remaining in OPEN before auto-close */
     int triggered;  /* set when player used the door this tick */
 } Door;
-
-#define MAX_DOORS 64
 
 typedef struct DoorList {
     Door doors[MAX_DOORS];

@@ -1,6 +1,7 @@
 #ifndef ENEMY_H
 #define ENEMY_H
 
+#include "config.h"
 #include "map.h"
 #include "player.h"
 #include "sprite.h"
@@ -30,8 +31,6 @@ typedef struct {
     float last_seen_x, last_seen_y; /* player position while last visible */
     float search_timer;             /* time left searching after losing sight */
 } Enemy;
-
-#define MAX_ENEMIES 32
 
 typedef struct EnemyList {
     Enemy items[MAX_ENEMIES];

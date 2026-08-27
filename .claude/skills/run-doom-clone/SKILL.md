@@ -107,10 +107,10 @@ Useless headless — it needs a real display. Must run from the project root.
 
 ## Test
 
-There is no test suite. `docs/requirements.md` §9 mandates
-`tests/replay_test.c` (determinism of `world_step()`), introduced by task
-`docs/tasks/06-01`; it does not exist yet. Until then `driver.sh smoke` is
-the regression check.
+Unit tests run under CTest — `ctest --test-dir build --output-on-failure` —
+and include `tests/replay_test.c`, the determinism check on `world_step()`
+that `docs/requirements.md` §9 mandates. None of them render, so
+`driver.sh smoke` stays the only check on anything that reaches the screen.
 
 ## Gotchas
 

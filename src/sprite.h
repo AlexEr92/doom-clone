@@ -4,6 +4,7 @@
 /* utils.h, not engine.h: SpriteList is simulation state and is reached from
  * enemy.h and item.h, so this header must stay free of SDL. Framebuffer is
  * all the renderer needs from it. */
+#include "config.h"
 #include "utils.h"
 #include "player.h"
 #include "camera.h"
@@ -27,8 +28,6 @@ typedef struct {
     float scale; /* size multiplier (default 1.0) */
     int vmove;   /* vertical screen shift in px (positive = down) */
 } Sprite;
-
-#define MAX_SPRITES 96
 
 typedef struct SpriteList {
     Sprite items[MAX_SPRITES];

@@ -12,10 +12,8 @@
 
 ## Что сделать
 
-- [ ] В `world.h`:
+- [ ] В `world.h` (лимит `MAX_PLAYERS` уже лежит в `config.h`):
   ```c
-  #define MAX_PLAYERS 10
-
   typedef struct {
       /* ... */
       PlayerState players[MAX_PLAYERS];
@@ -23,8 +21,6 @@
       int         local_player;   /* индекс своего игрока; -1 на сервере */
   } World;
   ```
-- [ ] Поднять `MAX_SPRITES` с 96 до 192 (`sprite.h:27`): 32 врага +
-      64 предмета + бочки + 9 чужих игроков ≈ 110 переполняют текущий лимит
 - [ ] `world_add_player(World *w, int spawn_index) -> int id`
       и `world_remove_player(World *w, int id)`
       (при отключении игрок помечается неактивным, слот переиспользуется)

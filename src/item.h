@@ -1,6 +1,7 @@
 #ifndef ITEM_H
 #define ITEM_H
 
+#include "config.h"
 #include "sprite.h"
 #include "player.h"
 #include "weapon.h"
@@ -21,8 +22,6 @@ typedef struct {
     float amount; /* hp/ammo/armor amount */
     int weapon;   /* for ammo: which weapon (WEAPON_PISTOL/SHOTGUN) */
 } Item;
-
-#define MAX_ITEMS 64
 
 typedef struct {
     Item items[MAX_ITEMS];

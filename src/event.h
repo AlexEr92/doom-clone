@@ -1,6 +1,7 @@
 #ifndef EVENT_H
 #define EVENT_H
 
+#include "config.h"
 #include <stdint.h>
 
 /* Things the simulation did during a tick that something outside it has to
@@ -27,8 +28,6 @@ typedef struct {
     uint8_t actor; /* index of whoever caused it; meaning depends on kind */
     float x, y;    /* world cells: where it happened */
 } GameEvent;
-
-#define MAX_EVENTS 32
 
 typedef struct EventQueue {
     GameEvent items[MAX_EVENTS];
