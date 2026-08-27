@@ -1,5 +1,6 @@
 #include "sprite.h"
 #include "raycast.h"
+#include "world.h"
 #include "utils.h"
 #include <math.h>
 #include <stdlib.h>
@@ -18,6 +19,7 @@ int sprite_add(SpriteList *sl, float x, float y, int type)
         case SPRITE_ENEMY: scale = 0.72f; break;
         case SPRITE_ENEMY_SERG: scale = 0.78f; break;
         case SPRITE_ENEMY_DEAD: scale = 0.55f; break;
+        case SPRITE_PLAYER: scale = 0.78f; break;
         case SPRITE_BARREL: scale = 0.55f; break;
         case SPRITE_MEDKIT: scale = 0.32f; break;
         case SPRITE_AMMO: scale = 0.30f; break;
@@ -38,6 +40,8 @@ int sprite_add_full(SpriteList *sl, float x, float y, int type, float scale, int
     sl->items[sl->count].active = 1;
     sl->items[sl->count].scale = scale;
     sl->items[sl->count].vmove = vmove;
+    sl->items[sl->count].skin = 0;
+    sl->items[sl->count].view = 0;
     return sl->count++;
 }
 
@@ -46,9 +50,86 @@ void sprite_clear(SpriteList *sl)
     sl->count = 0;
 }
 
-static const Texture *sprite_texture(const Assets *a, int type)
+/* Which of the four rows of a player sheet the camera sees: the facing of the
+ * player measured against the direction from them to the viewer. Row 0 looks
+ * back at the camera, row 2 away from it, rows 1 and 3 are the profiles — 1
+ * facing the right edge of the screen, 3 the left one. A sheet with fewer rows
+ * than that falls back to row 0 inside texture_frame(). */
+static int player_view(const PlayerState *p, float cam_x, float cam_y)
+{
+    float rel = wrap_angle(p->angle - atan2f(cam_y - p->y, cam_x - p->x));
+    int q = (int)floorf((rel + MATH_PI / 4.0f) / (MATH_PI / 2.0f));
+    return ((q % 4) + 4) % 4;
+}
+
+static int enemy_sprite_type(const Enemy *e)
+{
+    if (e->state == ESTATE_DEAD) {
+        return SPRITE_ENEMY_DEAD;
+    }
+    return (e->type == ENEMY_SERG) ? SPRITE_ENEMY_SERG : SPRITE_ENEMY;
+}
+
+/* -1 for a pickup nothing draws. */
+static int item_sprite_type(int type)
 {
     switch (type) {
+        case ITEM_MEDKIT: return SPRITE_MEDKIT;
+        case ITEM_AMMO: return SPRITE_AMMO;
+        case ITEM_ARMOR: return SPRITE_ARMOR;
+        default: return -1;
+    }
+}
+
+void sprites_build_from_world(SpriteList *sl, const World *w, int local_player)
+{
+    sprite_clear(sl);
+
+    for (int i = 0; i < w->enemies.count; i++) {
+        const Enemy *e = &w->enemies.items[i];
+        sprite_add(sl, e->x, e->y, enemy_sprite_type(e));
+    }
+
+    for (int i = 0; i < w->items.count; i++) {
+        const Item *it = &w->items.items[i];
+        int type = item_sprite_type(it->type);
+        if (!it->active || type < 0) {
+            continue;
+        }
+        sprite_add(sl, it->x, it->y, type);
+    }
+
+    /* Barrels are decor and carry no state of their own, so the map they were
+     * placed from is what restores them rather than anything in the world. */
+    for (int i = 0; i < w->map.sprite_count; i++) {
+        if (w->map.sprites[i].marker == 'B') {
+            sprite_add(sl, w->map.sprites[i].x, w->map.sprites[i].y, SPRITE_BARREL);
+        }
+    }
+
+    /* Everyone but the player the camera looks through: their own body is
+     * always at the camera and would fill the screen with itself. */
+    const PlayerState *me =
+            (local_player >= 0 && local_player < MAX_PLAYERS) ? &w->players[local_player] : NULL;
+    for (int i = 0; i < w->player_count; i++) {
+        const PlayerState *p = &w->players[i];
+        if (i == local_player || !p->active || !p->alive) {
+            continue;
+        }
+        int idx = sprite_add(sl, p->x, p->y, SPRITE_PLAYER);
+        if (idx < 0) {
+            break;
+        }
+        /* Colour by id until 10-04 hands out real skins, and the facing so a
+         * deathmatch can tell whether it has been noticed. */
+        sl->items[idx].skin = p->id;
+        sl->items[idx].view = me ? player_view(p, me->x, me->y) : 0;
+    }
+}
+
+static const Texture *sprite_texture(const Assets *a, const Sprite *sp)
+{
+    switch (sp->type) {
         case SPRITE_BARREL: return &a->sprite_barrel;
         case SPRITE_ENEMY: return &a->sprite_enemy;
         case SPRITE_ENEMY_SERG: return &a->sprite_enemy_serg;
@@ -56,6 +137,7 @@ static const Texture *sprite_texture(const Assets *a, int type)
         case SPRITE_MEDKIT: return &a->sprite_medkit;
         case SPRITE_AMMO: return &a->sprite_ammo;
         case SPRITE_ARMOR: return &a->sprite_armor;
+        case SPRITE_PLAYER: return &a->sprite_player[clampi(sp->skin, 0, MAX_PLAYERS - 1)];
         default: return &a->sprite_barrel;
     }
 }
@@ -127,10 +209,11 @@ void sprite_render(Framebuffer *fb, const SpriteList *sl, const PlayerState *p, 
             continue; /* behind camera */
         }
 
-        const Texture *tex = sprite_texture(a, sp->type);
-        /* Frame 0 until 06-05/10-03 put a frame number in Sprite. Columns are
-         * side by side in one image, so the row stride stays tex->w. */
-        const uint32_t *frame = texture_frame(tex, 0, 0);
+        const Texture *tex = sprite_texture(a, sp);
+        /* Rows are the facings the sprite carries; the column stays 0 until
+         * 10-03 puts an animation frame in Sprite. Frames sit side by side in
+         * one image, so the row stride stays tex->w. */
+        const uint32_t *frame = texture_frame(tex, 0, sp->view);
         int texW = tex->fw;
         int texH = tex->fh;
 

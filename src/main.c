@@ -145,6 +145,11 @@ int main(int argc, char **argv)
     InputState input;
     input_init(&input);
 
+    /* The render list belongs to the client and is rebuilt from the world once
+     * a frame; the world itself keeps no sprites. */
+    SpriteList sprites;
+    sprite_init(&sprites);
+
     double prev = get_time_seconds();
     double accumulator = 0.0;
     double fps_timer = 0.0;
@@ -238,7 +243,8 @@ int main(int argc, char **argv)
             Camera cam;
             player_camera(me, &cam);
             raycast_render(&eng.fb, me, &cam, &world.map, &assets, &world.doors);
-            sprite_render(&eng.fb, &world.sprites, me, &cam, &assets);
+            sprites_build_from_world(&sprites, &world, world.local_player);
+            sprite_render(&eng.fb, &sprites, me, &cam, &assets);
             const WeaponSystem *ws = &me->weapons;
             hud_draw_weapon(&eng.fb,
                             ws->current == WEAPON_PISTOL ? &assets.weapon_pistol

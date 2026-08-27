@@ -15,9 +15,8 @@
  * where the server seeds it from the value it hands out in MSG_ACCEPT.
  *
  * The map is written out by the test, so it depends on neither the working
- * directory nor assets/maps/. sprite.c is not linked: only sprite_add() and
- * sprite_init() are referenced, and both are stubbed below — linking sprite.c
- * would drag in raycast.c as well, purely to resolve zBuffer. */
+ * directory nor assets/maps/. The tick keeps no render state of its own, so
+ * sprite.c is not linked and nothing has to be stubbed for it. */
 
 #include "unity.h"
 #include "world.h"
@@ -29,28 +28,6 @@
 
 #define MAP_PATH "replay_map.txt"
 #define REPLAY_TICKS 600
-
-/* ---- stubs ---- */
-
-void sprite_init(SpriteList *sl)
-{
-    memset(sl, 0, sizeof(*sl));
-}
-
-int sprite_add(SpriteList *sl, float x, float y, int type)
-{
-    if (sl->count >= MAX_SPRITES) {
-        return -1;
-    }
-    Sprite *sp = &sl->items[sl->count];
-    sp->x = x;
-    sp->y = y;
-    sp->type = type;
-    sp->active = 1;
-    sp->scale = 1.0f;
-    sp->vmove = 0;
-    return sl->count++;
-}
 
 /* ---- fixture ---- */
 

@@ -3,8 +3,8 @@
  *
  * Firing no longer needs a rendered frame, so the trace it uses is linked for
  * real: raycast_world.c against a map and a door built in memory, enemy.c for
- * the damage it applies and player.c for the PvP half of it. Only sprite_add()
- * is stubbed, to keep sprite.c (and, through it, raycast.c) out of the link.
+ * the damage it applies and player.c for the PvP half of it. Nothing here
+ * touches the renderer, so sprite.c is not linked and nothing is stubbed.
  *
  * Firing makes no sound of its own either: weapon.c posts EV_SHOT / EV_NO_AMMO
  * into an EventQueue and the client plays them. */
@@ -13,7 +13,6 @@
 #include "weapon.h"
 #include "player.h"
 #include "enemy.h"
-#include "sprite.h"
 #include "event.h"
 #include "door.h"
 #include "map.h"
@@ -38,27 +37,9 @@
 static Map map;
 static DoorList doors;
 static EnemyList enemies;
-static SpriteList sprites;
 static PlayerState players[2];
 /* Filled by weapon.c and enemy.c; cleared once per test. */
 static EventQueue events;
-
-/* ---- stubs ---- */
-
-int sprite_add(SpriteList *sl, float x, float y, int type)
-{
-    if (sl->count >= MAX_SPRITES) {
-        return -1;
-    }
-    Sprite *sp = &sl->items[sl->count];
-    sp->x = x;
-    sp->y = y;
-    sp->type = type;
-    sp->active = 1;
-    sp->scale = 1.0f;
-    sp->vmove = 0;
-    return sl->count++;
-}
 
 /* ---- fixture ---- */
 
@@ -85,7 +66,6 @@ void setUp(void)
     door_list_init(&doors);
     door_discover(&doors, &map);
     enemy_list_init(&enemies);
-    memset(&sprites, 0, sizeof(sprites));
 
     player_init(&players[SHOOTER], 2, 2);
     player_init(&players[VICTIM], 17, 10);
@@ -106,12 +86,12 @@ static void aim(PlayerState *p, float x, float y, float angle)
 /* Every scenario fires straight down +X (angle 0) from the left of the map. */
 static void fire(void)
 {
-    weapon_try_fire(&players[SHOOTER], &map, &doors, players, 2, &enemies, &sprites, &events);
+    weapon_try_fire(&players[SHOOTER], &map, &doors, players, 2, &enemies, &events);
 }
 
 static int add_enemy(float x, float y)
 {
-    return enemy_spawn(&enemies, &sprites, x, y, ENEMY_IMP);
+    return enemy_spawn(&enemies, x, y, ENEMY_IMP);
 }
 
 static float imp_max_hp(void)

@@ -67,7 +67,6 @@
 
 | # | Задача | Зависит от |
 |---|---|---|
-| [06-05](06-05-sprites-client-side.md) | Спрайты — клиентская сущность, `SPRITE_PLAYER` | 06-02 |
 | [06-06](06-06-input-per-tick.md) | Ввод на тик вместо на кадр | 06-01 |
 
 ## Этап 7 — Сеть: транспорт, протокол, снапшоты
@@ -166,3 +165,4 @@
 | [06-03](../closed_tasks/06-03-enemy-target-selection.md) | ИИ: выбор цели среди N игроков | Сделано |
 | [06-04](../closed_tasks/06-04-items-doors-multiplayer.md) | Предметы и двери на N игроков | Сделано |
 | [chore-004](../closed_tasks/chore-004-review-agent.md) | Агент-ревьюер: критерии приёмки, lint, smoke, конвенции | Сделано |
+| [06-05](../closed_tasks/06-05-sprites-client-side.md) | Спрайты — клиентская сущность, `SPRITE_PLAYER` | Сделано |

@@ -3,19 +3,6 @@
 #include "utils.h"
 #include <string.h>
 
-/* Put a pickup on the map and remember which sprite draws it. The item itself
- * is placed by coordinates; the binding is the client's, and task 06-05 takes
- * it away along with the sprite list in World. */
-static void world_add_item(World *w, float x, float y, int sprite_type, ItemType type, float amount,
-                           int weapon)
-{
-    int idx = item_add(&w->items, x, y, type, amount, weapon);
-    if (idx < 0) {
-        return;
-    }
-    w->item_sprite[idx] = sprite_add(&w->sprites, x, y, sprite_type);
-}
-
 int world_load(World *w, const char *map_path)
 {
     if (map_load(&w->map, map_path) != 0) {
@@ -25,30 +12,27 @@ int world_load(World *w, const char *map_path)
     memset(w->players, 0, sizeof(w->players));
     w->player_count = 0;
     w->local_player = -1;
-    sprite_init(&w->sprites);
     enemy_list_init(&w->enemies);
     item_list_init(&w->items);
-    for (int i = 0; i < MAX_ITEMS; i++) {
-        w->item_sprite[i] = -1;
-    }
     door_list_init(&w->doors);
     event_queue_clear(&w->events);
     w->tick = 0;
 
+    /* Barrels are on the map too, but they are decor with no state of their
+     * own: the client puts them back on the screen straight from the map. */
     for (int i = 0; i < w->map.sprite_count; i++) {
         float sx = w->map.sprites[i].x;
         float sy = w->map.sprites[i].y;
         char mk = w->map.sprites[i].marker;
         switch (mk) {
-            case 'E': enemy_spawn(&w->enemies, &w->sprites, sx, sy, ENEMY_IMP); break;
-            case 'S': enemy_spawn(&w->enemies, &w->sprites, sx, sy, ENEMY_SERG); break;
-            case 'B': sprite_add(&w->sprites, sx, sy, SPRITE_BARREL); break;
-            case 'M': world_add_item(w, sx, sy, SPRITE_MEDKIT, ITEM_MEDKIT, 25.0f, 0); break;
+            case 'E': enemy_spawn(&w->enemies, sx, sy, ENEMY_IMP); break;
+            case 'S': enemy_spawn(&w->enemies, sx, sy, ENEMY_SERG); break;
+            case 'M': item_add(&w->items, sx, sy, ITEM_MEDKIT, 25.0f, 0); break;
             case 'A':
                 /* Give ammo to the current "primary" weapon: pistol. */
-                world_add_item(w, sx, sy, SPRITE_AMMO, ITEM_AMMO, 12.0f, WEAPON_PISTOL);
+                item_add(&w->items, sx, sy, ITEM_AMMO, 12.0f, WEAPON_PISTOL);
                 break;
-            case 'R': world_add_item(w, sx, sy, SPRITE_ARMOR, ITEM_ARMOR, 50.0f, 0); break;
+            case 'R': item_add(&w->items, sx, sy, ITEM_ARMOR, 50.0f, 0); break;
         }
     }
 
@@ -210,21 +194,10 @@ void world_step(World *w, const PlayerInput inputs[], int count, double dt)
     door_update_all(&w->doors, occ, occ_count, dt);
 
     /* enemies */
-    enemy_update_all(&w->enemies, &w->sprites, &w->map, &w->doors, w->players, w->player_count,
-                     &w->events, dt);
+    enemy_update_all(&w->enemies, &w->map, &w->doors, w->players, w->player_count, &w->events, dt);
 
     /* items */
     item_update(&w->items, w->players, w->player_count, &w->events);
-
-    /* A pickup that has been taken takes its sprite off the map with it. The
-     * simulation only cleared the item; this is the render side of it, and it
-     * goes away with the table it reads in task 06-05. */
-    for (int i = 0; i < w->items.count; i++) {
-        int sid = w->item_sprite[i];
-        if (sid >= 0 && sid < w->sprites.count) {
-            w->sprites.items[sid].active = w->items.items[i].active;
-        }
-    }
 
     /* weapons */
     for (int i = 0; i < w->player_count; i++) {
@@ -242,7 +215,7 @@ void world_step(World *w, const PlayerInput inputs[], int count, double dt)
         weapon_update(p, dt);
         if (buttons & BTN_FIRE) {
             weapon_try_fire(p, &w->map, &w->doors, w->players, w->player_count, &w->enemies,
-                            &w->sprites, &w->events);
+                            &w->events);
         }
     }
 

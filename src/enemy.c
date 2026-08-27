@@ -1,6 +1,5 @@
 #include "enemy.h"
 #include "raycast_world.h"
-#include "sprite.h"
 #include "door.h"
 #include "utils.h"
 #include <math.h>
@@ -25,8 +24,6 @@ static const EnemyDef defs[ENEMY_COUNT] = {
                         .attack_range = 1.2f,
                         .attack_cd = 1.0f,
                         .detect_range = 8.0f,
-                        .sprite_type = SPRITE_ENEMY,
-                        .sprite_scale = 1.0f,
                 },
         [ENEMY_SERG] =
                 {
@@ -36,8 +33,6 @@ static const EnemyDef defs[ENEMY_COUNT] = {
                         .attack_range = 6.0f,
                         .attack_cd = 1.6f,
                         .detect_range = 10.0f,
-                        .sprite_type = SPRITE_ENEMY_SERG,
-                        .sprite_scale = 1.0f,
                 },
 };
 
@@ -54,7 +49,7 @@ void enemy_list_init(EnemyList *el)
     memset(el, 0, sizeof(*el));
 }
 
-int enemy_spawn(EnemyList *el, SpriteList *sl, float x, float y, int type)
+int enemy_spawn(EnemyList *el, float x, float y, int type)
 {
     if (el->count >= MAX_ENEMIES) {
         return -1;
@@ -63,12 +58,6 @@ int enemy_spawn(EnemyList *el, SpriteList *sl, float x, float y, int type)
         type = ENEMY_IMP;
     }
     const EnemyDef *d = &defs[type];
-    /* Use sprite_add so the per-type default scale (human height, floor
-     * anchored) is applied. */
-    int sid = sprite_add(sl, x, y, d->sprite_type);
-    if (sid < 0) {
-        return -1;
-    }
 
     Enemy *e = &el->items[el->count];
     e->type = type;
@@ -78,7 +67,6 @@ int enemy_spawn(EnemyList *el, SpriteList *sl, float x, float y, int type)
     e->hp = d->max_hp;
     e->anim_timer = 0.0f;
     e->attack_cooldown = 0.0f;
-    e->sprite_id = sid;
     e->alert_timer = 0.0f;
     e->target = -1;
     e->retarget_timer = 0.0f;
@@ -184,8 +172,8 @@ static void move_towards(Enemy *e, const Map *m, DoorList *dl, float tx, float t
     }
 }
 
-void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, DoorList *dl,
-                      PlayerState *players, int player_count, EventQueue *evq, double dt)
+void enemy_update_all(EnemyList *el, const Map *m, DoorList *dl, PlayerState *players,
+                      int player_count, EventQueue *evq, double dt)
 {
     for (int i = 0; i < el->count; i++) {
         Enemy *e = &el->items[i];
@@ -307,16 +295,11 @@ void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, DoorList *dl,
                 break;
             case ESTATE_DEAD: break;
         }
-        /* keep sprite position in sync */
-        if (e->sprite_id >= 0 && e->sprite_id < sl->count) {
-            sl->items[e->sprite_id].x = e->x;
-            sl->items[e->sprite_id].y = e->y;
-        }
     }
 }
 
-void enemy_damage(EnemyList *el, SpriteList *sl, int idx, float dmg, EventQueue *evq, int attacker,
-                  float px, float py)
+void enemy_damage(EnemyList *el, int idx, float dmg, EventQueue *evq, int attacker, float px,
+                  float py)
 {
     if (idx < 0 || idx >= el->count) {
         return;
@@ -329,13 +312,6 @@ void enemy_damage(EnemyList *el, SpriteList *sl, int idx, float dmg, EventQueue 
     if (e->hp <= 0.0f) {
         e->hp = 0.0f;
         e->state = ESTATE_DEAD;
-        /* switch sprite to corpse; floor-anchored via sprite scale by type */
-        if (e->sprite_id >= 0 && e->sprite_id < sl->count) {
-            Sprite *sp = &sl->items[e->sprite_id];
-            sp->type = SPRITE_ENEMY_DEAD;
-            sp->scale = 0.55f;
-            sp->vmove = 0;
-        }
         event_push(evq, EV_ENEMY_DEATH, idx, e->x, e->y);
     } else {
         /* being shot alerts/chases immediately */

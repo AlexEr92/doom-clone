@@ -108,9 +108,6 @@ any one file:
 
 - **`Player` mixes state with camera.** `player.h` holds `dir_x/dir_y` *and*
   `plane_x/plane_y` — the latter is a rendering artifact (FOV), not gameplay.
-- **`SpriteList` is not just a render list.** Enemy positions are mirrored
-  into sprites every tick (`enemy.c`), and `enemy_damage()` mutates sprite
-  type to switch to a corpse.
 
 Do not deepen this coupling. The multiplayer work exists largely to undo
 it, since none of the above can run on a server with no framebuffer.
@@ -118,8 +115,14 @@ Hitscan used to belong on this list and no longer does: `weapon_try_fire()`
 traces `world_raycast()` (`raycast_world.c`) through walls, doors, enemies
 and players, and reads neither the camera nor `zBuffer`. Pickups came off it
 too: an `Item` carries its own `x/y` and `item_update()` walks the players
-array, so which sprite draws a pickup is `World.item_sprite` — a table
-`item.c` has never heard of.
+array, so which sprite draws a pickup is worked out at render time from
+`ItemType`.
+
+`SpriteList` is off the list as well, and is a render list and nothing else:
+`sprites_build_from_world()` (`sprite.c`) rebuilds it from the world once a
+frame — enemies alive and dead, pickups still on the map, barrels from the
+map, every player but the local one. No entity holds a sprite id, and
+`sprite.h` is reached from `main.c` and `sprite.c` only.
 
 Sound is off the list too. The simulation never calls `audio_play()`: it
 appends `GameEvent`s to an `EventQueue` (`event.h`) and the client drains
@@ -148,8 +151,9 @@ Its values are what `docs/requirements.md` §5 requires.
 
 All entity lists are fixed-size arrays with a `count`, and nothing is ever
 removed: items deactivate (`active = 0`), enemies become corpses
-(`ESTATE_DEAD`). An index into the array is therefore a stable id, and
-`Enemy.sprite_id` is an index into `SpriteList`. Limits live in `config.h`.
+(`ESTATE_DEAD`). An index into the array is therefore a stable id — which is
+what a snapshot puts on the wire, and what the client keys a sprite by.
+Limits live in `config.h`.
 
 ### Main loop
 
@@ -215,9 +219,8 @@ these before making changes:
 | `docs/closed_tasks/` | Finished and rejected tasks, each ending in a "Закрыто" note |
 
 Target: up to 10 players, authoritative server over ENet, deathmatch as the
-primary mode with co-op second. Stage 5 and tasks 06-01 to 06-04 are
-finished; the rest of stage 6 (`06-05` onwards) is what the network stages
-wait on.
+primary mode with co-op second. Stage 5 and tasks 06-01 to 06-05 are
+finished; `06-06` is the last of stage 6, and the network stages wait on it.
 
 `tests/replay_test.c` — the determinism check on `world_step()` mandated by
 `docs/requirements.md` §9 — exists and runs under CTest with the rest.

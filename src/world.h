@@ -9,7 +9,6 @@
 #include "config.h"
 #include "map.h"
 #include "player.h"
-#include "sprite.h"
 #include "enemy.h"
 #include "item.h"
 #include "door.h"
@@ -22,12 +21,6 @@ typedef struct World {
     PlayerState players[MAX_PLAYERS];
     int player_count; /* slots ever handed out; a freed one stays in the count */
     int local_player; /* the player this process looks through, -1 on a server */
-    SpriteList sprites;
-    /* Which sprite draws which item, indexed by item id. Render bookkeeping
-     * and nothing else: item.c places a pickup by coordinates and knows
-     * nothing of the sprite list. Task 06-05 builds the sprites out of the
-     * world every frame and drops both this table and the list above. */
-    int item_sprite[MAX_ITEMS];
     EnemyList enemies;
     ItemList items;
     DoorList doors;

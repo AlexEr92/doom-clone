@@ -4,7 +4,6 @@
 #include "config.h"
 #include "map.h"
 #include "player.h"
-#include "sprite.h"
 #include "event.h"
 
 struct DoorList;
@@ -26,7 +25,6 @@ typedef struct {
     float hp;
     float anim_timer;
     float attack_cooldown;
-    int sprite_id;                  /* index into SpriteList (kept in sync) */
     float alert_timer;              /* time remaining in ALERT before CHASE */
     int target;                     /* id of the player being chased, -1 for nobody */
     float retarget_timer;           /* time left before a chase looks around again */
@@ -46,29 +44,30 @@ typedef struct {
     float attack_range; /* cells */
     float attack_cd;    /* seconds between attacks */
     float detect_range; /* cells: line-of-sight within this -> ALERT */
-    int sprite_type;    /* SpriteType */
-    float sprite_scale;
 } EnemyDef;
 
 const EnemyDef *enemy_def(int type);
 
 void enemy_list_init(EnemyList *el);
 
-/* Spawn an enemy; creates a matching sprite in `sl` and stores its id. */
-int enemy_spawn(EnemyList *el, SpriteList *sl, float x, float y, int type);
+/* Spawn an enemy at (x, y) and return its index, or -1 when the list is full.
+ * The index is the enemy's id and never changes: an enemy that dies stays in
+ * the list as a corpse. */
+int enemy_spawn(EnemyList *el, float x, float y, int type);
 
 /* Per-tick update: pick a target out of `players`, run the AI state machine,
  * move and attack. Modifies the hp of whoever each enemy is attacking.
  * dl may be NULL (no doors). evq may be NULL (events dropped). */
-void enemy_update_all(EnemyList *el, SpriteList *sl, const Map *m, struct DoorList *dl,
-                      PlayerState *players, int player_count, EventQueue *evq, double dt);
+void enemy_update_all(EnemyList *el, const Map *m, struct DoorList *dl, PlayerState *players,
+                      int player_count, EventQueue *evq, double dt);
 
-/* Apply damage to enemy idx; on death switches sprite to corpse.
+/* Apply damage to enemy idx; on death the enemy stays in the list in
+ * ESTATE_DEAD, which is what draws it as a corpse.
  * evq may be NULL. `attacker` is the id of the player who dealt the damage —
  * the enemy turns on them — or -1 for damage that belongs to no player.
  * px/py is where the damage came from: it is what the enemy heads for. */
-void enemy_damage(EnemyList *el, SpriteList *sl, int idx, float dmg, EventQueue *evq, int attacker,
-                  float px, float py);
+void enemy_damage(EnemyList *el, int idx, float dmg, EventQueue *evq, int attacker, float px,
+                  float py);
 
 /* Returns 1 if all enemies are dead. */
 int enemy_all_dead(const EnemyList *el);

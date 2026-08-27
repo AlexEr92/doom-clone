@@ -3,14 +3,16 @@
 
 #include <stddef.h>
 
+#include "config.h"
 #include "utils.h"
 
 #define TEX_SIZE 64
 
 /* A texture is a sheet of frames laid out left to right (columns) and top to
  * bottom (rows); the row stride is the width of the whole image, not of one
- * frame. Everything generated procedurally is a single frame, i.e.
- * fw == w, fh == h and cols == rows == 1. */
+ * frame. Columns are the frames of an animation, rows the facings. Everything
+ * generated procedurally is one frame — fw == w, fh == h and cols == rows == 1
+ * — except the player sheets, which carry four facings in four rows. */
 typedef struct {
     int w, h;         /* whole image */
     int fw, fh;       /* one frame */
@@ -27,6 +29,9 @@ typedef struct {
     Texture sprite_enemy;
     Texture sprite_enemy_serg;
     Texture sprite_enemy_dead;
+    /* One sheet per player colour, four facings in four rows: `skin` of a
+     * Sprite picks the sheet the way a skin number will in 10-04. */
+    Texture sprite_player[MAX_PLAYERS];
     Texture sprite_medkit;
     Texture sprite_ammo;
     Texture sprite_armor;

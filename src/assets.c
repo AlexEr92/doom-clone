@@ -230,6 +230,103 @@ static void gen_enemy_dead(Texture *t)
     }
 }
 
+/* Four facings in four rows, one frame each, the way a file-backed character
+ * sheet carries them (docs/assets-spec.md). */
+#define PLAYER_VIEWS 4
+
+/* One colour per player id, all of them away from the green of the imp and the
+ * brown of the sergeant. Ten people in a room are told apart by colour and
+ * nothing else until 10-04 gives each of them a character of their own. */
+static const uint8_t PLAYER_COLORS[MAX_PLAYERS][3] = {
+        {70, 120, 230},  /* blue */
+        {225, 65, 60},   /* red */
+        {70, 205, 205},  /* cyan */
+        {235, 145, 40},  /* orange */
+        {200, 80, 205},  /* magenta */
+        {225, 210, 70},  /* yellow */
+        {215, 215, 220}, /* white */
+        {130, 90, 225},  /* violet */
+        {240, 145, 175}, /* pink */
+        {150, 225, 150}, /* pale green */
+};
+
+static uint32_t shade_rgb(const uint8_t rgb[3], float f)
+{
+    return col((uint8_t)clampf((float)rgb[0] * f, 0.0f, 255.0f),
+               (uint8_t)clampf((float)rgb[1] * f, 0.0f, 255.0f),
+               (uint8_t)clampf((float)rgb[2] * f, 0.0f, 255.0f));
+}
+
+/* One facing of the figure, into row `view` of the sheet. The two profiles are
+ * the same drawing mirrored, so the side the player faces is all that tells
+ * them apart. */
+static void gen_player_view(Texture *t, int view, const uint8_t rgb[3])
+{
+    const uint32_t body = shade_rgb(rgb, 1.0f);
+    const uint32_t dark = shade_rgb(rgb, 0.55f);
+    const uint32_t helmet = shade_rgb(rgb, 1.25f);
+    const uint32_t skin = col(205, 165, 130);
+    const uint32_t gun = col(60, 60, 70);
+    const uint32_t eye = col(25, 20, 20);
+    int side = (view == 1) ? 1 : (view == 3 ? -1 : 0);
+    uint32_t *px = t->pixels + (size_t)view * t->fh * t->w;
+
+    for (int y = 0; y < TEX_SIZE; y++) {
+        for (int x = 0; x < TEX_SIZE; x++) {
+            int dx = x - TEX_SIZE / 2;
+            int dy = y - TEX_SIZE / 2;
+            /* On a profile this grows the way the player looks, so one drawing
+             * serves both of them. */
+            int sx = side ? side * dx : dx;
+            int half = side ? 10 : 14;
+            uint32_t c;
+            /* head */
+            if (dx * dx + (dy + 14) * (dy + 14) <= 64) {
+                c = helmet;
+                /* A face only where it can be seen: all of it looking at the
+                 * camera, a cheek in profile, none of it from behind. */
+                if (dy > -16 && (view == 0 ? abs(dx) < 6 : (side && sx > 0 && sx < 7))) {
+                    c = skin;
+                }
+                if (dy > -17 && dy < -13 &&
+                    (view == 0 ? (abs(dx) > 1 && abs(dx) < 5) : (side && sx > 2 && sx < 6))) {
+                    c = eye;
+                }
+            }
+            /* body */
+            else if (y > 20 && y < 52 && abs(dx) < half) {
+                c = body;
+                if (view == 2 && abs(dx) < 6) {
+                    c = dark; /* the pack on their back */
+                }
+            }
+            /* weapon, held out the way they face */
+            else if (side && y > 30 && y < 38 && sx >= half && sx < half + 14) {
+                c = gun;
+            }
+            /* legs */
+            else if (y >= 52 && y < 60 && abs(dx) < (y < 56 ? half - 4 : half - 6)) {
+                c = dark;
+            } else {
+                c = 0;
+            }
+            px[y * TEX_SIZE + x] = c;
+        }
+    }
+}
+
+static void gen_player(Texture *t, const uint8_t rgb[3])
+{
+    if (texture_alloc(t, TEX_SIZE, TEX_SIZE * PLAYER_VIEWS) != 0) {
+        return;
+    }
+    t->fh = TEX_SIZE;
+    t->rows = PLAYER_VIEWS;
+    for (int v = 0; v < PLAYER_VIEWS; v++) {
+        gen_player_view(t, v, rgb);
+    }
+}
+
 static void gen_medkit(Texture *t)
 {
     if (texture_alloc(t, TEX_SIZE, TEX_SIZE) != 0) {
@@ -520,6 +617,9 @@ int assets_init(Assets *a)
     gen_enemy(&a->sprite_enemy);
     gen_enemy_serg(&a->sprite_enemy_serg);
     gen_enemy_dead(&a->sprite_enemy_dead);
+    for (int i = 0; i < MAX_PLAYERS; i++) {
+        gen_player(&a->sprite_player[i], PLAYER_COLORS[i]);
+    }
     gen_medkit(&a->sprite_medkit);
     gen_ammo(&a->sprite_ammo);
     gen_armor(&a->sprite_armor);
@@ -535,6 +635,12 @@ int assets_init(Assets *a)
     for (size_t i = 0; i < sizeof(all) / sizeof(all[0]); i++) {
         if (!all[i]->pixels) {
             fprintf(stderr, "assets: procedural texture %zu failed\n", i);
+            return -1;
+        }
+    }
+    for (int i = 0; i < MAX_PLAYERS; i++) {
+        if (!a->sprite_player[i].pixels) {
+            fprintf(stderr, "assets: procedural player texture %d failed\n", i);
             return -1;
         }
     }
@@ -555,6 +661,9 @@ void assets_shutdown(Assets *a)
     texture_free(&a->sprite_enemy);
     texture_free(&a->sprite_enemy_serg);
     texture_free(&a->sprite_enemy_dead);
+    for (int i = 0; i < MAX_PLAYERS; i++) {
+        texture_free(&a->sprite_player[i]);
+    }
     texture_free(&a->sprite_medkit);
     texture_free(&a->sprite_ammo);
     texture_free(&a->sprite_armor);

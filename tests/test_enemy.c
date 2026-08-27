@@ -5,9 +5,8 @@
  * so the test depends on neither the working directory nor the level. The step
  * is 1/60 s, as in the game.
  *
- * sprite.c is not linked: only sprite_add() is referenced, and it is stubbed
- * below. Linking sprite.c would drag in raycast.c as well, purely to resolve
- * zBuffer.
+ * Enemies keep no sprite of their own — the client builds the render list out
+ * of them — so sprite.c is not linked and nothing has to be stubbed for it.
  *
  * enemy.c makes no sound of its own — it appends to an EventQueue, so the
  * sounds are checked as the events that would produce them.
@@ -19,7 +18,6 @@
 
 #include "unity.h"
 #include "enemy.h"
-#include "sprite.h"
 #include "event.h"
 #include "map.h"
 #include "player.h"
@@ -38,7 +36,6 @@
 
 static Map map;
 static EnemyList enemies;
-static SpriteList sprites;
 /* The array enemy_update_all() reads. Single-player scenarios use `player`,
  * which is slot 0 of it. */
 static PlayerState players[MAX_PLAYERS];
@@ -47,29 +44,6 @@ static PlayerState *player = &players[0];
 /* Filled by the module under test; never cleared inside a test, so a whole
  * scenario's events can be counted at the end of it. */
 static EventQueue events;
-
-/* ---- stubs ---- */
-
-/* sprite_init is part of sprite.c, which is deliberately not linked. */
-void sprite_init(SpriteList *sl)
-{
-    memset(sl, 0, sizeof(*sl));
-}
-
-int sprite_add(SpriteList *sl, float x, float y, int type)
-{
-    if (sl->count >= MAX_SPRITES) {
-        return -1;
-    }
-    Sprite *sp = &sl->items[sl->count];
-    sp->x = x;
-    sp->y = y;
-    sp->type = type;
-    sp->active = 1;
-    sp->scale = 1.0f;
-    sp->vmove = 0;
-    return sl->count++;
-}
 
 /* ---- fixture ---- */
 
@@ -115,7 +89,7 @@ static PlayerState *add_player(int id, float x, float y)
 static void step(int ticks)
 {
     for (int i = 0; i < ticks; i++) {
-        enemy_update_all(&enemies, &sprites, &map, NULL, players, player_count, &events, TEST_STEP);
+        enemy_update_all(&enemies, &map, NULL, players, player_count, &events, TEST_STEP);
     }
 }
 
@@ -164,13 +138,11 @@ void setUp(void)
 {
     build_map(&map);
     enemy_list_init(&enemies);
-    sprite_init(&sprites);
     memset(players, 0, sizeof(players));
     player_count = 0;
     add_player(0, 0.0f, 0.0f);
     event_queue_clear(&events);
-    TEST_ASSERT_EQUAL_INT(0,
-                          enemy_spawn(&enemies, &sprites, ENEMY_START_X, ENEMY_START_Y, ENEMY_IMP));
+    TEST_ASSERT_EQUAL_INT(0, enemy_spawn(&enemies, ENEMY_START_X, ENEMY_START_Y, ENEMY_IMP));
 }
 
 void tearDown(void)
@@ -178,7 +150,7 @@ void tearDown(void)
 
 /* ---- spawning and definitions ---- */
 
-static void test_enemy_spawn_creates_a_sprite_and_defaults(void)
+static void test_enemy_spawn_defaults(void)
 {
     const EnemyDef *d = enemy_def(ENEMY_IMP);
     const Enemy *e = &enemies.items[0];
@@ -192,11 +164,6 @@ static void test_enemy_spawn_creates_a_sprite_and_defaults(void)
     /* the search target starts where the enemy does */
     TEST_ASSERT_EQUAL_FLOAT(ENEMY_START_X, e->last_seen_x);
     TEST_ASSERT_EQUAL_FLOAT(ENEMY_START_Y, e->last_seen_y);
-
-    TEST_ASSERT_EQUAL_INT(0, e->sprite_id);
-    TEST_ASSERT_EQUAL_INT(1, sprites.count);
-    TEST_ASSERT_EQUAL_INT(d->sprite_type, sprites.items[0].type);
-    TEST_ASSERT_EQUAL_FLOAT(ENEMY_START_X, sprites.items[0].x);
 }
 
 static void test_enemy_def_clamps_an_unknown_type(void)
@@ -209,7 +176,7 @@ static void test_enemy_def_clamps_an_unknown_type(void)
 
 static void test_enemy_spawn_falls_back_to_imp_for_an_unknown_type(void)
 {
-    TEST_ASSERT_EQUAL_INT(1, enemy_spawn(&enemies, &sprites, 6.5f, 5.5f, 99));
+    TEST_ASSERT_EQUAL_INT(1, enemy_spawn(&enemies, 6.5f, 5.5f, 99));
     TEST_ASSERT_EQUAL_INT(ENEMY_IMP, enemies.items[1].type);
 }
 
@@ -256,15 +223,18 @@ static void test_alert_precedes_the_chase(void)
     TEST_ASSERT_EQUAL_INT(ESTATE_IDLE, enemies.items[0].state);
 }
 
-static void test_enemy_sprite_follows_the_enemy(void)
+/* A chase closes the distance: the player stands due east of the enemy, so
+ * the enemy ends up further along +X and no further along Y. */
+static void test_a_chase_walks_the_enemy_towards_the_player(void)
 {
     player->x = 8.5f;
     player->y = 5.5f;
     step(120);
 
+    TEST_ASSERT_EQUAL_INT(ESTATE_CHASE, enemies.items[0].state);
     TEST_ASSERT_TRUE(enemies.items[0].x > ENEMY_START_X);
-    TEST_ASSERT_EQUAL_FLOAT(enemies.items[0].x, sprites.items[0].x);
-    TEST_ASSERT_EQUAL_FLOAT(enemies.items[0].y, sprites.items[0].y);
+    TEST_ASSERT_EQUAL_FLOAT(ENEMY_START_Y, enemies.items[0].y);
+    TEST_ASSERT_TRUE(dist_to(player->x, player->y) < 8.5f - ENEMY_START_X);
 }
 
 /* ---- attacking ---- */
@@ -413,7 +383,7 @@ static void test_damage_from_out_of_range_starts_a_chase_at_the_shooter(void)
     step(60);
     TEST_ASSERT_EQUAL_INT(ESTATE_IDLE, enemies.items[0].state);
 
-    enemy_damage(&enemies, &sprites, 0, 10.0f, &events, 0, shooter_x, shooter_y);
+    enemy_damage(&enemies, 0, 10.0f, &events, 0, shooter_x, shooter_y);
 
     TEST_ASSERT_EQUAL_INT(ESTATE_CHASE, enemies.items[0].state);
     TEST_ASSERT_EQUAL_FLOAT(d->max_hp - 10.0f, enemies.items[0].hp);
@@ -434,19 +404,16 @@ static void test_damage_from_out_of_range_starts_a_chase_at_the_shooter(void)
     TEST_ASSERT_EQUAL_FLOAT(ENEMY_START_Y, enemies.items[0].y);
 }
 
-static void test_lethal_damage_turns_the_sprite_into_a_corpse(void)
+static void test_lethal_damage_leaves_a_dead_enemy(void)
 {
-    enemy_damage(&enemies, &sprites, 0, enemy_def(ENEMY_IMP)->max_hp, &events, 0, 5.5f, 5.5f);
+    enemy_damage(&enemies, 0, enemy_def(ENEMY_IMP)->max_hp, &events, 0, 5.5f, 5.5f);
 
     TEST_ASSERT_EQUAL_INT(ESTATE_DEAD, enemies.items[0].state);
     TEST_ASSERT_EQUAL_FLOAT(0.0f, enemies.items[0].hp);
-    TEST_ASSERT_EQUAL_INT(SPRITE_ENEMY_DEAD, sprites.items[0].type);
-    TEST_ASSERT_EQUAL_FLOAT(0.55f, sprites.items[0].scale);
-    TEST_ASSERT_EQUAL_INT(0, sprites.items[0].vmove);
     TEST_ASSERT_EQUAL_INT(1, count_events(EV_ENEMY_DEATH));
     TEST_ASSERT_EQUAL_INT(0, count_events(EV_ENEMY_HURT));
     /* a corpse stays a corpse */
-    enemy_damage(&enemies, &sprites, 0, 100.0f, &events, 0, 5.5f, 5.5f);
+    enemy_damage(&enemies, 0, 100.0f, &events, 0, 5.5f, 5.5f);
     TEST_ASSERT_EQUAL_INT(ESTATE_DEAD, enemies.items[0].state);
     TEST_ASSERT_EQUAL_FLOAT(0.0f, enemies.items[0].hp);
     /* and dies only once */
@@ -457,8 +424,7 @@ static void test_a_dead_enemy_does_not_attack(void)
 {
     player->x = ENEMY_START_X + 0.5f;
     player->y = ENEMY_START_Y;
-    enemy_damage(&enemies, &sprites, 0, enemy_def(ENEMY_IMP)->max_hp, &events, 0, player->x,
-                 player->y);
+    enemy_damage(&enemies, 0, enemy_def(ENEMY_IMP)->max_hp, &events, 0, player->x, player->y);
 
     step(600);
     TEST_ASSERT_EQUAL_FLOAT(100.0f, player->hp);
@@ -467,8 +433,8 @@ static void test_a_dead_enemy_does_not_attack(void)
 
 static void test_damage_to_an_index_outside_the_list_is_ignored(void)
 {
-    enemy_damage(&enemies, &sprites, -1, 10.0f, &events, 0, 0.0f, 0.0f);
-    enemy_damage(&enemies, &sprites, enemies.count, 10.0f, &events, 0, 0.0f, 0.0f);
+    enemy_damage(&enemies, -1, 10.0f, &events, 0, 0.0f, 0.0f);
+    enemy_damage(&enemies, enemies.count, 10.0f, &events, 0, 0.0f, 0.0f);
     TEST_ASSERT_EQUAL_FLOAT(enemy_def(ENEMY_IMP)->max_hp, enemies.items[0].hp);
     TEST_ASSERT_EQUAL_INT(0, events.count);
 }
@@ -560,7 +526,7 @@ static void test_being_shot_turns_the_enemy_on_the_shooter(void)
     TEST_ASSERT_EQUAL_INT(ESTATE_ATTACK, enemies.items[0].state);
     TEST_ASSERT_EQUAL_INT(0, enemies.items[0].target);
 
-    enemy_damage(&enemies, &sprites, 0, 5.0f, &events, 1, players[1].x, players[1].y);
+    enemy_damage(&enemies, 0, 5.0f, &events, 1, players[1].x, players[1].y);
     TEST_ASSERT_EQUAL_INT(1, enemies.items[0].target);
     TEST_ASSERT_EQUAL_FLOAT(players[1].x, enemies.items[0].last_seen_x);
     TEST_ASSERT_EQUAL_FLOAT(players[1].y, enemies.items[0].last_seen_y);
@@ -581,7 +547,7 @@ static void test_damage_from_nobody_keeps_the_target(void)
     step_until_state(ESTATE_CHASE, 120);
     TEST_ASSERT_EQUAL_INT(0, enemies.items[0].target);
 
-    enemy_damage(&enemies, &sprites, 0, 5.0f, &events, -1, 9.5f, 5.5f);
+    enemy_damage(&enemies, 0, 5.0f, &events, -1, 9.5f, 5.5f);
     TEST_ASSERT_EQUAL_INT(0, enemies.items[0].target);
     TEST_ASSERT_EQUAL_FLOAT(9.5f, enemies.items[0].last_seen_x);
 }
@@ -613,26 +579,26 @@ static void test_enemy_all_dead(void)
     /* nothing spawned is not a win */
     TEST_ASSERT_EQUAL_INT(0, enemy_all_dead(&empty));
 
-    TEST_ASSERT_EQUAL_INT(1, enemy_spawn(&enemies, &sprites, 8.5f, 5.5f, ENEMY_SERG));
+    TEST_ASSERT_EQUAL_INT(1, enemy_spawn(&enemies, 8.5f, 5.5f, ENEMY_SERG));
     TEST_ASSERT_EQUAL_INT(0, enemy_all_dead(&enemies));
 
-    enemy_damage(&enemies, &sprites, 0, 1000.0f, &events, 0, 0.0f, 0.0f);
+    enemy_damage(&enemies, 0, 1000.0f, &events, 0, 0.0f, 0.0f);
     TEST_ASSERT_EQUAL_INT(0, enemy_all_dead(&enemies));
 
-    enemy_damage(&enemies, &sprites, 1, 1000.0f, &events, 0, 0.0f, 0.0f);
+    enemy_damage(&enemies, 1, 1000.0f, &events, 0, 0.0f, 0.0f);
     TEST_ASSERT_EQUAL_INT(1, enemy_all_dead(&enemies));
 }
 
 int main(void)
 {
     UNITY_BEGIN();
-    RUN_TEST(test_enemy_spawn_creates_a_sprite_and_defaults);
+    RUN_TEST(test_enemy_spawn_defaults);
     RUN_TEST(test_enemy_def_clamps_an_unknown_type);
     RUN_TEST(test_enemy_spawn_falls_back_to_imp_for_an_unknown_type);
     RUN_TEST(test_enemy_ignores_a_player_out_of_detect_range);
     RUN_TEST(test_enemy_does_not_see_through_a_wall);
     RUN_TEST(test_alert_precedes_the_chase);
-    RUN_TEST(test_enemy_sprite_follows_the_enemy);
+    RUN_TEST(test_a_chase_walks_the_enemy_towards_the_player);
     RUN_TEST(test_enemy_in_line_of_sight_attacks_and_armor_absorbs_half);
     RUN_TEST(test_without_armor_the_player_takes_full_damage);
     RUN_TEST(test_attacks_are_spaced_by_the_cooldown);
@@ -640,7 +606,7 @@ int main(void)
     RUN_TEST(test_enemy_gives_up_on_reaching_the_last_seen_position);
     RUN_TEST(test_enemy_gives_up_when_the_search_times_out);
     RUN_TEST(test_damage_from_out_of_range_starts_a_chase_at_the_shooter);
-    RUN_TEST(test_lethal_damage_turns_the_sprite_into_a_corpse);
+    RUN_TEST(test_lethal_damage_leaves_a_dead_enemy);
     RUN_TEST(test_a_dead_enemy_does_not_attack);
     RUN_TEST(test_damage_to_an_index_outside_the_list_is_ignored);
     RUN_TEST(test_a_fresh_enemy_has_no_target);

@@ -5,7 +5,6 @@
  * WeaponSystem in PlayerState, so the dependency must not point back. */
 struct PlayerState;
 struct EnemyList;
-struct SpriteList;
 struct EventQueue;
 struct Map;
 struct DoorList;
@@ -40,12 +39,12 @@ void weapon_switch(struct PlayerState *p, int idx);
  * shooter along its facing plus the weapon's spread, stopped by walls and
  * closed doors; whatever live entity it reaches first takes the damage.
  * `players` is the array p itself lives in, so a shot cannot hit its owner.
- * el and sl may be NULL for a world with no enemies; evq may be NULL.
+ * el may be NULL for a world with no enemies; evq may be NULL.
  * Also triggers the weapon animation and cooldown.
  */
 void weapon_try_fire(struct PlayerState *p, const struct Map *m, const struct DoorList *dl,
                      struct PlayerState *players, int player_count, struct EnemyList *el,
-                     struct SpriteList *sl, struct EventQueue *evq);
+                     struct EventQueue *evq);
 
 /* Per-tick update of p's cooldowns / animation. */
 void weapon_update(struct PlayerState *p, double dt);

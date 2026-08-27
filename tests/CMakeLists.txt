@@ -56,13 +56,10 @@ doom_test(utils)
 doom_test(map    SRC map.c door.c)
 doom_test(door   SRC door.c)
 doom_test(player SRC player.c map.c door.c)
-# sprite_add() заменён заглушкой в самом тесте, поэтому sprite.c (а с ним
-# raycast.c ради zBuffer) здесь не нужен.
 doom_test(enemy  SRC enemy.c raycast_world.c map.c door.c)
 doom_test(item   SRC item.c)
-# Хитскан стал мировым: тест линкует трассировку, карту, двери и обе
-# сущности, которым он наносит урон. Заглушен только sprite_add() — ради него
-# тянуть sprite.c (а с ним raycast.c) незачем.
+# Хитскан мировой: тест линкует трассировку, карту, двери и обе сущности,
+# которым он наносит урон.
 doom_test(weapon SRC weapon.c raycast_world.c enemy.c player.c map.c door.c)
 doom_test(input  SRC input.c)
 doom_test(game   SRC game.c)
@@ -70,6 +67,6 @@ doom_test(game   SRC game.c)
 # PNG тест пишет сам — фикстур в tests/ нет.
 doom_test(assets SRC assets.c)
 # Детерминизм world_step() — требование requirements.md, раздел 9. Линкует всю
-# симуляцию; из графики нужен только sprite_add(), он заглушен в самом тесте.
+# симуляцию; графики в ней нет — спрайты строит клиент.
 doom_test(replay FILE replay_test.c
     SRC world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)

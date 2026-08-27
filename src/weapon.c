@@ -1,7 +1,6 @@
 #include "weapon.h"
 #include "player.h"
 #include "enemy.h"
-#include "sprite.h"
 #include "door.h"
 #include "raycast_world.h"
 #include "event.h"
@@ -69,7 +68,7 @@ void weapon_update(PlayerState *p, double dt)
 }
 
 void weapon_try_fire(PlayerState *p, const Map *m, const DoorList *dl, PlayerState *players,
-                     int player_count, EnemyList *el, SpriteList *sl, EventQueue *evq)
+                     int player_count, EnemyList *el, EventQueue *evq)
 {
     WeaponSystem *ws = &p->weapons;
     Weapon *w = &ws->weapons[ws->current];
@@ -104,7 +103,7 @@ void weapon_try_fire(PlayerState *p, const Map *m, const DoorList *dl, PlayerSta
         RayHit h = world_raycast(m, dl, el, players, player_count, p->x, p->y, ray_x, ray_y,
                                  WEAPON_RANGE, p->id);
         if (h.kind == HIT_ENEMY) {
-            enemy_damage(el, sl, h.id, w->damage, evq, p->id, p->x, p->y);
+            enemy_damage(el, h.id, w->damage, evq, p->id, p->x, p->y);
         } else if (h.kind == HIT_PLAYER) {
             player_damage(&players[h.id], w->damage, p->id);
         }
