@@ -101,36 +101,38 @@ patterns match the calling shell.
 
 ## Architecture
 
-### Simulation and rendering are entangled
+### Simulation and rendering are kept apart
 
 This is the single most important thing to know, and it is invisible from
-any one file:
+any one file. The simulation never reaches for the frame it is drawn into,
+and undoing the places where it used to is most of what the multiplayer
+work has been: none of them can run on a server with no framebuffer. Do not
+add a new one.
 
-- **`Player` mixes state with camera.** `player.h` holds `dir_x/dir_y` *and*
-  `plane_x/plane_y` — the latter is a rendering artifact (FOV), not gameplay.
+- **The camera is derived, not stored.** `PlayerState` (`player.h`) carries
+  a single `angle`; `player_camera()` (`camera.h`) builds `dir` and `plane`
+  from it on demand, and the length of `plane` is the FOV — a rendering
+  quantity that has no business in the state.
+- **`SpriteList` is a render list and nothing else.**
+  `sprites_build_from_world()` (`sprite.c`) rebuilds it from the world once
+  a frame — enemies alive and dead, pickups still on the map, barrels from
+  the map, every player but the local one. No entity holds a sprite id, and
+  `sprite.h` is reached from `main.c` and `sprite.c` only.
+- **Hitscan is world-space.** `weapon_try_fire()` traces `world_raycast()`
+  (`raycast_world.c`) through walls, doors, enemies and players, and reads
+  neither the camera nor `zBuffer`.
+- **Pickups carry their own position.** An `Item` has its own `x/y` and
+  `item_update()` walks the players array; which sprite draws a pickup is
+  worked out at render time from `ItemType`.
+- **Sound is events, not calls.** The simulation never calls `audio_play()`:
+  it appends `GameEvent`s to an `EventQueue` (`event.h`) and the client
+  drains the queue after each tick, scaling volume by the distance to *its
+  own* player.
 
-Do not deepen this coupling. The multiplayer work exists largely to undo
-it, since none of the above can run on a server with no framebuffer.
-Hitscan used to belong on this list and no longer does: `weapon_try_fire()`
-traces `world_raycast()` (`raycast_world.c`) through walls, doors, enemies
-and players, and reads neither the camera nor `zBuffer`. Pickups came off it
-too: an `Item` carries its own `x/y` and `item_update()` walks the players
-array, so which sprite draws a pickup is worked out at render time from
-`ItemType`.
-
-`SpriteList` is off the list as well, and is a render list and nothing else:
-`sprites_build_from_world()` (`sprite.c`) rebuilds it from the world once a
-frame — enemies alive and dead, pickups still on the map, barrels from the
-map, every player but the local one. No entity holds a sprite id, and
-`sprite.h` is reached from `main.c` and `sprite.c` only.
-
-Sound is off the list too. The simulation never calls `audio_play()`: it
-appends `GameEvent`s to an `EventQueue` (`event.h`) and the client drains
-the queue after each tick, scaling volume by the distance to *its own*
-player. `world.c`, `enemy.c`, `weapon.c`, `item.c`, `door.c`, `player.c`,
-`map.c` and `raycast_world.c` therefore compile with no SDL headers on the
-include path at all — `gcc -fsyntax-only -Isrc` on them is the check, and
-keeping it passing is a constraint on new code in those files.
+`world.c`, `enemy.c`, `weapon.c`, `item.c`, `door.c`, `player.c`, `map.c`
+and `raycast_world.c` therefore compile with no SDL headers on the include
+path at all — `gcc -fsyntax-only -Isrc` on them is the check, and keeping it
+passing is a constraint on new code in those files.
 
 ### One tick is one function
 
