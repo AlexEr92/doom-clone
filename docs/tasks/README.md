@@ -140,7 +140,6 @@
 | [chore-001](chore-001-github-actions-ci.md) | CI на трёх платформах через GitHub Actions | `.github/workflows/` |
 | [chore-002](chore-002-dead-ternary-text-width.md) | Убрать неработающий тернарник в `text_width()` | `game.c` |
 | [chore-003](chore-003-const-correctness-lint.md) | Три параметра/переменных без `const` | `game.c`, `item.c`, `map.c` |
-| [chore-004](chore-004-review-agent.md) | Агент-ревьюер: критерии приёмки, `/lint`, smoke, конвенции | `.claude/agents/` |
 | [chore-005](chore-005-sanitizer-build.md) | Сборка с ASan/UBSan для локальных и CI-прогонов | `CMakeLists.txt`, `driver.sh` |
 
 ## Закрытые
@@ -166,3 +165,4 @@
 | [06-02](../closed_tasks/06-02-players-array.md) | Массив `players[MAX_PLAYERS]` | Сделано |
 | [06-03](../closed_tasks/06-03-enemy-target-selection.md) | ИИ: выбор цели среди N игроков | Сделано |
 | [06-04](../closed_tasks/06-04-items-doors-multiplayer.md) | Предметы и двери на N игроков | Сделано |
+| [chore-004](../closed_tasks/chore-004-review-agent.md) | Агент-ревьюер: критерии приёмки, lint, smoke, конвенции | Сделано |
