@@ -239,6 +239,9 @@ void sprite_render(Framebuffer *fb, const SpriteList *sl, const PlayerState *p, 
         int drawStartX = -spriteWidth / 2 + spriteScreenX;
         int drawEndX = spriteWidth / 2 + spriteScreenX;
 
+        /* Unclipped top, kept so texture sampling starts at the first row
+         * on screen rather than at the top of the frame. */
+        int spriteTopY = drawStartY;
         if (drawStartY < 0) {
             drawStartY = 0;
         }
@@ -267,7 +270,7 @@ void sprite_render(Framebuffer *fb, const SpriteList *sl, const PlayerState *p, 
              * column's opaque pixels against the top of the sprite and
              * smears whatever is below every transparent run. */
             float stepY = (float)texH / (float)spriteHeight;
-            float texPos = 0.0f;
+            float texPos = (float)(drawStartY - spriteTopY) * stepY;
             for (int y = drawStartY; y <= drawEndY; y++) {
                 int texY = (int)texPos;
                 texPos += stepY;
