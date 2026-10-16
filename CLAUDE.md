@@ -1,13 +1,10 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project
 
-A Doom-style raycaster demo in C11 on SDL2 — roughly 2400 lines across
-`src/`. One map, two weapons, two enemy types, doors, pickups, procedural
-audio. It is currently being refactored into a networked deathmatch; see
-[Ongoing work](#ongoing-work).
+A Doom-style raycaster in C11 on SDL2, about 2400 lines in `src/`: one map,
+two weapons, two enemy types, doors, pickups, procedural audio. It is being
+turned into a networked deathmatch — see [Ongoing work](#ongoing-work).
 
 ## Commands
 
@@ -18,106 +15,63 @@ cmake --build build --target run       # build + run from the project root
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 ```
 
-The game **must** run with the project root as the working directory —
-`assets/maps/level1.txt` is opened by relative path. The `run` target does
-this; a bare `./build/doom-clone` from elsewhere exits with an error.
+The game **must** run from the project root: `assets/maps/level1.txt` is
+opened by relative path, and a bare `./build/doom-clone` from elsewhere
+exits with an error. A new `.c` file goes into the source list in
+`CMakeLists.txt` by hand; there is no glob.
 
-New `.c` files must be added to the source list in `CMakeLists.txt`; there
-is no glob.
+Configuring writes `build/compile_commands.json` and links it from the
+project root (only the `build/` tree sets the link). The `clangd-lsp`
+plugin reads it for the `LSP` tool, which the main session, `reviewer` and
+`tester` all have: `incomingCalls` on a function lists the tests that call
+it; `outgoingCalls` the installed clangd does not implement. `tools/` is in
+the database only with `-DBUILD_TOOLS=ON`.
 
-Configuring also writes `build/compile_commands.json` and links it from the
-project root, so an IDE's clangd finds it as soon as `build/` is
-configured — only the `build/` tree sets the link, so `build-cov/` does not
-take it over. The `clangd-lsp` plugin (enabled in `.claude/settings.json`,
-needs `clangd` on `PATH`) reads it for the `LSP` tool, which the main
-session, `reviewer` and `tester` all have: definitions, references and call
-hierarchy across `src/` and `tests/` — `incomingCalls` on a function lists
-the tests that call it; `outgoingCalls` the installed clangd does not
-implement. `tools/` is in the database only when configured with
-`-DBUILD_TOOLS=ON`. The link and the index in `.cache/` are git-ignored,
-which hides them from git only.
-
-### Git hooks
-
-Hooks live in `.githooks/` and are **off until enabled per clone** — git does
-not version `.git/hooks/`:
-
-```bash
-git config core.hooksPath .githooks
-```
-
-| Hook | Does | Costs |
-|---|---|---|
-| `commit-msg` | validates the message via `.claude/skills/git-commit/check-message.sh` | milliseconds |
-| `pre-commit` | refuses staged `src/*.c`/`*.h` that do not match `.clang-format` | ~0.2s |
-| `pre-push` | builds, runs `ctest` if `tests/` exists, then `driver.sh smoke` | ~9s |
-
-`pre-commit` checks the **staged** content, not the working tree, and never
-rewrites files — run `clang-format -i` yourself and re-stage. `--no-verify`
-bypasses any of them.
+**Git hooks** in `.githooks/` are off until `git config core.hooksPath
+.githooks`. `commit-msg` runs the `git-commit` checker; `pre-commit` refuses
+staged `src/*.c`/`*.h` that `.clang-format` would change — it reads the
+staged content and never rewrites, so format and re-stage; `pre-push`
+builds, runs `ctest` and `driver.sh smoke` (~9s). `--no-verify` bypasses
+them.
 
 ### Tests
 
-Unit tests live in `tests/`, one `test_<module>.c` per module, on a vendored
-Unity (`vendor/unity/`). They are built by default and run through CTest:
+Unit tests are in `tests/`, one `test_<module>.c` per module on a vendored
+Unity (`vendor/unity/`), built by default and run through CTest:
 
 ```bash
-ctest --test-dir build --output-on-failure       # all suites
+ctest --test-dir build --output-on-failure           # all suites
 ctest --test-dir build -R door --output-on-failure   # one of them
-cmake -S . -B build -DBUILD_TESTS=OFF            # game only, no Unity
 ```
 
-New test files must be added to `tests/CMakeLists.txt`; `doom_test()` there
-takes the module name and the `src/*.c` each executable needs (plus `FILE`
-where the file is not named `test_<module>.c`, as `replay_test.c` is not).
-Each one links only its own sources — not the whole game — and stubs what it
-does not want to drag in, which is how `test_enemy.c` avoids `sprite.c`
-(and, through it, `raycast.c` for `zBuffer`).
+A new test file is registered in `tests/CMakeLists.txt` with `doom_test()`,
+which takes the module name and the `src/*.c` it needs (plus `FILE` when
+the file is not `test_<module>.c`, as `replay_test.c` is not). Each
+executable links only its own sources and stubs the rest — that is how
+`test_enemy.c` avoids `sprite.c` and, through it, the renderer.
 
-Coverage is measured in a separate tree, `build-cov/`, by
-`.claude/skills/coverage/coverage.sh`: it holds the thresholds (lines 65 %,
-decisions 55 %, a ratchet that only goes up) and, with `changed`, lists the
-changed lines of `src/` no test executes. Its `SKILL.md` says why
-`assets.c` and `game.c` read low and why executed is not the same as
-checked.
-
-Only what runs without a framebuffer is covered. The renderer is not, and
-`audio.c` only as far as the length of its chunks: `test_audio.c` opens the
-mixer on the `dummy` driver, and timbre is checked by ear. See the tables in
-`docs/closed_tasks/test-001-unit-test-harness.md` for what is out of scope
-and why.
+Only what runs without a framebuffer is tested: not the renderer, and
+`audio.c` only as far as chunk lengths (`test_audio.c` uses the `dummy`
+driver); `docs/closed_tasks/test-001-unit-test-harness.md` says why.
+Coverage is measured in `build-cov/` by `.claude/skills/coverage/coverage.sh`,
+whose thresholds (lines 65 %, decisions 55 %) are a ratchet that only goes
+up; its `SKILL.md` explains how to read the numbers.
 
 ### Asset tools
 
-`tools/` holds the two utilities that turn a picture from a generative
-model into loadable sheets. They are off by default and share nothing with
-the game — no SDL, no `src/`:
+`tools/prepare_sheet` and `tools/check_sheets` turn a picture from a
+generative model, kept in the unversioned `raw/`, into loadable sheets.
+They share nothing with the game and build only with `-DBUILD_TOOLS=ON`;
+`docs/assets-spec.md` has the commands, the directory layout and the frame
+grids.
 
-```bash
-cmake -S . -B build -DBUILD_TOOLS=ON
-cmake --build build --target prepare_sheet check_sheets
-build/prepare_sheet raw/marine.png --profile player --out assets/players/marine --debug
-build/check_sheets assets
-```
+### Running the game headless
 
-`docs/assets-spec.md` is the reference: directory layout, frame grids, the
-prompts the pictures are ordered with, and what the tools do to them. Raw
-model output lives in `raw/`, which is not versioned.
-
-### Running headless / driving the game
-
-Unit tests do not catch what only shows up on screen. To verify a change
-actually works in the game, use the run skill — it builds, launches under
-Xvfb, injects input and captures frames:
-
-```bash
-.claude/skills/run-doom-clone/driver.sh smoke
-```
-
-Read `.claude/skills/run-doom-clone/SKILL.md` before driving the game
-manually. It documents the non-obvious traps — mouse look does not work
-headless, a movement or turn key let go within one frame is swallowed,
-`pgrep -f` patterns match the calling shell.
+To see a change work in the game, use the run skill: it builds, launches
+under Xvfb, injects input and captures frames
+(`.claude/skills/run-doom-clone/driver.sh smoke`). Read its `SKILL.md`
+before driving the game by hand — mouse look does not work headless, a key
+let go within one frame is swallowed, `pgrep -f` matches the calling shell.
 
 ### Verifying and reviewing a change
 
@@ -127,136 +81,111 @@ headless, a movement or turn key let go within one frame is swallowed,
 | `reviewer` agent | acceptance criteria, `lint`, the architecture invariants below, conventions; starts `tester` and merges its report | once per task, before closing it — `/task` starts it |
 | `tester` agent | runs `check.sh`, drives the game through the change itself, reads the changed lines no test reaches, judges whether the tests would catch the change breaking | started by `reviewer`; by hand through `/verify` |
 
-The review is the expensive step — two agents, minutes rather than
-seconds — so it runs once, at the end of a task, and `/verify` is
-deliberately not run before each commit. Neither agent edits anything or
-gives a verdict, and a reviewer asked for gaps finds some in sound work
-too: act on what breaks a criterion, an invariant or a written rule, and
-treat the rest as optional. A finding that becomes a task goes to
-`project-manager`.
+The review costs two agents and minutes, so it runs once, at the end of a
+task, and `/verify` is deliberately not run before each commit. Neither
+agent edits anything or gives a verdict, and a reviewer asked for gaps
+finds some in sound work too: act on what breaks a criterion, an invariant
+or a written rule, treat the rest as optional, and hand a finding that
+becomes a task to `project-manager`. While `check.sh` or the tester runs it
+owns `build/`, `build-cov/` and the X display `:99` — do not build or
+launch the game meanwhile.
 
-`check.sh` and the tester both own `build/`, `build-cov/` and the X display
-`:99` while they run: do not build or launch the game while a review is in
-progress.
-
-A `PostToolUse` hook (`.claude/settings.json` →
-`.claude/hooks/post-edit.sh`) formats every `.c`/`.h` Claude edits in
-`src/`, `tests/` and `tools/`, and after an edit in `src/` re-runs
-`lint.sh sim`, reporting a simulation that no longer compiles without SDL.
+A `PostToolUse` hook (`.claude/hooks/post-edit.sh`) formats every `.c`/`.h`
+Claude edits in `src/`, `tests/` and `tools/`, and after an edit in `src/`
+reports a simulation that no longer compiles without SDL.
 
 ## Architecture
 
+`docs/architecture.md` describes how the game works. What follows are the
+invariants no compiler checks.
+
 ### Simulation and rendering are kept apart
 
-This is the single most important thing to know, and it is invisible from
-any one file. The simulation never reaches for the frame it is drawn into,
-and undoing the places where it used to is most of what the multiplayer
-work has been: none of them can run on a server with no framebuffer. Do not
-add a new one.
+The most important rule, and invisible from any one file: the simulation
+never reaches for the frame it is drawn into, because none of it may need
+a framebuffer on a server. Undoing the places where it did is most of what
+the multiplayer work has been; do not add a new one.
 
-- **The camera is derived, not stored.** `PlayerState` (`player.h`) carries
-  a single `angle`; `player_camera()` (`camera.h`) builds `dir` and `plane`
-  from it on demand, and the length of `plane` is the FOV — a rendering
-  quantity that has no business in the state.
-- **`SpriteList` is a render list and nothing else.**
-  `sprites_build_from_world()` (`sprite.c`) rebuilds it from the world once
-  a frame — enemies alive and dead, pickups still on the map, barrels from
-  the map, every player but the local one. No entity holds a sprite id, and
-  `sprite.h` is reached from `main.c` and `sprite.c` only.
+- **The camera is derived, not stored.** `PlayerState` carries one `angle`;
+  `player_camera()` (`camera.h`) builds `dir` and `plane` on demand — the
+  length of `plane` is the FOV, a rendering quantity.
+- **`SpriteList` is a render list only.** `sprites_build_from_world()`
+  rebuilds it from the world every frame. No entity holds a sprite id, and
+  `sprite.h` is included from `main.c` and `sprite.c` only.
 - **Hitscan is world-space.** `weapon_try_fire()` traces `world_raycast()`
-  (`raycast_world.c`) through walls, doors, enemies and players, and reads
-  neither the camera nor `zBuffer`.
-- **Pickups carry their own position.** An `Item` has its own `x/y` and
-  `item_update()` walks the players array; which sprite draws a pickup is
-  worked out at render time from `ItemType`.
+  and reads neither the camera nor `zBuffer`.
+- **Pickups carry their own position**; which sprite draws one is decided
+  at render time from `ItemType`.
 - **Sound is events, not calls.** The simulation never calls `audio_play()`:
-  it appends `GameEvent`s to an `EventQueue` (`event.h`) and the client
-  drains the queue after each tick, scaling volume by the distance to *its
-  own* player.
+  it appends `GameEvent`s to an `EventQueue` (`event.h`), and the client
+  drains it after each tick, scaling volume by the distance to *its own*
+  player.
 
 `world.c`, `enemy.c`, `weapon.c`, `item.c`, `door.c`, `player.c`, `map.c`
 and `raycast_world.c` therefore compile with no SDL headers on the include
-path at all. `.claude/skills/lint/lint.sh sim` is the check, and keeping it
-passing is a constraint on new code in those files; a new simulation module
-is added to the `SIM=` list at the top of that script.
+path. `.claude/skills/lint/lint.sh sim` checks it; a new simulation module
+goes into the `SIM=` list at the top of that script.
 
 ### One tick is one function
 
-`world_step()` (`world.c`) is the whole tick, and it takes a `PlayerInput`
-per player rather than the raw `InputState`. The server will run it and the
-client will run it again to predict, so the order inside it — players,
-doors, enemies, items, weapons — is fixed, and nothing in it may read the
-wall clock or `rand()`. `tests/replay_test.c` holds that line: two runs of
-one input sequence from one `world_load()` must come out bit-identical.
-The one `rand()` left is shotgun spread in `weapon_try_fire()`: stage 7
-seeds it from `MSG_ACCEPT` (`docs/roadmap.md`, key decision 9), and until
-then the replay never switches to the shotgun. Do not add a second one.
+`world_step()` (`world.c`) is the whole tick and takes one `PlayerInput` per
+player, never the raw `InputState`. The server runs it and the client runs
+it again to predict, so the order inside — players, doors, enemies, items,
+weapons — is fixed, and nothing in it may read the wall clock or `rand()`.
+`tests/replay_test.c` holds the line: two runs of one input sequence from
+one `world_load()` must come out bit-identical. The one `rand()` left is
+shotgun spread in `weapon_try_fire()`, which stage 7 seeds from
+`MSG_ACCEPT` (`docs/roadmap.md`, key decision 9); until then the replay
+never switches to the shotgun. Do not add a second one.
 
 `src/config.h` is the single source of truth for the limits (`MAX_PLAYERS`,
-`MAX_ENEMIES`, `MAX_SPRITES`, …), the tick rate and the network constants.
-It includes nothing at all — a headless server includes it, and anything it
-drags in propagates there — so it holds `#define` and `_Static_assert` only.
-Its values are what `docs/requirements.md` §5 requires.
+`MAX_ENEMIES`, `MAX_SPRITES`, …), the tick rate and the network constants,
+with the values `docs/requirements.md` §5 requires. A headless server
+includes it, so it includes nothing and holds `#define` and
+`_Static_assert` only.
 
 ### Entity model
 
-All entity lists are fixed-size arrays with a `count`, and nothing is ever
+Entity lists are fixed-size arrays with a `count`, and nothing is ever
 removed: items deactivate (`active = 0`), enemies become corpses
-(`ESTATE_DEAD`). An index into the array is therefore a stable id — which is
-what a snapshot puts on the wire, and what the client keys a sprite by.
-Limits live in `config.h`.
+(`ESTATE_DEAD`). An index is therefore a stable id — what a snapshot puts on
+the wire and what the client keys a sprite by.
 
 ### Main loop
 
-`main.c` runs a fixed-timestep loop: `FIXED_DT` (1/60) with an accumulator,
-one `world_step()` per fixed step, rendering once per frame. Input is split
-along the same line (`input.h`). `InputState` is the raw SDL state of a
-frame and never leaves the client. `input_turn()` turns the client's own
-angle once a frame, outside the fixed step, and `input_sample()` takes
-exactly one `PlayerInput` per tick inside it. Edge flags — fire, use, weapon
-switch — are cleared by the sample that carries them rather than by the
-frame, so a press reaches exactly one tick whether the frame holds three
-ticks or none; `input_end_frame()`, once a frame after every tick, clears
-only what is the frame's: the mute and pause keys and unturned mouse motion.
-
-Game states (`GSTATE_MENU`, `PLAYING`, `PAUSED`, `DEAD`, `WIN`) live in
-`game.c`, which also owns the 3×5 bitmap font used by every overlay.
+`main.c` runs a fixed step (`FIXED_DT`, 1/60) with an accumulator and
+renders once a frame. `InputState` is the frame's raw SDL state and never
+leaves the client. `input_turn()` turns the client's angle once a frame;
+`input_sample()` takes exactly one `PlayerInput` per tick. Edge flags —
+fire, use, weapon switch — are cleared by the sample that carries them, so
+a press reaches exactly one tick however many ticks the frame holds;
+`input_end_frame()` clears only what belongs to the frame. Game states
+(`GSTATE_*`) and the 3×5 bitmap font every overlay uses live in `game.c`.
 
 ### Colour packing — easy to break silently
 
-`make_color()` (`utils.h`) packs `0xAABBGGRR`, with **red in the low byte**.
-The screen texture is created as `SDL_PIXELFORMAT_ABGR8888` to match, and
-`shade_color()`, `overlay_dim()` (`game.c`) and the stb_image conversion in
-`assets.c` all decompose the same way. Changing any one of these in
-isolation swaps red and blue across the entire game — that was a real bug,
-fixed by matching the texture format in `engine_init()` to the packing, and
-it is invisible in greys because they are symmetric.
+`make_color()` (`utils.h`) packs `0xAABBGGRR`, **red in the low byte**, and
+the screen texture is created as `SDL_PIXELFORMAT_ABGR8888` in
+`engine_init()` to match. `shade_color()`, `overlay_dim()` (`game.c`) and
+the stb_image conversion in `assets.c` decompose the same way. Change one
+in isolation and red and blue swap across the whole game — invisibly in
+greys, which are symmetric.
 
 ### Assets are generated, then overridden by files
 
-`assets.c` procedurally generates every wall texture, sprite and weapon
-graphic; `audio.c` synthesises every sound as a WAV in memory. After the
-generators, `assets_init()` walks a table of file-backed slots and replaces
-what it finds under `assets/`: `assets_load_sheet()` checks the `_<w>x<h>`
-suffix of the name against the frame size the code expects, refuses an image
-that does not divide into whole frames, keys `#FF00FF` out and forces the
-remaining alpha to 0 or 255. A missing file is a normal state — the slot
-keeps its procedural texture and nothing is printed; a broken one is a
-warning on `stderr` and, again, the procedural texture.
-
-`Texture` is therefore a sheet of frames rather than one picture: `fw`/`fh`
-is one frame, `cols`/`rows` how many there are, and the row stride stays the
-width of the whole image — `texture_frame()` (`assets.h`) is what the
-renderer addresses a frame through. Everything procedural is a single frame
-(`texture_alloc()` fills the fields). `docs/assets-spec.md` is the reference
-for what the files must contain.
+`assets.c` generates every wall texture, sprite and weapon graphic, and
+`audio.c` synthesises every sound. `assets_init()` then replaces the slots
+it finds sheets for under `assets/`: a missing file is normal and silent, a
+broken one is a warning and the procedural texture. A `Texture` is a sheet
+of frames (`fw`/`fh`, `cols`/`rows`, row stride the width of the whole
+image), addressed through `texture_frame()` (`assets.h`).
+`docs/assets-spec.md` says what the files must contain.
 
 ### Map format
 
-ASCII grid in `assets/maps/level1.txt`, currently 24×24 (`MAP_MAX_W/H` in
-`utils.h`). `#` wall, `D` door, `P` player start, `.` empty, and sprite
-spawn markers `E`/`S` (enemies), `B` barrel, `M` medkit, `A` ammo,
-`R` armor. Doors are discovered by scanning for cell value 2 at load time.
+ASCII grid in `assets/maps/level1.txt`, 24×24 (`MAP_MAX_W/H` in `utils.h`):
+`#` wall, `D` door, `P` player start, `.` empty, `E`/`S` enemies, `B`
+barrel, `M` medkit, `A` ammo, `R` armor.
 
 ## Ongoing work
 
@@ -272,64 +201,49 @@ these before making changes:
 | `docs/tasks/` | Open tasks with dependencies and acceptance criteria; `docs/tasks/README.md` is the index and states how to close one |
 | `docs/closed_tasks/` | Finished and rejected tasks, each ending in a "Закрыто" note |
 
-Target: up to 10 players, authoritative server over ENet, deathmatch as the
-primary mode with co-op second. Stages 5 and 6 are finished — the
-simulation runs without a frame and takes one `PlayerInput` per tick — and
-stage 7, the network itself, is next.
-
-`tests/replay_test.c` — the determinism check on `world_step()` mandated by
-`docs/requirements.md` §9 — exists and runs under CTest with the rest.
-Stages 7–10 change the very things it and the unit tests pin down —
-`PlayerState`, `World`, the signatures of the `*_update_all` functions — so
-keeping it passing and updating the matching `tests/test_*.c` are part of
-those tasks, not follow-up work.
+Target: up to 10 players, an authoritative server over ENet, deathmatch
+first and co-op second. Stages 5 and 6 are done — the simulation runs
+without a frame on one `PlayerInput` per tick — and stage 7, the network
+itself, is next. Stages 7–10 change what `tests/replay_test.c` (required by
+`docs/requirements.md` §9) and the unit tests pin down — `PlayerState`,
+`World`, the `*_update_all` signatures — so keeping them passing and
+updating the matching `tests/test_*.c` is part of those tasks, not
+follow-up work.
 
 ## Conventions
 
-- **Talk to the user in Russian**, whatever language the request arrives in.
-  This covers everything they read: chat replies, questions, plans, progress
-  notes and commit-time explanations.
+- **Talk to the user in Russian**, whatever language the request arrives in:
+  chat replies, questions, plans, progress notes, commit-time explanations.
 - **Prose documentation is written in Russian**; code, identifiers and code
-  comments are in English. Follow the language of the file you are editing.
-- **Task and plan files are specifications, not changelogs.** When updating
-  them, describe the target state as given. Do not add "what changed"
-  sections, "previously N players, now 10", or any trace of the conversation
-  that produced the edit — the reader did not participate in it and git
-  already records the history.
+  comments in English. Follow the language of the file you are editing.
+- **Task and plan files are specifications, not changelogs.** Describe the
+  target state as given: no "what changed" sections, no "previously N
+  players, now 10", no trace of the conversation that produced the edit —
+  the reader was not there, and git keeps the history.
 - **A task is finished when it sits in `docs/closed_tasks/`**, not when the
-  code works. "Do task 05-01" means the work, the review by the `reviewer`
-  agent, *and* the closing steps in `docs/tasks/README.md`; stopping at
-  working code leaves the index claiming it is still open. The `task` skill
+  code works: "do task 05-01" means the work, the review by the `reviewer`
+  agent *and* the closing steps in `docs/tasks/README.md`. The `task` skill
   (`/task 05-01`) runs that whole cycle through to a commit — use it for
   any request to do a task. Say so if you deliberately leave one open.
-- **A bug you find in passing becomes a task, not a detour.** File it as
-  `docs/tasks/bug-NNN-slug.md` and keep going; do not fix it inside the diff
-  of whatever you were doing. The exception is when the current task cannot
-  be verified without the fix — then fix it and say so. `docs/tasks/README.md`
-  has the template and the closing procedure, and the `project-manager` agent
-  writes the file for you — it checks the existing tasks for overlap first,
-  which is where filing a duplicate usually happens.
+- **A bug you find in passing becomes a task, not a detour.** Hand it to
+  the `project-manager` agent, which writes `docs/tasks/bug-NNN-slug.md` and
+  checks the existing tasks for overlap first, and keep going; do not fix it
+  inside the diff of whatever you were doing — unless the current task
+  cannot be verified without the fix, and then say so.
 - **Never reference a commit hash** — not in documentation, not in a commit
-  message. Hashes do not survive rebase or squash-merge. Name the change and
-  the place instead ("the texture format in `engine_init()`"); it stays true
-  and `git log -S` finds the commit anyway.
+  message; hashes do not survive rebase or squash-merge. Name the change and
+  the place ("the texture format in `engine_init()`"); `git log -S` finds
+  the commit anyway.
 
 ### Code style
 
-Formatting is defined by `.clang-format` (K&R, 4-space indent, no tabs) —
-run it on any file you touch:
+Formatting is `.clang-format` (K&R, 4-space indent, no tabs); run
+`clang-format -i` on any file you touch, `--dry-run -Werror` to check. It
+puts a **function's** opening brace on its own line (control statements keep
+theirs) and braces every `if`/`else` body on its own line — no
+`if (x) return;` one-liners.
 
-```bash
-clang-format -i src/foo.c                        # format one file
-clang-format --dry-run -Werror src/*.c src/*.h   # check without writing
-```
-
-Two rules it enforces that are easy to violate by hand: the opening brace
-of a **function** goes on its own line (control statements keep theirs on
-the same line), and every `if`/`else` body is braced and starts on the next
-line — no `if (x) return;` one-liners.
-
-Naming is **not** enforced by clang-format, so it is on you:
+Naming is **not** enforced by any tool:
 
 | Kind | Case | Example |
 |---|---|---|
@@ -338,39 +252,22 @@ Naming is **not** enforced by clang-format, so it is on you:
 | Struct fields | `snake_case` | `attack_cooldown`, `plane_x` |
 | Enum constants | `SCREAMING_SNAKE` | `WEAPON_SHOTGUN`, `ESTATE_CHASE` |
 
-Enum constants carry a short prefix shared by every member of that enum.
-The prefix is not mechanically derived from the type name — it is chosen to
-stay short and unambiguous, and two enums on the same subject get different
-ones (`EnemyType` → `ENEMY_`, `EnemyState` → `ESTATE_`; `SoundId` → `SND_`,
-`GameState` → `GSTATE_`). Match the existing prefix when adding a member,
-and pick a free one when adding an enum.
-
-Where an enum needs a size sentinel it goes last and is named
-`<PREFIX>_COUNT` (`ENEMY_COUNT`, `WEAPON_COUNT`, `SND_COUNT`).
+Every member of an enum shares one short prefix, chosen to be unambiguous
+rather than derived from the type name — two enums on one subject get
+different ones (`EnemyType` → `ENEMY_`, `EnemyState` → `ESTATE_`; `SoundId`
+→ `SND_`, `GameState` → `GSTATE_`). Match the existing prefix when adding a
+member, pick a free one for a new enum, and put a size sentinel last as
+`<PREFIX>_COUNT`.
 
 ### Commits
 
-Written in English, following the 50/72 rule and prefixed with the type of
-change.
+In English, 50/72, with a type prefix; the `git-commit` skill writes the
+message and checks it mechanically.
 
 - **Subject: at most 50 characters, including the `type: ` prefix.**
   Imperative mood, no trailing period.
-- **Body: wrapped at 72 characters**, separated from the subject by a blank
-  line. Explain why the change was needed and what it does, not how — the
-  diff already shows how.
+- **Body: wrapped at 72 characters**, after a blank line. Why the change
+  was needed and what it does, not how — the diff shows how.
 - **Type prefix** is one of `feat`, `fix`, `docs`, `refactor`, `perf`,
   `test`, `build`, `chore`.
 - **Do not add a `Co-Authored-By` trailer.**
-
-```
-fix: match texture format to make_color packing
-
-The screen texture was created as SDL_PIXELFORMAT_ARGB8888, which
-reads a pixel as 0xAARRGGBB, but make_color() (utils.h) packs
-0xAABBGGRR with red in the low byte, so every colour in the game
-had its red and blue channels swapped.
-
-make_color(), shade_color(), overlay_dim() and the stb_image
-conversion in assets.c all agree with ABGR8888, so the texture
-format was the single point of disagreement.
-```

@@ -103,7 +103,20 @@ the checker.
 
 The commit message is where the reasoning goes, since the task files are
 specifications and carry none of it. Say what was wrong and why the change
-is the right shape, not what the diff plainly shows.
+is the right shape, not what the diff plainly shows:
+
+```
+fix: match texture format to make_color packing
+
+The screen texture was created as SDL_PIXELFORMAT_ARGB8888, which
+reads a pixel as 0xAARRGGBB, but make_color() (utils.h) packs
+0xAABBGGRR with red in the low byte, so every colour in the game
+had its red and blue channels swapped.
+
+make_color(), shade_color(), overlay_dim() and the stb_image
+conversion in assets.c all agree with ABGR8888, so the texture
+format was the single point of disagreement.
+```
 
 Refer to changes by name and place, never by hash — hashes do not survive
 rebase or squash-merge. "the config added in the preceding commit" and
