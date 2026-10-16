@@ -1,6 +1,5 @@
 #include "world.h"
 #include "weapon.h"
-#include "utils.h"
 #include <string.h>
 
 int world_load(World *w, const char *map_path)
@@ -134,21 +133,6 @@ static int world_door_occupants(const World *w, DoorOccupant *occ, int max)
     return n;
 }
 
-/* player_update() still reads the raw InputState, so the buttons of the tick
- * are unpacked back into one. Turning is not among them: the angle in
- * PlayerInput has already replaced the turn keys and the mouse. Task 06-06
- * drops this bridge along with the fields it leaves empty. */
-static InputState buttons_to_input_state(uint16_t buttons)
-{
-    InputState s;
-    memset(&s, 0, sizeof(s));
-    s.forward = (buttons & BTN_FORWARD) != 0;
-    s.back = (buttons & BTN_BACK) != 0;
-    s.strafe_left = (buttons & BTN_LEFT) != 0;
-    s.strafe_right = (buttons & BTN_RIGHT) != 0;
-    return s;
-}
-
 void world_step(World *w, const PlayerInput inputs[], int count, double dt)
 {
     event_queue_clear(&w->events);
@@ -177,9 +161,7 @@ void world_step(World *w, const PlayerInput inputs[], int count, double dt)
         if (!p->active) {
             continue;
         }
-        p->angle = wrap_angle(tick_input[i].angle);
-        InputState move = buttons_to_input_state(tick_input[i].buttons);
-        player_update(p, &w->map, &w->doors, &move, w->players, w->player_count, dt);
+        player_update(p, &w->map, &w->doors, &tick_input[i], w->players, w->player_count, dt);
     }
 
     /* doors */

@@ -5,8 +5,8 @@
 #include "weapon.h"
 #include <stdint.h>
 
-/* InputState is defined in input.h to avoid a circular dependency. */
-struct InputState;
+/* PlayerInput is defined in input.h to avoid a circular dependency. */
+struct PlayerInput;
 struct DoorList;
 
 /* Simulation state of one player. Nothing here comes from the renderer:
@@ -33,10 +33,12 @@ void player_init(PlayerState *p, int start_x, int start_y);
  * to no player. */
 void player_damage(PlayerState *victim, float dmg, int attacker_id);
 
-/* dt update. If dl is non-NULL, doors are respected for collision.
+/* dt update. The player takes the facing in `in` as given — the client has
+ * already turned it — and moves along it by the buttons pressed.
+ * If dl is non-NULL, doors are respected for collision.
  * `players` is the array p itself lives in: the others are solid, so nobody
  * walks through anybody. Pass NULL and 0 for a world with no one else in it. */
-void player_update(PlayerState *p, const Map *m, struct DoorList *dl, const struct InputState *in,
+void player_update(PlayerState *p, const Map *m, struct DoorList *dl, const struct PlayerInput *in,
                    const PlayerState *players, int player_count, double dt);
 
 #endif

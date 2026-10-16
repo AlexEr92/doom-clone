@@ -63,12 +63,6 @@
 решения» в ../roadmap.md.
 ```
 
-## Этап 6 — Мультиплеерная логика локально
-
-| # | Задача | Зависит от |
-|---|---|---|
-| [06-06](06-06-input-per-tick.md) | Ввод на тик вместо на кадр | 06-01 |
-
 ## Этап 7 — Сеть: транспорт, протокол, снапшоты
 
 | # | Задача | Зависит от |
@@ -130,7 +124,6 @@
 
 | # | Задача | Где |
 |---|---|---|
-| [bug-003](bug-003-dead-fire-pressed-field.md) | Мёртвое поле `fire_pressed` | `input.h` |
 | [bug-004](bug-004-audio-init-leak.md) | `audio_init()` теряет 8 WAV-буферов при запуске | `audio.c` |
 | [bug-005](bug-005-strafe-speed-fov-scaled.md) | Стрейф медленнее ходьбы в `FOV_PLANE` раз | `player.c` |
 | [bug-006](bug-006-hud-draw-int-digit-order.md) | `draw_int()` рисует цифры HUD в обратном порядке | `hud.c` |
@@ -167,3 +160,5 @@
 | [06-04](../closed_tasks/06-04-items-doors-multiplayer.md) | Предметы и двери на N игроков | Сделано |
 | [chore-004](../closed_tasks/chore-004-review-agent.md) | Агент-ревьюер: критерии приёмки, lint, smoke, конвенции | Сделано |
 | [06-05](../closed_tasks/06-05-sprites-client-side.md) | Спрайты — клиентская сущность, `SPRITE_PLAYER` | Сделано |
+| [06-06](../closed_tasks/06-06-input-per-tick.md) | Ввод на тик вместо на кадр | Сделано |
+| [bug-003](../closed_tasks/bug-003-dead-fire-pressed-field.md) | Мёртвое поле `fire_pressed` | Сделано, вместе с 06-06 |

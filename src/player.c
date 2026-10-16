@@ -90,37 +90,25 @@ static void try_move(PlayerState *p, const Map *m, DoorList *dl, const PlayerSta
     }
 }
 
-void player_update(PlayerState *p, const Map *m, DoorList *dl, const InputState *in,
+void player_update(PlayerState *p, const Map *m, DoorList *dl, const PlayerInput *in,
                    const PlayerState *players, int player_count, double dt)
 {
+    p->angle = wrap_angle(in->angle);
     float ca = cosf(p->angle);
     float sa = sinf(p->angle);
     float fwd = MOVE_SPEED * (float)dt;
     float side = STRAFE_SPEED * (float)dt;
 
-    if (in->forward) {
+    if (in->buttons & BTN_FORWARD) {
         try_move(p, m, dl, players, player_count, p->x + ca * fwd, p->y + sa * fwd);
     }
-    if (in->back) {
+    if (in->buttons & BTN_BACK) {
         try_move(p, m, dl, players, player_count, p->x - ca * fwd, p->y - sa * fwd);
     }
-    if (in->strafe_left) {
+    if (in->buttons & BTN_LEFT) {
         try_move(p, m, dl, players, player_count, p->x - sa * side, p->y + ca * side);
     }
-    if (in->strafe_right) {
+    if (in->buttons & BTN_RIGHT) {
         try_move(p, m, dl, players, player_count, p->x + sa * side, p->y - ca * side);
-    }
-
-    float rot = 0.0f;
-    if (in->turn_left) {
-        rot += ROT_SPEED * (float)dt;
-    }
-    if (in->turn_right) {
-        rot -= ROT_SPEED * (float)dt;
-    }
-    rot -= in->mouse_dx * MOUSE_SENS;
-
-    if (rot != 0.0f) {
-        p->angle = wrap_angle(p->angle + rot);
     }
 }

@@ -17,56 +17,6 @@
 #include <stdio.h>
 #include <math.h>
 
-/* One tick's worth of input, taken from the frame's raw SDL state. The angle
- * is worked out here, on the client, because turning must be immediate and
- * the simulation accepts the facing as given.
- *
- * Edge flags (fire, use, weapon switch) are still cleared once per frame
- * rather than once per tick, so a frame holding two ticks feeds the second an
- * empty one — task 06-06 moves this into input.c as input_sample() and fixes
- * that. */
-static PlayerInput sample_input(const InputState *in, float angle, uint32_t tick)
-{
-    PlayerInput pi;
-    pi.tick = tick;
-    pi.buttons = 0;
-    if (in->forward) {
-        pi.buttons |= BTN_FORWARD;
-    }
-    if (in->back) {
-        pi.buttons |= BTN_BACK;
-    }
-    if (in->strafe_left) {
-        pi.buttons |= BTN_LEFT;
-    }
-    if (in->strafe_right) {
-        pi.buttons |= BTN_RIGHT;
-    }
-    if (in->fire) {
-        pi.buttons |= BTN_FIRE;
-    }
-    if (in->use) {
-        pi.buttons |= BTN_USE;
-    }
-    if (in->switch1) {
-        pi.buttons |= BTN_WEAPON1;
-    }
-    if (in->switch2) {
-        pi.buttons |= BTN_WEAPON2;
-    }
-
-    float rot = 0.0f;
-    if (in->turn_left) {
-        rot += ROT_SPEED * (float)FIXED_DT;
-    }
-    if (in->turn_right) {
-        rot -= ROT_SPEED * (float)FIXED_DT;
-    }
-    rot -= in->mouse_dx * MOUSE_SENS;
-    pi.angle = angle + rot;
-    return pi;
-}
-
 /* Drain the queue the last tick filled. Distance is measured from `me` — the
  * player this client looks through — so the same loop keeps working once the
  * simulation moves to a server and the queue arrives in a snapshot. */
@@ -142,8 +92,16 @@ int main(int argc, char **argv)
     /* A freshly loaded world has every slot free, so this cannot fail. */
     world.local_player = world_add_player(&world, 0);
 
+    /* A client always looks through a player of its own; a dedicated server has
+     * none, which is what local_player < 0 means, and renders nothing. */
+    PlayerState *me = &world.players[world.local_player];
+
+    /* The client turns from wherever its player spawned facing: the angle in
+     * every input is absolute, and a zero would spin the player round on the
+     * first tick. */
     InputState input;
     input_init(&input);
+    input.angle = me->angle;
 
     /* The render list belongs to the client and is rebuilt from the world once
      * a frame; the world itself keeps no sprites. */
@@ -155,10 +113,6 @@ int main(int argc, char **argv)
     double fps_timer = 0.0;
     int frames = 0;
     char title[128];
-
-    /* A client always looks through a player of its own; a dedicated server has
-     * none, which is what local_player < 0 means, and renders nothing. */
-    PlayerState *me = &world.players[world.local_player];
 
     while (eng.running) {
         double now = get_time_seconds();
@@ -200,6 +154,7 @@ int main(int argc, char **argv)
             me = &world.players[world.local_player];
             game.restart = 0;
             input_init(&input);
+            input.angle = me->angle;
         }
 
         /* Global edge keys handled regardless of state (except menu). */
@@ -213,11 +168,13 @@ int main(int argc, char **argv)
         }
 
         if (game.state == GSTATE_PLAYING) {
+            /* Turning is the client's own, so it follows the frame rather than
+             * the tick; each tick below is handed the angle as it stands. */
+            input_turn(&input, frame_time);
             accumulator += frame_time;
             while (accumulator >= FIXED_DT) {
-                PlayerInput pi = sample_input(&input, me->angle, world.tick);
+                PlayerInput pi = input_sample(&input, world.tick);
                 world_step(&world, &pi, 1, FIXED_DT);
-                input_end_frame(&input);
                 accumulator -= FIXED_DT;
                 world_play_events(&audio, &world.events, world.players, world.player_count, me);
             }
@@ -229,11 +186,12 @@ int main(int argc, char **argv)
                 game.state = GSTATE_WIN;
             }
         } else {
-            /* In non-playing states we still clear edge inputs to avoid
-             * carrying stale keys into gameplay after restart. */
-            input_end_frame(&input);
+            /* Nothing is simulated in this state, so a press made in it has no
+             * tick to go to: kept, it would fire on the first tick after. */
+            input_clear_edges(&input);
             accumulator = 0.0;
         }
+        input_end_frame(&input);
 
         game_update(&game, frame_time);
 

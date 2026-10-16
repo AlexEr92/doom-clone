@@ -1,5 +1,8 @@
-/* player.c: movement, wall/door collision and turning. The map is built in
- * memory so the test needs neither the working directory nor the level file. */
+/* player.c: movement, wall/door collision and the facing it takes from the
+ * input. Turning itself is the client's (input_turn(), tests/test_input.c):
+ * PlayerInput has no mouse_dx or turn keys for player_update() to read. The
+ * map is built in memory so the test needs neither the working directory nor
+ * the level file. */
 
 #include "unity.h"
 #include "player.h"
@@ -30,7 +33,7 @@ void weapon_system_init(WeaponSystem *ws)
 static Map map;
 static DoorList doors;
 static PlayerState player;
-static InputState in;
+static PlayerInput in;
 
 /*  0 1 2 3 4 5 6 7
  * 0# # # # # # # #
@@ -81,6 +84,7 @@ void setUp(void)
     weapon_system_init_calls = 0;
     player_init(&player, map.start_x, map.start_y);
     memset(&in, 0, sizeof(in));
+    in.angle = player.angle;
 }
 
 void tearDown(void)
@@ -105,26 +109,27 @@ static void test_idle_input_does_not_move_the_player(void)
 {
     player.x = 3.5f;
     player.y = 3.5f;
-    player.angle = 0.0f;
+    in.angle = 0.0f;
     step(60);
     TEST_ASSERT_EQUAL_FLOAT(3.5f, player.x);
     TEST_ASSERT_EQUAL_FLOAT(3.5f, player.y);
     TEST_ASSERT_EQUAL_FLOAT(0.0f, player.angle);
 }
 
+/* The player spawned facing -X: walking +X on the very first tick means the
+ * step follows the angle of this tick's input, not the facing it had before. */
 static void test_forward_and_back_follow_the_facing_angle(void)
 {
     player.x = 3.5f;
     player.y = 4.5f;
-    player.angle = 0.0f; /* +X */
+    in.angle = 0.0f; /* +X */
 
-    in.forward = 1;
+    in.buttons = BTN_FORWARD;
     step(1);
     TEST_ASSERT_FLOAT_WITHIN(1e-5f, 3.5f + MOVE_SPEED * (float)TEST_STEP, player.x);
     TEST_ASSERT_EQUAL_FLOAT(4.5f, player.y);
 
-    in.forward = 0;
-    in.back = 1;
+    in.buttons = BTN_BACK;
     step(1);
     TEST_ASSERT_FLOAT_WITHIN(1e-5f, 3.5f, player.x);
     TEST_ASSERT_EQUAL_FLOAT(4.5f, player.y);
@@ -136,67 +141,54 @@ static void test_strafe_moves_sideways(void)
 {
     player.x = 3.5f;
     player.y = 4.5f;
-    player.angle = 0.0f; /* +X, so sideways is Y */
+    in.angle = 0.0f; /* +X, so sideways is Y */
 
-    in.strafe_left = 1;
+    in.buttons = BTN_LEFT;
     step(1);
     TEST_ASSERT_TRUE(player.y > 4.5f);
     TEST_ASSERT_EQUAL_FLOAT(3.5f, player.x);
 
     float left_y = player.y;
-    in.strafe_left = 0;
-    in.strafe_right = 1;
+    in.buttons = BTN_RIGHT;
     step(2);
     TEST_ASSERT_TRUE(player.y < left_y);
     TEST_ASSERT_EQUAL_FLOAT(3.5f, player.x);
 }
 
-static void test_turning_changes_the_angle(void)
+/* The facing is the input's, taken as given, and nothing else turns the
+ * player: an idle tick keeps whatever angle the input carries. */
+static void test_the_player_faces_the_angle_of_the_input(void)
 {
-    player.angle = 0.0f;
-
-    in.turn_left = 1;
+    in.angle = 0.7f;
     step(1);
-    TEST_ASSERT_FLOAT_WITHIN(1e-5f, ROT_SPEED * (float)TEST_STEP, player.angle);
+    TEST_ASSERT_EQUAL_FLOAT(0.7f, player.angle);
 
-    in.turn_left = 0;
-    in.turn_right = 1;
-    step(1);
-    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 0.0f, player.angle);
+    in.angle = -2.0f;
+    step(30);
+    TEST_ASSERT_EQUAL_FLOAT(-2.0f, player.angle);
 }
 
-static void test_mouse_look_turns_the_other_way_round(void)
-{
-    player.angle = 0.0f;
-    in.mouse_dx = 100;
-    step(1);
-    TEST_ASSERT_FLOAT_WITHIN(1e-5f, -100.0f * MOUSE_SENS, player.angle);
-}
-
-/* Without wrapping, the angle drifts out of [-PI, PI] and the shortest-arc
- * interpolation between snapshots would take the long way round. */
+/* The angle comes off the wire, and nothing guarantees the client wrapped it.
+ * Left unwrapped, the shortest-arc interpolation between snapshots would take
+ * the long way round. */
 static void test_angle_stays_wrapped(void)
 {
-    player.angle = TEST_PI - 0.01f;
-    in.turn_left = 1;
-    step(600);
-    TEST_ASSERT_TRUE(player.angle >= -TEST_PI);
-    TEST_ASSERT_TRUE(player.angle <= TEST_PI);
+    in.angle = 3.0f * TEST_PI + 0.5f;
+    step(1);
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, -TEST_PI + 0.5f, player.angle);
 
-    in.turn_left = 0;
-    in.turn_right = 1;
-    step(1200);
-    TEST_ASSERT_TRUE(player.angle >= -TEST_PI);
-    TEST_ASSERT_TRUE(player.angle <= TEST_PI);
+    in.angle = -5.0f * TEST_PI - 0.5f;
+    step(1);
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, TEST_PI - 0.5f, player.angle);
 }
 
 static void test_player_cannot_walk_into_a_wall(void)
 {
     player.x = 1.5f;
     player.y = 1.5f;
-    player.angle = TEST_PI; /* -X, straight at the west wall */
+    in.angle = TEST_PI; /* -X, straight at the west wall */
 
-    in.forward = 1;
+    in.buttons = BTN_FORWARD;
     step(240);
 
     TEST_ASSERT_EQUAL_INT(0, map_is_wall(&map, player.x, player.y));
@@ -210,9 +202,9 @@ static void test_player_slides_along_a_wall(void)
 {
     player.x = 3.5f;
     player.y = 1.2f;
-    player.angle = -TEST_PI / 4.0f; /* into the north wall at 45 degrees */
+    in.angle = -TEST_PI / 4.0f; /* into the north wall at 45 degrees */
 
-    in.forward = 1;
+    in.buttons = BTN_FORWARD;
     step(60);
 
     TEST_ASSERT_EQUAL_FLOAT(1.2f, player.y);
@@ -224,9 +216,9 @@ static void test_a_closed_door_blocks_the_player(void)
 {
     player.x = DOOR_CELL_X + 0.5f;
     player.y = DOOR_CELL_Y - 0.8f;
-    player.angle = TEST_PI / 2.0f; /* +Y, at the door */
+    in.angle = TEST_PI / 2.0f; /* +Y, at the door */
 
-    in.forward = 1;
+    in.buttons = BTN_FORWARD;
     step(240);
 
     TEST_ASSERT_EQUAL_INT(DOOR_CLOSED, doors.doors[0].state);
@@ -237,12 +229,12 @@ static void test_an_open_door_lets_the_player_through(void)
 {
     player.x = DOOR_CELL_X + 0.5f;
     player.y = DOOR_CELL_Y - 0.8f;
-    player.angle = TEST_PI / 2.0f;
+    in.angle = TEST_PI / 2.0f;
 
     doors.doors[0].state = DOOR_OPEN;
     doors.doors[0].openness = 1.0f;
 
-    in.forward = 1;
+    in.buttons = BTN_FORWARD;
     step(240);
 
     TEST_ASSERT_TRUE(player.y > (float)(DOOR_CELL_Y + 1));
@@ -253,9 +245,9 @@ static void test_without_a_door_list_the_door_is_solid(void)
 {
     player.x = DOOR_CELL_X + 0.5f;
     player.y = DOOR_CELL_Y - 0.8f;
-    player.angle = TEST_PI / 2.0f;
+    in.angle = TEST_PI / 2.0f;
 
-    in.forward = 1;
+    in.buttons = BTN_FORWARD;
     for (int i = 0; i < 240; i++) {
         player_update(&player, &map, NULL, &in, &player, 1, TEST_STEP);
     }
@@ -270,9 +262,9 @@ static void test_a_second_player_blocks_the_way(void)
     player_init(&two[0], 2, 4);
     player_init(&two[1], 4, 4);
     two[1].id = 1;
-    two[0].angle = 0.0f; /* +X, straight at the other one */
+    in.angle = 0.0f; /* +X, straight at the other one */
 
-    in.forward = 1;
+    in.buttons = BTN_FORWARD;
     for (int i = 0; i < 240; i++) {
         player_update(&two[0], &map, &doors, &in, two, 2, TEST_STEP);
         TEST_ASSERT_TRUE(distance(&two[0], &two[1]) >= 2.0f * PLAYER_RADIUS - 1e-4f);
@@ -292,9 +284,9 @@ static void test_an_inactive_player_does_not_block(void)
     player_init(&two[1], 4, 4);
     two[1].id = 1;
     two[1].active = 0;
-    two[0].angle = 0.0f;
+    in.angle = 0.0f;
 
-    in.forward = 1;
+    in.buttons = BTN_FORWARD;
     for (int i = 0; i < 240; i++) {
         player_update(&two[0], &map, &doors, &in, two, 2, TEST_STEP);
     }
@@ -307,15 +299,13 @@ static void test_a_lone_player_moves_as_without_the_array(void)
 {
     player.x = 3.5f;
     player.y = 4.5f;
-    player.angle = 0.6f;
-    in.forward = 1;
-    in.strafe_left = 1;
+    in.angle = 0.6f;
+    in.buttons = BTN_FORWARD | BTN_LEFT;
     step(30);
     float alone_x = player.x, alone_y = player.y;
 
     player.x = 3.5f;
     player.y = 4.5f;
-    player.angle = 0.6f;
     for (int i = 0; i < 30; i++) {
         player_update(&player, &map, &doors, &in, NULL, 0, TEST_STEP);
     }
@@ -330,8 +320,7 @@ int main(void)
     RUN_TEST(test_idle_input_does_not_move_the_player);
     RUN_TEST(test_forward_and_back_follow_the_facing_angle);
     RUN_TEST(test_strafe_moves_sideways);
-    RUN_TEST(test_turning_changes_the_angle);
-    RUN_TEST(test_mouse_look_turns_the_other_way_round);
+    RUN_TEST(test_the_player_faces_the_angle_of_the_input);
     RUN_TEST(test_angle_stays_wrapped);
     RUN_TEST(test_player_cannot_walk_into_a_wall);
     RUN_TEST(test_player_slides_along_a_wall);

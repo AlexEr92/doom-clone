@@ -160,12 +160,15 @@ Limits live in `config.h`.
 ### Main loop
 
 `main.c` runs a fixed-timestep loop: `FIXED_DT` (1/60) with an accumulator,
-one `world_step()` per fixed step, rendering once per frame. Note that
-`input_end_frame()` is called *inside* the fixed step, and `mouse_dx`
-accumulates per frame — so input is still coupled to frames, not to ticks,
-and a frame containing two ticks feeds the second one empty input. Task
-`docs/tasks/06-06` is what fixes that; until then `sample_input()` in
-`main.c` builds the per-tick `PlayerInput` out of the per-frame state.
+one `world_step()` per fixed step, rendering once per frame. Input is split
+along the same line (`input.h`). `InputState` is the raw SDL state of a
+frame and never leaves the client. `input_turn()` turns the client's own
+angle once a frame, outside the fixed step, and `input_sample()` takes
+exactly one `PlayerInput` per tick inside it. Edge flags — fire, use, weapon
+switch — are cleared by the sample that carries them rather than by the
+frame, so a press reaches exactly one tick whether the frame holds three
+ticks or none; `input_end_frame()`, once a frame after every tick, clears
+only what is the frame's: the mute and pause keys and unturned mouse motion.
 
 Game states (`GSTATE_MENU`, `PLAYING`, `PAUSED`, `DEAD`, `WIN`) live in
 `game.c`, which also owns the 3×5 bitmap font used by every overlay.
@@ -221,12 +224,13 @@ these before making changes:
 | `docs/closed_tasks/` | Finished and rejected tasks, each ending in a "Закрыто" note |
 
 Target: up to 10 players, authoritative server over ENet, deathmatch as the
-primary mode with co-op second. Stage 5 and tasks 06-01 to 06-05 are
-finished; `06-06` is the last of stage 6, and the network stages wait on it.
+primary mode with co-op second. Stages 5 and 6 are finished — the
+simulation runs without a frame and takes one `PlayerInput` per tick — and
+stage 7, the network itself, is next.
 
 `tests/replay_test.c` — the determinism check on `world_step()` mandated by
 `docs/requirements.md` §9 — exists and runs under CTest with the rest.
-Stages 6–10 change the very things it pins down, so keeping it passing is
+Stages 7–10 change the very things it pins down, so keeping it passing is
 part of those tasks, not follow-up work.
 
 Stages 5–6 change the very structures the tests pin down (`PlayerState`,
