@@ -1,5 +1,6 @@
 # Сборка CMake (out-of-source)
 /build/
+/build-cov/
 /out/
 
 # Исполняемые файлы

@@ -82,6 +82,11 @@ install(TARGETS doom-clone RUNTIME DESTINATION bin)
 # tests/, поэтому сборку тестов можно выключить целиком.
 option(BUILD_TESTS "Build unit tests" ON)
 
+# Покрытие снимается только с тестовых бинарников (см. doom_test() в
+# tests/CMakeLists.txt): doom-clone под ctest не запускается, и его
+# инструментирование лишь добавило бы в знаменатель нули по рендеру и звуку.
+option(ENABLE_COVERAGE "Instrument unit tests for gcov/gcovr" OFF)
+
 if(BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)

@@ -57,10 +57,17 @@ cmake -S . -B build -DBUILD_TESTS=OFF            # game only, no Unity
 
 New test files must be added to `tests/CMakeLists.txt`; `doom_test()` there
 takes the module name and the `src/*.c` each executable needs (plus `FILE`
-where the file is not named `test_<module>.c`, as `replay_test.c` is not). Each one links
-only its own sources — not the whole game — and stubs what it does not want to
-drag in, which is how `test_enemy.c` avoids `sprite.c` (and, through it,
-`raycast.c` for `zBuffer`).
+where the file is not named `test_<module>.c`, as `replay_test.c` is not).
+Each one links only its own sources — not the whole game — and stubs what it
+does not want to drag in, which is how `test_enemy.c` avoids `sprite.c`
+(and, through it, `raycast.c` for `zBuffer`).
+
+Coverage is measured in a separate tree, `build-cov/`, by
+`.claude/skills/coverage/coverage.sh`: it holds the thresholds (lines 65 %,
+decisions 55 %, a ratchet that only goes up) and, with `changed`, lists the
+changed lines of `src/` no test executes. Its `SKILL.md` says why
+`assets.c` and `game.c` read low and why executed is not the same as
+checked.
 
 Only what runs without a framebuffer is covered. The renderer is not, and
 `audio.c` only as far as the length of its chunks: `test_audio.c` opens the
