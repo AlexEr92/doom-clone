@@ -62,8 +62,9 @@ only its own sources — not the whole game — and stubs what it does not want 
 drag in, which is how `test_enemy.c` avoids `sprite.c` (and, through it,
 `raycast.c` for `zBuffer`).
 
-Only what runs without a framebuffer is covered. The renderer and `audio.c`
-are not: see the tables in
+Only what runs without a framebuffer is covered. The renderer is not, and
+`audio.c` only as far as the length of its chunks: `test_audio.c` opens the
+mixer on the `dummy` driver, and timbre is checked by ear. See the tables in
 `docs/closed_tasks/test-001-unit-test-harness.md` for what is out of scope
 and why.
 
