@@ -41,10 +41,13 @@
 ## Что сделать
 
 - [ ] В `audio.c` таблица слотов `{const char *path; SoundId id;}` для
-      всех восьми `SoundId`, пути `assets/sounds/<имя>.wav` по
-      assets-spec: `pistol_fire` (`SND_PISTOL`), `shotgun_fire`
-      (`SND_SHOTGUN`), `enemy_hurt`, `enemy_death`, `player_hurt`,
-      `pickup`, `door`, `no_ammo`
+      семи `SoundId`, пути `assets/sounds/<имя>.wav` по assets-spec:
+      `pistol_fire` (`SND_PISTOL`), `shotgun_fire` (`SND_SHOTGUN`),
+      `enemy_hurt`, `enemy_death`, `player_hurt`, `door_open`
+      (`SND_DOOR`; bug-015 переименовывает его в `SND_DOOR_OPEN`),
+      `no_ammo`. `SND_PICKUP` слота не получает: общий файл подбора не
+      заказывается, три отдельных по типу предмета добавляет 10-12, до неё
+      подбор звучит синтезом
 - [ ] После синтеза в `audio_init()` пройти по таблице. Файла нет
       (`fopen` не открылся) — слот остаётся процедурным, ничего не
       печатается. Файл есть — `Mix_LoadWAV()`; при успехе процедурный чанк
@@ -79,8 +82,8 @@
 
 - [ ] Пустой каталог `assets/sounds/` (или его отсутствие): игра стартует,
       в `stderr` ничего про звук, все восемь звуков синтезированные
-- [ ] Файл `assets/sounds/pickup.wav` в формате assets-spec подменяет
-      `SND_PICKUP`: в тесте `alen` чанка соответствует длине файла, а не
+- [ ] Файл `assets/sounds/no_ammo.wav` в формате assets-spec подменяет
+      `SND_NO_AMMO`: в тесте `alen` чанка соответствует длине файла, а не
       синтеза
 - [ ] Не-WAV файл или WAV с обрезанным заголовком на месте любого слота:
       в `stderr` одна строка с путём, слот играет синтезом, игра не падает

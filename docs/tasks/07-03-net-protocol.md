@@ -43,7 +43,7 @@
                    uint16_t ammo, frags, deaths; } NetPlayer;  /* 24 Б */
   typedef struct { uint8_t type, state; uint8_t hp;
                    float x, y; } NetEnemy;                     /* 12 Б */
-  typedef struct { uint8_t kind, actor, target;
+  typedef struct { uint8_t kind, actor, arg;
                    float x, y; } NetEvent;                     /* 12 Б */
 
   typedef struct {
@@ -97,5 +97,7 @@
 теряется целиком при потере любого фрагмента. `static_assert` на размер
 здесь не педантизм, а защита от тихой деградации.
 
-`NetEvent.target` добавлен для kill feed (09-03): нужно знать и кто убил,
-и кого.
+`NetEvent.arg` — копия `GameEvent.arg`, третьего байта события, чей смысл
+зависит от `kind`: тип предмета у `EV_PICKUP` (10-12), направление у
+`EV_DOOR` (bug-015), жертва у `EV_PLAYER_DEATH` (09-02) — kill feed
+(09-03) нужно знать и кто убил, и кого.

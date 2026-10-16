@@ -110,6 +110,7 @@
 | [10-09](10-09-crosshair.md) | Прицел в центре экрана | 10-01 |
 | [10-11](10-11-sound-files.md) | Звуки из файлов `assets/sounds/` | bug-013 |
 | [10-10](10-10-weapon-fire-sounds.md) | Звуки выстрела автомата, винтовки и гранатомёта | 10-05, 10-11 |
+| [10-12](10-12-pickup-sounds-per-type.md) | Свой звук подбора для аптечки, патронов и брони | 10-11 |
 
 Что должно лежать в файлах графики и звука — раскладка каталогов, размеры кадров,
 требования к фону и краям, формат и длины звуков — описано в
@@ -135,6 +136,8 @@
 | [bug-011](bug-011-corpse-draws-first-death-frame.md) | Труп рисуется первым кадром листа смерти | `sprite.c` |
 | [bug-012](bug-012-corpse-sheet-ignores-enemy-type.md) | Труп сержанта рисуется скином импа | `sprite.c`, `assets.c` |
 | [bug-013](bug-013-procedural-sounds-play-double-speed.md) | Процедурные звуки играют вдвое быстрее и на октаву выше | `audio.c` |
+| [bug-014](bug-014-player-hit-by-player-is-silent.md) | Попадание игрока по игроку не порождает `EV_PLAYER_HURT` | `player.c`, `weapon.c`, `enemy.c` |
+| [bug-015](bug-015-door-closes-silently.md) | Дверь, закрывающаяся сама, и дверь, передумавшая закрываться, беззвучны | `door.c`, `world.c`, `main.c` |
 | [chore-001](chore-001-github-actions-ci.md) | CI на трёх платформах через GitHub Actions | `.github/workflows/` |
 | [chore-002](chore-002-dead-ternary-text-width.md) | Убрать неработающий тернарник в `text_width()` | `game.c` |
 | [chore-003](chore-003-const-correctness-lint.md) | Три параметра/переменных без `const` | `game.c`, `item.c`, `map.c` |
