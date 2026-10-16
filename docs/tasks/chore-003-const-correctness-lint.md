@@ -1,85 +1,91 @@
-# chore-003 — Три параметра/переменных без `const`, хотя только читаются
+# chore-003 — Указатели без `const`, хотя только читаются
 
 **Откуда:** найдено `.claude/skills/lint/lint.sh strict`
 (`constParameterPointer` / `constVariablePointer`)
 **Зависит от:** —
 **Блокирует:** —
-**Оценка:** ~5 строк изменений (три сигнатуры/объявления)
+**Оценка:** ~12 строк изменений: шесть мест из отчёта плюс цепочка
+параметров, которые станут `const` вслед за ними (см. «Замечания»); оценка
+по чтению кода, самой правки не пробовали
 
 ## Контекст
 
-`.claude/skills/lint/lint.sh strict` находит несколько находок уровня
-`const*Pointer`. Три из них — реальная и безопасная правка, проверено по
-коду: параметр или локальный указатель нигде в функции не пишет через
-себя.
+`.claude/skills/lint/lint.sh strict` сообщает шесть находок уровня
+`const*Pointer`. Каждая проверена по коду: указатель нигде в функции не
+пишет через себя, а всё, куда он передаётся, принимает `const`-указатель.
 
-1. **`src/game.c:155`** — `game_handle_event(Game *g, InputState *in,
-   SDL_Event *ev)`. Тело функции (`src/game.c:155-220`) читает только
-   `ev->type` и `ev->key.keysym.sym`, ни разу не присваивает через `ev`.
+1. **`src/enemy.c:109`** — `can_see_player(..., DoorList *dl, ...)`. `dl`
+   уходит только в `world_line_of_sight()`, чей параметр —
+   `const struct DoorList *` (`src/raycast_world.h`).
 
-2. **`src/item.c:79`** — в `item_update()`:
+2. **`src/enemy.c:132`** — в `pick_target()` локальная
+   `PlayerState *p = &players[i];`. Дальше `p` идёт только в
+   `is_targetable(const PlayerState *)` и `can_see_player(...,
+   const PlayerState *p, ...)`, через неё ничего не пишется.
 
-   ```c
-   Sprite *sp = &sl->items[it->sprite_id];
-   ```
+3. **`src/enemy.c:150`** — `move_towards(..., DoorList *dl, ...)`. `dl`
+   используется двумя вызовами `map_is_wall_door()`, а тот принимает
+   `const struct DoorList *` (`src/map.h`).
 
-   Дальше `sp` только читается (`sp->active`, `sp->x`, `sp->y`,
-   `src/item.c:80-86`); запись в спрайт происходит отдельно, в
-   `apply_pickup()` (`src/item.c:60`), через `sl`, а не через `sp`.
+4. **`src/game.c:155`** — `game_handle_event(Game *g, InputState *in,
+   SDL_Event *ev)`. Тело читает только `ev->type` и `ev->key.keysym.sym`,
+   присваиваний через `ev` нет. Объявление — `src/game.h:30`; вызывающие
+   (`src/main.c`, `tests/test_game.c`) передают обычный `SDL_Event *`, что
+   в `const`-параметр идёт без приведений.
 
-3. **`src/player.c:44`** — `blocked(const Map *m, DoorList *dl, float x,
-   float y)`. Функция статическая и состоит из одного вызова
-   `map_is_wall_door()`, который принимает `const struct DoorList *`.
-   Вызывающая `try_move()` (`src/player.c:49`) передаёт обычный
-   `DoorList *`, что идёт в `const`-параметр без приведений.
+5. **`src/player.c:45`** — `blocked(const Map *m, DoorList *dl, float x,
+   float y)`. Статическая функция из одного вызова `map_is_wall_door()`.
+
+6. **`src/world.c:169`** — в цикле дверей `world_step()` локальная
+   `PlayerState *p = &w->players[i];`. Дальше `p` читается
+   (`p->active`) и передаётся в `door_try_use(DoorList *, const PlayerState
+   *, ...)` — запись идёт в `w->doors`, не в игрока.
+
+Седьмая находка `strict` — `duplicateExpressionTernary` в `text_width()` —
+ведётся отдельно, в `chore-002`.
 
 ## Что сделать
 
-- [ ] `src/game.c:155` и объявление в `src/game.h` —
-      `game_handle_event(Game *g, InputState *in, const SDL_Event *ev)`
-- [ ] `src/item.c:79` — `const Sprite *sp = &sl->items[it->sprite_id];`
-- [ ] `src/player.c:44` — `blocked(const Map *m, const DoorList *dl,
-      float x, float y)`
+- [ ] `src/enemy.c`: `const DoorList *dl` в `can_see_player()` и
+      `move_towards()`; `const PlayerState *p` в цикле `pick_target()`
+- [ ] `src/enemy.c`: `const DoorList *dl` и `const PlayerState *players` в
+      `pick_target()` — они становятся `const` вслед за пунктом выше
+- [ ] `src/enemy.c` и `src/enemy.h`: `enemy_update_all()` принимает
+      `const struct DoorList *dl` — через неё идут только вызовы тех же
+      `const`-функций. `players` остаётся неконстантным: через
+      `target_of()` по нему пишет урон
+- [ ] `src/game.c` и `src/game.h`: `game_handle_event(Game *g, InputState
+      *in, const SDL_Event *ev)`
+- [ ] `src/player.c`: `blocked(const Map *m, const DoorList *dl, float x,
+      float y)`
+- [ ] `src/world.c`: `const PlayerState *p` в цикле дверей `world_step()`
+- [ ] Прогнать `lint.sh strict`: если после правки cppcheck предложит
+      `const` ещё где-то по той же цепочке — дотянуть, не меняя поведения
 
 ## Затрагиваемые файлы
 
+- `src/enemy.c`, `src/enemy.h`
 - `src/game.c`, `src/game.h`
-- `src/item.c`
 - `src/player.c`
+- `src/world.c`
 
 ## Критерий готовности
 
-- [ ] `.claude/skills/lint/lint.sh strict` больше не находит
-      `constParameterPointer`/`constVariablePointer` для `ev` в
-      `game_handle_event`, `sp` в `item_update` и `dl` в `blocked`
+- [ ] `.claude/skills/lint/lint.sh strict` не выдаёт ни
+      `constParameterPointer`, ни `constVariablePointer` ни для одного
+      места в `src/`; остаётся только находка `chore-002`, если та ещё не
+      закрыта
+- [ ] `.claude/skills/lint/lint.sh sim` проходит
 - [ ] Сборка (`cmake --build build`) проходит без новых предупреждений
-- [ ] `clang-format --dry-run -Werror src/game.c src/game.h src/item.c
-      src/player.c` проходит
-- [ ] `driver.sh smoke` проходит — правка не меняет поведение, только
-      сигнатуры
+- [ ] `ctest --test-dir build --output-on-failure` проходит, включая
+      `replay_test`, без правок тестов — поведение не меняется
+- [ ] `clang-format --dry-run -Werror src/enemy.c src/enemy.h src/game.c
+      src/game.h src/player.c src/world.c` проходит
+- [ ] `driver.sh smoke` проходит
 
 ## Замечания
 
-В объём этой задачи **намеренно не входят** ещё две находки того же
-прогона, которые cppcheck предлагает так же — не переносить их сюда:
-
-- **`perpDist` и `Enemy *e` в `weapon.c` (`src/weapon.c:130,153`)** — это
-  код экранного хитскана (`weapon_try_fire()`), который задача
-  `05-04-hitscan-rewrite.md` выкидывает целиком при переходе на мировой
-  рейкаст. `perpDist` там и так мёртв (`unassignedVariable`, гасится
-  через `(void)perpDist`) — чинить или даже просто расставлять `const` в
-  коде, который скоро удалят — работа на выброс.
-- **`const Framebuffer *fb` в `sprite_render()` (`src/sprite.c:82`)** —
-  формально безопасно (в C `const Framebuffer *` замораживает только сам
-  указатель `fb`, а не поле `fb->pixels`, так что запись
-  `fb->pixels[i] = color` осталась бы легальной), но семантически вредно:
-  единственная задача `sprite_render()` — писать в `fb->pixels`, и
-  сигнатура с `const` заявляла бы обратное тому, что функция на самом
-  деле делает. Опираться на то, что `const` в C сквозной только на один
-  уровень указателей, а не читать его как «функция не трогает
-  framebuffer», — ловушка для следующего читателя сигнатуры.
-
-Если кто-то захочет донести константность и на эти два места —
-разбирать нужно отдельно и после того, как `05-04` и связанные задачи
-уберут экранный хитскан; сама по себе находка cppcheck сюда не
-относится.
+- **Цепочка `const`.** `pick_target()` передаёт `dl` и `p` в функции, чьи
+  параметры станут `const`, поэтому и его собственные `dl` и `players`, а
+  вслед за ним `dl` в `enemy_update_all()`, cppcheck пометит на втором
+  проходе. Они входят в задачу, хотя в исходном отчёте их нет.
