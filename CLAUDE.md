@@ -112,7 +112,7 @@ headless, a movement or turn key let go within one frame is swallowed,
 | What | Checks | When |
 |---|---|---|
 | `.claude/skills/check/check.sh` | clean build with warnings counted, `ctest`, the lint gate, `driver.sh smoke`, coverage of the changed lines — a summary a few lines long, ~15s | while implementing, as often as useful; no agent needed |
-| `reviewer` agent | acceptance criteria, `lint`, the architecture invariants below, conventions; starts `tester` and merges its report | once per task, before closing it |
+| `reviewer` agent | acceptance criteria, `lint`, the architecture invariants below, conventions; starts `tester` and merges its report | once per task, before closing it — `/task` starts it |
 | `tester` agent | runs `check.sh`, drives the game through the change itself, reads the changed lines no test reaches, judges whether the tests would catch the change breaking | started by `reviewer`; by hand through `/verify` |
 
 The review is the expensive step — two agents, minutes rather than
@@ -285,9 +285,11 @@ those tasks, not follow-up work.
   that produced the edit — the reader did not participate in it and git
   already records the history.
 - **A task is finished when it sits in `docs/closed_tasks/`**, not when the
-  code works. "Do task 05-01" means the work *and* the closing steps in
-  `docs/tasks/README.md`; stopping at working code leaves the index claiming
-  it is still open. Say so if you deliberately leave it open.
+  code works. "Do task 05-01" means the work, the review by the `reviewer`
+  agent, *and* the closing steps in `docs/tasks/README.md`; stopping at
+  working code leaves the index claiming it is still open. The `task` skill
+  (`/task 05-01`) runs that whole cycle through to a commit — use it for
+  any request to do a task. Say so if you deliberately leave one open.
 - **A bug you find in passing becomes a task, not a detour.** File it as
   `docs/tasks/bug-NNN-slug.md` and keep going; do not fix it inside the diff
   of whatever you were doing. The exception is when the current task cannot
