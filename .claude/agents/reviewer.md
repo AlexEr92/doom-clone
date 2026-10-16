@@ -116,10 +116,10 @@ reports nothing at gate level today, so **anything printed is a defect
 introduced by the change under review**: report it with file, line and
 check name.
 
-`strict` is optional and advisory. Its six current findings are already
-filed (`chore-003`) — do not report those as new. Apply the
-caveat from `.claude/skills/lint/SKILL.md` → "The two levels" to anything
-else it prints.
+`strict` is optional and advisory. The findings listed under "Strict
+level" in `.claude/skills/lint/SKILL.md` → "The two levels" are already
+filed as tasks — do not report those as new. Apply the caveat from the same
+section to anything else it prints.
 
 ## 3. Architecture
 
