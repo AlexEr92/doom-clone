@@ -96,8 +96,8 @@ Xvfb, injects input and captures frames:
 
 Read `.claude/skills/run-doom-clone/SKILL.md` before driving the game
 manually. It documents the non-obvious traps — mouse look does not work
-headless, a key tap shorter than one frame is swallowed, `pgrep -f`
-patterns match the calling shell.
+headless, a movement or turn key let go within one frame is swallowed,
+`pgrep -f` patterns match the calling shell.
 
 ## Architecture
 

@@ -133,10 +133,14 @@ that `docs/requirements.md` §9 mandates. None of them render, so
   runs — the same `turn right 600` was measured changing between 232k and
   544k pixels. Never assert an exact angle or position, and never compare
   frames captured after timed movement, not even against the same build.
-- **A quick key tap does not fire.** `main.c:166` reads the *held*
-  `input.fire`, not the edge `input.fire_pressed`, so keydown+keyup landing in
-  one `SDL_PollEvent` sweep is swallowed before the fixed step runs. Hold
-  ≥ 1 frame; the driver uses 150ms.
+- **A movement or turn key let go within one frame is swallowed.** `w`, `s`,
+  `a`, `d`, `comma` and `period` are read as *held* state, so a keydown+keyup
+  landing in one `SDL_PollEvent` sweep leaves nothing held by the time a tick
+  (or `input_turn()`) looks: five instant `xdotool key w` at 22 FPS moved the
+  player 0. Fire, `e`, `1` and `2` are latched instead and reach exactly one
+  tick (`input_sample()`, `input.c`) — five instant `xdotool key space` spent
+  5 ammo at both 22 and 62 FPS. Hold ≥ 1 frame for the first kind; the
+  driver uses 150ms for everything.
 - **Keys need explicit focus.** There is no window manager, so nothing focuses
   the window — call `xdotool windowfocus <wid>` before sending keys.
 - **The window title is empty telemetry for the first ~0.5s.** It is plain

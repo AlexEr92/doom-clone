@@ -22,8 +22,9 @@ GAME_LOG="$RUN_DIR/game.log"
 XVFB_LOG="$RUN_DIR/xvfb.log"
 XVFB_PID="$RUN_DIR/xvfb.pid"
 
-# Fire/use are read as HELD state inside the fixed timestep (main.c:166), so a
-# tap shorter than one 60Hz frame is swallowed. 150ms is reliably >= 1 frame.
+# Movement and turn keys are read as HELD state, so one let go within a frame
+# is swallowed; fire/use/1/2 are latched until a tick takes them
+# (input_sample() in input.c). 150ms is reliably >= 1 frame for all of them.
 HOLD_MS_DEFAULT=150
 
 mkdir -p "$SHOTS"
