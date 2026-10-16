@@ -107,6 +107,13 @@ manually. It documents the non-obvious traps — mouse look does not work
 headless, a movement or turn key let go within one frame is swallowed,
 `pgrep -f` patterns match the calling shell.
 
+### Verifying and reviewing a change
+
+A `PostToolUse` hook (`.claude/settings.json` →
+`.claude/hooks/post-edit.sh`) formats every `.c`/`.h` Claude edits in
+`src/`, `tests/` and `tools/`, and after an edit in `src/` re-runs
+`lint.sh sim`, reporting a simulation that no longer compiles without SDL.
+
 ## Architecture
 
 ### Simulation and rendering are kept apart
@@ -139,8 +146,9 @@ add a new one.
 
 `world.c`, `enemy.c`, `weapon.c`, `item.c`, `door.c`, `player.c`, `map.c`
 and `raycast_world.c` therefore compile with no SDL headers on the include
-path at all — `gcc -fsyntax-only -Isrc` on them is the check, and keeping it
-passing is a constraint on new code in those files.
+path at all. `.claude/skills/lint/lint.sh sim` is the check, and keeping it
+passing is a constraint on new code in those files; a new simulation module
+is added to the `SIM=` list at the top of that script.
 
 ### One tick is one function
 
