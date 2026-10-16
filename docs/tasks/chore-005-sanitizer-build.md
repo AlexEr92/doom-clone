@@ -4,11 +4,11 @@
 (`assets.c`, `engine.c`, `audio.c`) и статическими массивами, где индекс
 служит идентификатором сущности (`CLAUDE.md`, раздел «Entity model»); впереди
 разбор пакетов от удалённой стороны (этап 7). Это класс ошибок, невидимый ни
-компилятору (`-Wall -Wextra`, уже включены, `CMakeLists.txt:13-15`), ни
+компилятору (`-Wall -Wextra`, уже включены, `CMakeLists.txt:28-30`), ни
 статическому анализатору (`.claude/skills/lint/lint.sh` — cppcheck, смотрит
 на текст программы, а не на исполнение)
 **Зависит от:** —
-**Блокирует:** —
+**Блокирует:** chore-010
 **Оценка:** ~80–100 строк изменений: `CMakeLists.txt` (~15 строк),
 `.gitignore` (1 строка), `.claude/skills/run-doom-clone/driver.sh` (новая
 подкоманда `quit`, ~25–30 строк), `.claude/skills/run-doom-clone/SKILL.md`
@@ -18,10 +18,10 @@
 
 Сегодня в `CMakeLists.txt` нет ни одного упоминания `-fsanitize` (проверено
 `grep -rn "sanitiz" CMakeLists.txt .githooks/ .claude/` — пусто), и класс
-ошибок памяти уже реален не в теории: при переходе на 10 игроков `MAX_SPRITES`
-(96) не вмещает врагов, предметы, бочки и чужих игроков — задача
-`06-02-players-array.md` поднимает лимит до 192 именно поэтому. ASan поймал
-бы переполнение такого массива на первом же прогоне, а не по симптомам через
+ошибок памяти реален не в теории: `MAX_SPRITES` (192, `src/config.h`) обязан
+вмещать врагов, предметы, бочки и чужих игроков, и держится это одним
+`_Static_assert` (`config.h:39`) плюс дисциплиной индексов. ASan поймал бы
+переполнение такого массива на первом же прогоне, а не по симптомам через
 несколько тиков.
 
 Ниже — не предположения, а результат фактического прогона с этой задачей.
@@ -72,12 +72,12 @@ BUILD_DIR=build-san .claude/skills/run-doom-clone/driver.sh smoke
 **Утечки требуют штатного выхода, а не `pkill`.** `LeakSanitizer` (включён по
 умолчанию в ASan на Linux x86-64) отчитывается только при нормальном
 завершении процесса — через `atexit`-хук, который устанавливает рантайм
-санитайзера. `main()` доходит до `return 0` (`main.c:239-243`, после
+санитайзера. `main()` доходит до `return 0` (`main.c:220-223`, после
 `assets_shutdown`/`audio_shutdown`/`engine_shutdown`) только если цикл вышел
 по `eng.running = 0`; единственный путь к этому без падения — `Escape` из
-`GSTATE_MENU` (`game.c:164-169`, `g->quit = 1; g->eng->running = 0;`).
+`GSTATE_MENU` (`game.c:166-170`, `g->quit = 1; g->eng->running = 0;`).
 `driver.sh stop` останавливает игру через `pkill -x doom-clone`
-(`driver.sh:166-173`) — это `SIGTERM` без установленного в проекте
+(`driver.sh:167-174`) — это `SIGTERM` без установленного в проекте
 обработчика (`grep -rn "signal\|SIGTERM" src/*.c` — пусто), процесс
 завершается немедленно, `atexit`-хуки не выполняются, `LeakSanitizer`
 не успевает отчитаться. Проверено на практике: тот же бинарник, остановленный
@@ -87,10 +87,10 @@ BUILD_DIR=build-san .claude/skills/run-doom-clone/driver.sh smoke
 `../closed_tasks/bug-004-audio-init-leak.md`, куда вынесена сама находка.
 
 Из любого достижимого игрового состояния до выхода не больше трёх нажатий
-`Escape`: `PLAYING → PAUSED` (`game.c:172-175`), `PAUSED → MENU` с
-`restart = 1` (`game.c:181-185`), `DEAD`/`WIN → MENU` тоже с `restart = 1`
-(`game.c:193-196`, `202-205`) — и наконец `MENU → выход`
-(`game.c:164-169`). Итого не более трёх `Escape` из любой точки гарантированно
+`Escape`: `PLAYING → PAUSED` (`game.c:173-176`), `PAUSED → MENU` с
+`restart = 1` (`game.c:182-187`), `DEAD`/`WIN → MENU` тоже с `restart = 1`
+(`game.c:199-203`, `211-215`) — и наконец `MENU → выход`
+(`game.c:166-170`). Итого не более трёх `Escape` из любой точки гарантированно
 доводят процесс до штатного `return 0`.
 
 **Ложных срабатываний SDL2/SDL2_mixer не найдено.** Прогнан ручной сценарий
@@ -103,20 +103,31 @@ BUILD_DIR=build-san .claude/skills/run-doom-clone/driver.sh smoke
 заводятся — заводить их без воспроизведённого ложного срабатывания означало
 бы гадать.
 
-**`vendor/stb_image.h` собирается чисто, но не исполняется.** `assets_load_png()`
-(`assets.c:338`) не вызывается нигде в текущем коде (`CLAUDE.md`: «exists but
-is unused»), так что декодер PNG из `vendor/stb_image.h` ни разу не
-отработал в этом прогоне — сборка под санитайзерами ничего не говорит о его
-рантайм-поведении. Когда `10-01-sprite-sheet-loader.md` подключит
-реальную загрузку PNG, стоит повторить прогон на настоящем файле: у stb_image
-за пределами этого проекта известны срабатывания UBSan (сдвиги, приведения
-указателей) в декодере — сейчас утверждать это про версию из `vendor/` было
-бы домыслом, не проверено.
+**Декодер PNG из `vendor/stb_image.h` исполняется при каждом старте.**
+`assets_init()` проходит таблицу `SHEETS` (`assets.c`, `load_sheets()`) и для
+каждого слота, чей файл существует, вызывает `assets_load_sheet()`, а тот —
+`assets_load_png()` (`assets.c:470`, `stbi_load()`). Все девять файлов таблицы
+(`assets/weapons/pistol_fp_128x128.png`, `shotgun_fp_128x128.png`,
+`assets/players/{marine,swat}/{idle,death}_64x64.png`,
+`assets/items/{medkit,armor,ammo_pistol}_64x64.png`) лежат в `assets/`, так
+что `driver.sh smoke` и `ctest` под санитайзерами проходят через декодер на
+настоящих картинках. Прогон, описанный выше, через декодер не проходил,
+поэтому «ложных срабатываний не найдено» относится к SDL2/SDL2_mixer, а
+про `stb_image` под ASan/UBSan в этой версии `vendor/` ничего не измерено: у
+stb_image за пределами проекта известны срабатывания UBSan (сдвиги,
+приведения указателей) — первый прогон исполнителя это покажет. Находка там —
+отдельная `bug-*`/`chore-*`, подавление в `vendor/` не заводится без
+воспроизведённого срабатывания. `bug-008-load-png-leaks-replaced-pixels.md`
+(открыта) на ожидаемый результат не влияет: сегодня `assets_load_sheet()`
+передаёт в `assets_load_png()` обнулённую локальную `Texture`, а слот меняет
+через `texture_free()`, так что LeakSanitizer на этом пути молчит; тот
+дефект — в контракте для будущих вызывающих, и его работа сюда не входит.
 
 **`.gitignore` не покрывает отдельный каталог сборки.** Сегодня в нём —
-`/build/` и `/out/` как отдельные записи (`.gitignore:2-3`), без общего
-шаблона. Каталог `build-san/`, сконфигурированный вручную для этой проверки,
-остался у `git status --short` как `??` — нужна отдельная строка.
+`/build/`, `/build-cov/` и `/out/` как отдельные записи (`.gitignore:2-4`),
+без общего шаблона. Каталог `build-san/`, сконфигурированный вручную для
+этой проверки, остался у `git status --short` как `??` — нужна отдельная
+строка.
 
 **`pre-push` не трогается.** `.githooks/pre-push` сегодня собирает `build/`
 и гоняет `driver.sh smoke` при каждом push (см. сам хук, комментарий вверху:
@@ -129,7 +140,8 @@ teaches people to pass --no-verify»). Санитайзерная сборка �
 ## Что сделать
 
 - [ ] В `CMakeLists.txt`, рядом с существующим блоком `-Wall -Wextra`
-      (`CMakeLists.txt:13-15`, до `add_executable`), добавить опцию:
+      (`CMakeLists.txt:28-30`, до `add_executable` и до
+      `add_subdirectory(tests)`), добавить опцию:
   ```cmake
   option(ENABLE_SANITIZERS "Build with AddressSanitizer + UndefinedBehaviorSanitizer" OFF)
   if(ENABLE_SANITIZERS)
@@ -142,14 +154,15 @@ teaches people to pass --no-verify»). Санитайзерная сборка �
       endif()
   endif()
   ```
-  Опция ставится до `add_executable(doom-clone ...)`, чтобы автоматически
-  распространиться и на цели в том же каталоге, и на `tests/`
-  (`add_subdirectory` наследует флаги каталога), без отдельной правки на
-  каждую цель.
+  Опция ставится до `add_executable(doom-clone ...)` и до
+  `add_subdirectory(tests)` (`CMakeLists.txt:107`), чтобы автоматически
+  распространиться и на игру, и на `tests/` (`add_subdirectory` наследует
+  флаги каталога), без отдельной правки на каждую цель. Отдельный каталог
+  сборки по тому же образцу уже есть: `build-cov/` с `ENABLE_COVERAGE`.
   По умолчанию `OFF` — ничего не меняется ни в одной существующей сборке.
 - [ ] Добавить `/build-san/` в `.gitignore` — отдельной строкой, тем же
-      стилем, что уже есть у `/build/` и `/out/` (`.gitignore:2-3`), а не
-      шаблоном `/build*/`
+      стилем, что уже есть у `/build/`, `/build-cov/` и `/out/`
+      (`.gitignore:2-4`), а не шаблоном `/build*/`
 - [ ] В `.claude/skills/run-doom-clone/driver.sh` добавить подкоманду
       `quit` — штатный выход вместо `pkill`, нужен именно для того, чтобы
       `LeakSanitizer` успевал отчитаться (см. «Контекст»): до трёх нажатий
@@ -231,6 +244,12 @@ CI (`chore-001-github-actions-ci.md`, ещё открыта) сегодня не
 (дополнительный шаг: собрать `build-san` и прогнать
 `BUILD_DIR=build-san driver.sh smoke` + `quit`), но правка `ci.yml` —
 отдельная работа, не эта.
+
+**Граница с `chore-010`.** Эта задача создаёт опцию, каталог `build-san/`,
+`driver.sh quit` и раздел «Sanitizers» в `run-doom-clone/SKILL.md`. Подключение
+к `.claude/skills/check/check.sh`, к агенту `tester` и к `CLAUDE.md` —
+`chore-010-sanitizers-in-review-harness.md`, которая от этой задачи зависит;
+здесь эти файлы не правятся.
 
 Раздел 1 `requirements.md` требует «без предупреждений при `-Wall -Wextra`
 на tier-1» и не упоминает санитайзеры вовсе — они не входят в определение
