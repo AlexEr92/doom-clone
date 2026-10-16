@@ -198,6 +198,7 @@ these before making changes:
 | `docs/roadmap.md` | Where it is going: target config, key decisions, risks, unscheduled ideas |
 | `docs/requirements.md` | Non-functional requirements: performance, latency budget, limits, platforms, testing |
 | `docs/assets-spec.md` | What the graphics files must contain: directory layout, frame grids, transparency rules |
+| `docs/harness.md` | The Claude Code harness — agents, skills, hooks, plugins and how to call them; updated with any change under `.claude/` or `.githooks/` |
 | `docs/tasks/` | Open tasks with dependencies and acceptance criteria; `docs/tasks/README.md` is the index and states how to close one |
 | `docs/closed_tasks/` | Finished and rejected tasks, each ending in a "Закрыто" note |
 

@@ -82,10 +82,12 @@ doom-clone/
 ├── CMakeLists.txt        # кросс-платформенная сборка
 ├── README.md
 ├── CLAUDE.md             # инструкции для Claude Code
+├── .claude/              # агенты, скиллы и хуки Claude Code
 ├── docs/
 │   ├── architecture.md   # как устроено сейчас и почему
 │   ├── roadmap.md        # куда движется проект
 │   ├── requirements.md   # нефункциональные требования
+│   ├── harness.md        # харнесс Claude Code: что есть и как вызывать
 │   ├── tasks/            # открытые задачи с критериями приёмки
 │   └── closed_tasks/     # закрытые задачи
 ├── vendor/               # stb_image.h, unity/ (юнит-тесты)
