@@ -109,6 +109,24 @@ headless, a movement or turn key let go within one frame is swallowed,
 
 ### Verifying and reviewing a change
 
+| What | Checks | When |
+|---|---|---|
+| `.claude/skills/check/check.sh` | clean build with warnings counted, `ctest`, the lint gate, `driver.sh smoke`, coverage of the changed lines — a summary a few lines long, ~15s | while implementing, as often as useful; no agent needed |
+| `reviewer` agent | acceptance criteria, `lint`, the architecture invariants below, conventions; starts `tester` and merges its report | once per task, before closing it |
+| `tester` agent | runs `check.sh`, drives the game through the change itself, reads the changed lines no test reaches, judges whether the tests would catch the change breaking | started by `reviewer`; by hand through `/verify` |
+
+The review is the expensive step — two agents, minutes rather than
+seconds — so it runs once, at the end of a task, and `/verify` is
+deliberately not run before each commit. Neither agent edits anything or
+gives a verdict, and a reviewer asked for gaps finds some in sound work
+too: act on what breaks a criterion, an invariant or a written rule, and
+treat the rest as optional. A finding that becomes a task goes to
+`project-manager`.
+
+`check.sh` and the tester both own `build/`, `build-cov/` and the X display
+`:99` while they run: do not build or launch the game while a review is in
+progress.
+
 A `PostToolUse` hook (`.claude/settings.json` →
 `.claude/hooks/post-edit.sh`) formats every `.c`/`.h` Claude edits in
 `src/`, `tests/` and `tools/`, and after an edit in `src/` re-runs

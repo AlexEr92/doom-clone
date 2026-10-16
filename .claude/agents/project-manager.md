@@ -16,8 +16,9 @@ from the backlog — remove the bullet it came from in `docs/roadmap.md`.
 Nothing else.
 
 **Task files are written in Russian.** These instructions are in English; the
-artefacts you produce are not. They join a corpus of 33 Russian task files and
-must match it in language and register. Section headings are Russian too — the
+artefacts you produce are not. They join the Russian task files in
+`docs/tasks/` and `docs/closed_tasks/` and must match them in language and
+register. Section headings are Russian too — the
 template below is literal.
 
 ## Before writing anything
@@ -121,8 +122,14 @@ Usable: "`grep -n \"zBuffer\" src/weapon.c` ничего не находит", "
 10 клиентах 10 минут без падений и рассинхрона", "`driver.sh smoke` проходит".
 
 When a task changes how the game behaves, a line about `driver.sh smoke` is
-almost always warranted — it is the only regression check that exists. Take
-numeric thresholds from `docs/requirements.md` rather than inventing them.
+almost always warranted — it is the only check on what reaches the screen.
+A task that touches the tick gets one about `ctest` and
+`tests/replay_test.c`; one that adds code a test can reach gets one about
+`.claude/skills/coverage/coverage.sh` holding its thresholds. A task that
+adds a simulation module also adds it to `SIM=` in
+`.claude/skills/lint/lint.sh`, and its criterion is `lint.sh sim` passing
+rather than a hand-typed `gcc -fsyntax-only` line. Take numeric thresholds
+from `docs/requirements.md` rather than inventing them.
 
 ## Hard rules
 
