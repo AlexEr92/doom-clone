@@ -214,9 +214,11 @@ void sprite_render(Framebuffer *fb, const SpriteList *sl, const PlayerState *p, 
 
         const Texture *tex = sprite_texture(a, sp);
         /* Rows are the facings the sprite carries; the column stays 0 until
-         * 10-03 puts an animation frame in Sprite. Frames sit side by side in
-         * one image, so the row stride stays tex->w. */
-        const uint32_t *frame = texture_frame(tex, 0, sp->view);
+         * 10-03 puts an animation frame in Sprite. A corpse has nothing to
+         * play and lies in the last frame of its death sheet. Frames sit side
+         * by side in one image, so the row stride stays tex->w. */
+        int col = (sp->type == SPRITE_ENEMY_DEAD) ? tex->cols - 1 : 0;
+        const uint32_t *frame = texture_frame(tex, col, sp->view);
         int texW = tex->fw;
         int texH = tex->fh;
 
