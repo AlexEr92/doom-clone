@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Reviews the code quality of a change to doom-clone against a docs/tasks/ file — acceptance criteria, static analysis, the architecture invariants in CLAUDE.md and the conventions nothing enforces — and starts the tester agent for the runtime evidence. Use before closing a task, to review a diff before it lands, or to check acceptance criteria. Reports findings — never edits, commits or blocks.
-tools: Read, Grep, Glob, Bash, Skill, Agent
+tools: Read, Grep, Glob, Bash, Skill, Agent, LSP
 model: sonnet
 color: blue
 ---
@@ -136,8 +136,13 @@ code and report whether it still holds:
   `grep -nE '\b(rand|srand|time|clock|SDL_GetTicks)\s*\(' <simulation files>`.
   The one known `rand()` is shotgun spread in `weapon_try_fire()`, which
   stage 7 seeds from `MSG_ACCEPT` (`docs/roadmap.md`, key decision 9); any
-  other is a finding. The order inside `world_step()` — players, doors,
-  enemies, items, weapons — is fixed.
+  other is a finding. The grep sees the simulation files only: when the
+  diff adds a call inside the tick, open the callee with `LSP`
+  `goToDefinition`, and the ones it calls, until the chain stays in them,
+  so a call that leaves for `utils.c` or a client module is caught too.
+  (`outgoingCalls` would do this in one step, but the clangd here answers
+  it with "method not found".) The order inside `world_step()` — players,
+  doors, enemies, items, weapons — is fixed.
 - **Entity arrays never shrink.** Items deactivate, enemies become corpses;
   an index is the id a snapshot puts on the wire. A `count--`, a `memmove`
   or a compaction over an entity array is a finding. So is an append that
@@ -156,7 +161,10 @@ code and report whether it still holds:
 Then read the diff for the defects this codebase is prone to and no tool
 here catches: an off-by-one between `count` and `MAX_*`, a `malloc` or
 `map_load()` result used unchecked, a struct field read before
-`world_load()` sets it. Report what you can point at, not what might be.
+`world_load()` sets it. `LSP` `findReferences` on a field or function the
+diff changes shows every place that depends on it, and the ones the diff
+left alone are where these hide; fall back to `grep` when the tool reports
+no server. Report what you can point at, not what might be.
 
 ## 4. Conventions
 

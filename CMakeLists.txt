@@ -5,6 +5,21 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
+# build/compile_commands.json — флаги компиляции для clangd (плагин
+# clangd-lsp и IDE): без них он не видит ни SDL, ни vendor/, ни тестовых
+# таргетов.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Ссылка на неё в корне — для инструментов, которые ищут базу только рядом с
+# исходниками. Ставит её одно основное дерево build/: build-cov/ и прочие
+# сборки с другими флагами её не перехватывают. RESULT — чтобы Windows без
+# прав на симлинки не валила конфигурацию.
+if(CMAKE_BINARY_DIR STREQUAL "${CMAKE_SOURCE_DIR}/build")
+    file(CREATE_LINK build/compile_commands.json
+         ${CMAKE_SOURCE_DIR}/compile_commands.json
+         RESULT compile_commands_link SYMBOLIC)
+endif()
+
 # По умолчанию — Release, но можно задать через -DCMAKE_BUILD_TYPE
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)

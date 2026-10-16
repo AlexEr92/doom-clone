@@ -25,6 +25,18 @@ this; a bare `./build/doom-clone` from elsewhere exits with an error.
 New `.c` files must be added to the source list in `CMakeLists.txt`; there
 is no glob.
 
+Configuring also writes `build/compile_commands.json` and links it from the
+project root, so an IDE's clangd finds it as soon as `build/` is
+configured — only the `build/` tree sets the link, so `build-cov/` does not
+take it over. The `clangd-lsp` plugin (enabled in `.claude/settings.json`,
+needs `clangd` on `PATH`) reads it for the `LSP` tool, which the main
+session, `reviewer` and `tester` all have: definitions, references and call
+hierarchy across `src/` and `tests/` — `incomingCalls` on a function lists
+the tests that call it; `outgoingCalls` the installed clangd does not
+implement. `tools/` is in the database only when configured with
+`-DBUILD_TOOLS=ON`. The link and the index in `.cache/` are git-ignored,
+which hides them from git only.
+
 ### Git hooks
 
 Hooks live in `.githooks/` and are **off until enabled per clone** — git does
