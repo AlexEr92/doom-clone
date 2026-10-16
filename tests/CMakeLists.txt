@@ -26,6 +26,16 @@ if(NOT TEST_SDL2_INCLUDES)
     set(TEST_SDL2_INCLUDES "")
 endif()
 
+# ---- SDL2_mixer ----
+# Только test_audio: audio.c открывает микшер по-настоящему, на драйвере
+# dummy, и линкуется с SDL2 и SDL2_mixer, а не с одними заголовками.
+if(TARGET SDL2_mixer::SDL2_mixer)
+    set(TEST_MIXER_LIBS SDL2_mixer::SDL2_mixer ${TEST_SDL2_LIBS})
+else()
+    set(TEST_MIXER_LIBS ${SDL2_MIXER_LIBRARIES} ${TEST_SDL2_LIBS})
+    list(APPEND TEST_SDL2_INCLUDES ${SDL2_MIXER_INCLUDE_DIRS})
+endif()
+
 # ---- Один тест на модуль ----
 # doom_test(<модуль> [FILE <файл теста>] [SRC <файлы из src/>...] [LINK <библиотеки>...])
 # FILE нужен только там, где имя файла не test_<модуль>.c: replay-тест назван
@@ -66,6 +76,10 @@ doom_test(game   SRC game.c)
 # Загрузчик листов: assets.c тянет stb_image по относительному пути, а сами
 # PNG тест пишет сам — фикстур в tests/ нет.
 doom_test(assets SRC assets.c)
+# Длительность синтезированных чанков в формате устройства. Звук вне охвата
+# test-001, но драйвер dummy открывает микшер без звуковой карты, а тембр тест
+# не проверяет — только длину данных.
+doom_test(audio SRC audio.c LINK ${TEST_MIXER_LIBS})
 # Детерминизм world_step() — требование requirements.md, раздел 9. Линкует всю
 # симуляцию; графики в ней нет — спрайты строит клиент.
 doom_test(replay FILE replay_test.c

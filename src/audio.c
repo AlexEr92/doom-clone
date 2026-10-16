@@ -10,7 +10,9 @@
 
 /* ---- Procedural WAV chunk synthesis ----
  * We build a 16-bit mono 22050 Hz WAV in memory, then load it with
- * Mix_QuickLoad_WAV. This avoids shipping external sound files. */
+ * Mix_LoadWAV_RW, which converts it to the device format — the device is
+ * opened stereo, so the WAV cannot be played as it stands. This avoids
+ * shipping external sound files. */
 
 static void put_u32(unsigned char *p, Uint32 v)
 {
@@ -135,11 +137,10 @@ static Mix_Chunk *make_chunk(Sint16 *samples, Uint32 n)
     if (!wav) {
         return NULL;
     }
-    Mix_Chunk *c = Mix_QuickLoad_WAV(wav);
-    /* Mix_QuickLoad_WAV copies? No — it does NOT copy the buffer; it keeps the
-     * pointer. We must keep the WAV buffer alive for the chunk's lifetime.
-     * Store the pointer in chunk->abuf (which IS the pointer) — that's fine,
-     * but Mix_FreeChunk will free(abuf). So we must hand ownership over. */
+    /* The chunk holds its own converted copy, so the WAV is ours to free
+     * whether or not the load succeeded. */
+    Mix_Chunk *c = Mix_LoadWAV_RW(SDL_RWFromConstMem(wav, (int)len), 1);
+    free(wav);
     return c;
 }
 
