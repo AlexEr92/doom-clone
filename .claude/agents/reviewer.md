@@ -116,8 +116,8 @@ reports nothing at gate level today, so **anything printed is a defect
 introduced by the change under review**: report it with file, line and
 check name.
 
-`strict` is optional and advisory. Its seven current findings are already
-filed (`chore-002`, `chore-003`) — do not report those as new. Apply the
+`strict` is optional and advisory. Its six current findings are already
+filed (`chore-003`) — do not report those as new. Apply the
 caveat from `.claude/skills/lint/SKILL.md` → "The two levels" to anything
 else it prints.
 

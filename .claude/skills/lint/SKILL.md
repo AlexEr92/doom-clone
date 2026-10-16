@@ -68,15 +68,12 @@ src/foo.c:6:21: error: Array 'el->items[32]' accessed at index 35,
 which is out of bounds. [arrayIndexOutOfBounds]
 ```
 
-**Strict level** adds `style`. As of this writing it reports seven things
-in `src/`, all already filed:
-
-- `constParameterPointer` / `constVariablePointer` on pointers that are
-  only read — `DoorList *dl` in `enemy.c` and `player.c`, `PlayerState *p`
-  in `enemy.c` and `world.c`, `SDL_Event *ev` in `game_handle_event()`.
-  `docs/tasks/chore-003-const-correctness-lint.md`.
-- `duplicateExpressionTernary` in `text_width()` (`game.c`).
-  `docs/tasks/chore-002-dead-ternary-text-width.md`.
+**Strict level** adds `style`. As of this writing it reports six things
+in `src/`, all already filed in
+`docs/tasks/chore-003-const-correctness-lint.md`: `constParameterPointer` /
+`constVariablePointer` on pointers that are only read — `DoorList *dl` in
+`enemy.c` and `player.c`, `PlayerState *p` in `enemy.c` and `world.c`,
+`SDL_Event *ev` in `game_handle_event()`.
 
 Read a `style` finding before taking it. cppcheck suggests `const T *` by
 looking at the pointer, not at what the struct points to: a struct holding

@@ -139,7 +139,6 @@
 | [bug-014](bug-014-player-hit-by-player-is-silent.md) | Попадание игрока по игроку не порождает `EV_PLAYER_HURT` | `player.c`, `weapon.c`, `enemy.c` |
 | [bug-015](bug-015-door-closes-silently.md) | Дверь, закрывающаяся сама, и дверь, передумавшая закрываться, беззвучны | `door.c`, `world.c`, `main.c` |
 | [chore-001](chore-001-github-actions-ci.md) | CI на трёх платформах через GitHub Actions | `.github/workflows/` |
-| [chore-002](chore-002-dead-ternary-text-width.md) | Убрать неработающий тернарник в `text_width()` | `game.c` |
 | [chore-003](chore-003-const-correctness-lint.md) | Указатели без `const`, хотя только читаются | `enemy.c`, `game.c`, `player.c`, `world.c` |
 | [chore-005](chore-005-sanitizer-build.md) | Сборка с ASan/UBSan для локальных и CI-прогонов | `CMakeLists.txt`, `driver.sh` |
 | [chore-008](chore-008-net-smoke-driver.md) | `netdriver.sh`: сервер и два клиента без экрана, `net-smoke` | `.claude/skills/run-doom-clone/`, `check.sh` |
@@ -181,3 +180,4 @@
 | [bug-004](../closed_tasks/bug-004-audio-init-leak.md) | `audio_init()` теряет 8 WAV-буферов при запуске | Сделано, вместе с bug-013 |
 | [chore-006](../closed_tasks/chore-006-test-coverage.md) | Измерение покрытия тестами (gcovr) | Сделано |
 | [chore-007](../closed_tasks/chore-007-stale-doc-facts.md) | Устаревшие утверждения в SKILL.md и architecture.md | Сделано |
+| [chore-002](../closed_tasks/chore-002-dead-ternary-text-width.md) | Убрать неработающий тернарник в `text_width()` | Сделано |

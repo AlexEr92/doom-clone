@@ -134,7 +134,7 @@ static int text_width(const char *s, int scale)
 {
     int w = 0;
     for (const char *p = s; *p; p++) {
-        w += (*p == ' ') ? 4 * scale : 4 * scale;
+        w += 4 * scale;
     }
     return w - scale;
 }

@@ -41,9 +41,6 @@
    (`p->active`) и передаётся в `door_try_use(DoorList *, const PlayerState
    *, ...)` — запись идёт в `w->doors`, не в игрока.
 
-Седьмая находка `strict` — `duplicateExpressionTernary` в `text_width()` —
-ведётся отдельно, в `chore-002`.
-
 ## Что сделать
 
 - [ ] `src/enemy.c`: `const DoorList *dl` в `can_see_player()` и
@@ -73,8 +70,7 @@
 
 - [ ] `.claude/skills/lint/lint.sh strict` не выдаёт ни
       `constParameterPointer`, ни `constVariablePointer` ни для одного
-      места в `src/`; остаётся только находка `chore-002`, если та ещё не
-      закрыта
+      места в `src/`
 - [ ] `.claude/skills/lint/lint.sh sim` проходит
 - [ ] Сборка (`cmake --build build`) проходит без новых предупреждений
 - [ ] `ctest --test-dir build --output-on-failure` проходит, включая

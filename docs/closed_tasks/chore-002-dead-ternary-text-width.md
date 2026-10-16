@@ -93,3 +93,14 @@ static void draw_text(Framebuffer *fb, int x0, int y0, const char *s, uint32_t c
 согласованной правки `draw_text()` и `text_width()` вместе, а не только
 удаления мёртвого выражения. Если такая правка когда-нибудь понадобится —
 заводить новую задачу отдельно.
+
+## Закрыто
+
+2026-10-17 — в `text_width()` (`src/game.c`) тернарник с одинаковыми
+ветками заменён на безусловное `w += 4 * scale;`, `draw_text()` не
+тронута; ширина строк и центровка `draw_centered()` прежние. `lint.sh
+strict` больше не выдаёт `duplicateExpressionTernary`, и его шесть
+оставшихся находок — все из chore-003: это теперь сказано в
+`.claude/skills/lint/SKILL.md`, `.claude/agents/reviewer.md` и самой
+chore-003. Юнит-теста строка не получила: оверлеи и шрифт проверяются
+через `driver.sh`, как сказано в `tests/test_game.c`.
