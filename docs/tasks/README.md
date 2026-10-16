@@ -144,6 +144,7 @@
 | [chore-005](chore-005-sanitizer-build.md) | Сборка с ASan/UBSan для локальных и CI-прогонов | `CMakeLists.txt`, `driver.sh` |
 | [chore-008](chore-008-net-smoke-driver.md) | `netdriver.sh`: сервер и два клиента без экрана, `net-smoke` | `.claude/skills/run-doom-clone/`, `check.sh` |
 | [chore-009](chore-009-net-smoke-lag-loss.md) | `net-stress`: 4 клиента под `--netlag`/`--netloss` | `netdriver.sh` |
+| [chore-010](chore-010-sanitizers-in-review-harness.md) | Санитайзеры в `check.sh` и у тестера | `check.sh`, `tester.md`, `CLAUDE.md` |
 
 ## Закрытые
 
