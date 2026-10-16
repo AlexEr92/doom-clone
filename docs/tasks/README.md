@@ -129,11 +129,15 @@
 | [bug-006](bug-006-hud-draw-int-digit-order.md) | `draw_int()` рисует цифры HUD в обратном порядке | `hud.c` |
 | [bug-008](bug-008-load-png-leaks-replaced-pixels.md) | `assets_load_png()` теряет пиксели замещаемого слота | `assets.c` |
 | [bug-010](bug-010-sprite-squashed-when-clipped.md) | Спрайт сплющивается при обрезке верхним краем экрана | `sprite.c` |
+| [bug-011](bug-011-corpse-draws-first-death-frame.md) | Труп рисуется первым кадром листа смерти | `sprite.c` |
+| [bug-012](bug-012-corpse-sheet-ignores-enemy-type.md) | Труп сержанта рисуется скином импа | `sprite.c`, `assets.c` |
+| [feat-002](feat-002-item-pickup-sheets.md) | Графика аптечки, брони и патронов из `assets/items/` | `assets.c` |
 | [chore-001](chore-001-github-actions-ci.md) | CI на трёх платформах через GitHub Actions | `.github/workflows/` |
 | [chore-002](chore-002-dead-ternary-text-width.md) | Убрать неработающий тернарник в `text_width()` | `game.c` |
 | [chore-003](chore-003-const-correctness-lint.md) | Три параметра/переменных без `const` | `game.c`, `item.c`, `map.c` |
 | [chore-005](chore-005-sanitizer-build.md) | Сборка с ASan/UBSan для локальных и CI-прогонов | `CMakeLists.txt`, `driver.sh` |
 | [chore-006](chore-006-test-coverage.md) | Измерение покрытия тестами (gcovr) | `CMakeLists.txt`, `tests/CMakeLists.txt` |
+| [chore-007](chore-007-stale-doc-facts.md) | Устаревшие утверждения в SKILL.md и architecture.md | `SKILL.md`, `architecture.md` |
 
 ## Закрытые
 
