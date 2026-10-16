@@ -176,6 +176,9 @@ client will run it again to predict, so the order inside it — players,
 doors, enemies, items, weapons — is fixed, and nothing in it may read the
 wall clock or `rand()`. `tests/replay_test.c` holds that line: two runs of
 one input sequence from one `world_load()` must come out bit-identical.
+The one `rand()` left is shotgun spread in `weapon_try_fire()`: stage 7
+seeds it from `MSG_ACCEPT` (`docs/roadmap.md`, key decision 9), and until
+then the replay never switches to the shotgun. Do not add a second one.
 
 `src/config.h` is the single source of truth for the limits (`MAX_PLAYERS`,
 `MAX_ENEMIES`, `MAX_SPRITES`, …), the tick rate and the network constants.
@@ -264,12 +267,10 @@ stage 7, the network itself, is next.
 
 `tests/replay_test.c` — the determinism check on `world_step()` mandated by
 `docs/requirements.md` §9 — exists and runs under CTest with the rest.
-Stages 7–10 change the very things it pins down, so keeping it passing is
-part of those tasks, not follow-up work.
-
-Stages 5–6 change the very structures the tests pin down (`PlayerState`,
-`WeaponSystem`, `enemy_update_all`, `door_update_all`). Updating the matching
-`tests/test_*.c` is part of those tasks, not follow-up work.
+Stages 7–10 change the very things it and the unit tests pin down —
+`PlayerState`, `World`, the signatures of the `*_update_all` functions — so
+keeping it passing and updating the matching `tests/test_*.c` are part of
+those tasks, not follow-up work.
 
 ## Conventions
 

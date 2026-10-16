@@ -3,8 +3,9 @@ name: run-doom-clone
 description: Build, run, and drive doom-clone. Use when asked to start doom-clone, build it, take a screenshot of the game, compare rendered frames, or interact with the running app.
 ---
 
-doom-clone is a C11/SDL2 raycaster — a desktop GUI app with no test suite.
-Drive it with `.claude/skills/run-doom-clone/driver.sh`, which runs it under
+doom-clone is a C11/SDL2 raycaster — a desktop GUI app. Its unit tests
+(`ctest`) cover the simulation and nothing that reaches the screen, so this
+driver is how a change is seen working. Drive it with `.claude/skills/run-doom-clone/driver.sh`, which runs it under
 Xvfb, injects keyboard input via `xdotool`, and captures frames with
 `import`. Start with `driver.sh smoke`.
 
@@ -90,9 +91,8 @@ $D stop
 Artifacts: screenshots in `.run/shots/`, logs in `.run/game.log` and
 `.run/xvfb.log`. `.run/` is gitignored.
 
-`diff` is the tool for render refactors — task `docs/tasks/05-03` requires
-the image to stay pixel-identical, and `compare -metric AE` answers that
-directly. Compare frames captured at a **deterministic point**: right after
+`diff` is the tool for render refactors — a refactor that must leave the
+image pixel-identical is answered directly by `compare -metric AE`. Compare frames captured at a **deterministic point**: right after
 `start` (menu) or right after `key Return` (spawn position, before any
 movement). Those reproduce across independent runs and across builds; a
 frame taken after `hold`/`turn` does not.
@@ -123,7 +123,7 @@ that `docs/requirements.md` §9 mandates. None of them render, so
   **keeps running with an empty world** — it does not crash, so this looks
   like a rendering bug. `driver.sh start` cds first and fails loudly if the
   message appears.
-- **Mouse look does not work headless.** `engine.c:50` calls
+- **Mouse look does not work headless.** `engine_init()` (`engine.c`) calls
   `SDL_SetRelativeMouseMode(SDL_TRUE)`; SDL then consumes XInput2 raw motion,
   which xdotool's synthetic events do not reliably reach. Measured under Xvfb:
   a 300px `mousemove` changed 0 pixels, a 600px round trip changed 564. Turn
@@ -144,20 +144,20 @@ that `docs/requirements.md` §9 mandates. None of them render, so
 - **Keys need explicit focus.** There is no window manager, so nothing focuses
   the window — call `xdotool windowfocus <wid>` before sending keys.
 - **The window title is empty telemetry for the first ~0.5s.** It is plain
-  `doom-clone` until the first FPS window closes (`main.c:121`). Poll for
-  `FPS` rather than sleeping.
-- **`status` can be up to 0.5s stale.** The title is rebuilt on the same FPS
-  timer (`main.c:121`), not when HP/ammo change, so reading it right after an
+  `doom-clone` until the first FPS window closes (`fps_timer` in the main
+  loop, `main.c`). Poll for `FPS` rather than sleeping.
+- **`status` can be up to 0.5s stale.** The title is rebuilt on the same
+  `fps_timer`, not when HP/ammo change, so reading it right after an
   action is a race — the same `key space` reported both `50/50` and `49/50` on
   consecutive runs. Sleep ≥ 0.5s before asserting on HP or ammo.
 - **Title fields parse differently.** The FPS number *precedes* its label
   (`| 63 FPS`), while HP and ammo *follow* theirs (`HP 100`, `ammo 49/50`).
-- **Screenshots have red and blue swapped.** `make_color()` (`utils.h:38`)
-  packs `0xAABBGGRR`, but the texture is created as `SDL_PIXELFORMAT_ARGB8888`
-  (`engine.c`), which reads `0xAARRGGBB`. Verified: the menu title coded as
-  `make_color(220,40,40)` (red) samples as `srgb(40,40,220)` (blue); grey text
-  is unaffected because it is symmetric. This is a real bug in the app, not a
-  capture artifact — do not "fix" screenshots to compensate.
+- **A colour check needs a coloured sample.** A regression in the colour
+  packing (`CLAUDE.md` → "Colour packing") swaps red and blue across the
+  whole game and is invisible in grey, which is symmetric. Sample the menu
+  title instead: it is `make_color(220, 40, 40)` in `game.c` and must come
+  out as `srgb(220,40,40)` in a `shot` taken right after `start`, not as
+  `srgb(40,40,220)`.
 
 ## Troubleshooting
 

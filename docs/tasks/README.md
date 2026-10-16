@@ -137,7 +137,6 @@
 | [chore-002](chore-002-dead-ternary-text-width.md) | Убрать неработающий тернарник в `text_width()` | `game.c` |
 | [chore-003](chore-003-const-correctness-lint.md) | Три параметра/переменных без `const` | `game.c`, `item.c`, `map.c` |
 | [chore-005](chore-005-sanitizer-build.md) | Сборка с ASan/UBSan для локальных и CI-прогонов | `CMakeLists.txt`, `driver.sh` |
-| [chore-007](chore-007-stale-doc-facts.md) | Устаревшие утверждения в SKILL.md и architecture.md | `SKILL.md`, `architecture.md` |
 
 ## Закрытые
 
@@ -173,3 +172,4 @@
 | [bug-013](../closed_tasks/bug-013-procedural-sounds-play-double-speed.md) | Процедурные звуки играют вдвое быстрее и на октаву выше | Сделано |
 | [bug-004](../closed_tasks/bug-004-audio-init-leak.md) | `audio_init()` теряет 8 WAV-буферов при запуске | Сделано, вместе с bug-013 |
 | [chore-006](../closed_tasks/chore-006-test-coverage.md) | Измерение покрытия тестами (gcovr) | Сделано |
+| [chore-007](../closed_tasks/chore-007-stale-doc-facts.md) | Устаревшие утверждения в SKILL.md и architecture.md | Сделано |

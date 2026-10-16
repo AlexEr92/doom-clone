@@ -157,7 +157,10 @@ works; the reasoning behind decisions is in `docs/roadmap.md`, «Ключевы�
 |---|---|
 | Game builds, runs and responds | `.claude/skills/run-doom-clone/driver.sh smoke` |
 | A frame changed when it should not have | `driver.sh shot <name>` then `driver.sh diff <a> <b>` |
-| Static defects | `.claude/skills/lint/lint.sh` |
+| One module's logic | `ctest --test-dir build -R <module> --output-on-failure` |
+| A tick lands somewhere different twice | `ctest --test-dir build -R replay` |
+| Whether any test reaches a line at all | `.claude/skills/coverage/coverage.sh changed` |
+| Static defects, SDL in the simulation | `.claude/skills/lint/lint.sh` |
 | Memory errors and leaks | ASan build — see `docs/tasks/chore-005-sanitizer-build.md` |
 
 Two traps when building a loop on the game itself, both documented in
@@ -166,10 +169,16 @@ gives a different number of ticks each run, so never assert on an exact
 position after `hold`/`turn`; and only the menu and spawn frames reproduce
 across runs, so pixel comparisons belong at those points.
 
-**Phase 5 has no seam yet.** `tests/` does not exist (`docs/tasks/test-001`),
-and `weapon_try_fire` cannot be tested at all while it reads the render's
-`zBuffer` — that is exactly the "no correct seam" case the phase describes,
-and it is the finding, not a reason to skip the fix.
+**Phase 5 seams.** Everything in the simulation has one: `tests/` holds a
+`test_<module>.c` per module on Unity, each linking only its own `src/*.c`
+and stubbing the rest (`CLAUDE.md` → Tests). A bug that needs several
+modules at once — the chain the phase warns a single-caller test misses —
+has the whole tick as its seam: `world_load()` and `world_step()` driven by
+a fixed `PlayerInput` sequence, which is how `tests/replay_test.c` runs 600
+ticks without a frame. What has no seam is the render and the sound: a bug
+that only shows on screen ends at `driver.sh shot`/`diff` at a
+deterministic point, and that is the finding, not a reason to skip the
+fix.
 
 **Where a diagnosis ends up.** A bug you were asked to work stays yours to
 fix. A *different* bug you trip over during diagnosis becomes a
