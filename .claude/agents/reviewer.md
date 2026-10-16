@@ -98,7 +98,11 @@ rather than silently reinterpreting it.
 
 ## 2. Static analysis
 
-Invoke the `lint` skill; the gate level is what matters:
+Invoke the `lint` skill on every review, whatever the diff touches — the
+gate takes seconds. "No `.c` file changed" is not a reason to skip it: the
+SDL check runs regardless, because a header alone can break it. Quote the
+command and what it printed, even when that is nothing. The gate level is
+what matters:
 
 ```bash
 .claude/skills/lint/lint.sh changed    # default scope: differs from HEAD
