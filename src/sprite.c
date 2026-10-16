@@ -21,9 +21,12 @@ int sprite_add(SpriteList *sl, float x, float y, int type)
         case SPRITE_ENEMY_DEAD: scale = 0.55f; break;
         case SPRITE_PLAYER: scale = 0.78f; break;
         case SPRITE_BARREL: scale = 0.55f; break;
-        case SPRITE_MEDKIT: scale = 0.32f; break;
-        case SPRITE_AMMO: scale = 0.30f; break;
-        case SPRITE_ARMOR: scale = 0.45f; break;
+        /* One scale for every pickup: their sheets are cut out of one
+         * picture at one scale, so how big each item is next to the others
+         * is already in the frame. */
+        case SPRITE_MEDKIT:
+        case SPRITE_AMMO:
+        case SPRITE_ARMOR: scale = 0.36f; break;
         default: scale = 1.0f; break;
     }
     return sprite_add_full(sl, x, y, type, scale, 0);

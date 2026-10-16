@@ -589,6 +589,9 @@ static const SheetSlot SHEETS[] = {
         {"assets/players/marine/idle_64x64", 64, 64, offsetof(Assets, sprite_enemy)},
         {"assets/players/swat/idle_64x64", 64, 64, offsetof(Assets, sprite_enemy_serg)},
         {"assets/players/marine/death_64x64", 64, 64, offsetof(Assets, sprite_enemy_dead)},
+        {"assets/items/medkit_64x64", 64, 64, offsetof(Assets, sprite_medkit)},
+        {"assets/items/armor_64x64", 64, 64, offsetof(Assets, sprite_armor)},
+        {"assets/items/ammo_pistol_64x64", 64, 64, offsetof(Assets, sprite_ammo)},
 };
 
 static void load_sheets(Assets *a)

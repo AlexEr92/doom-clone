@@ -132,7 +132,6 @@
 | [bug-010](bug-010-sprite-squashed-when-clipped.md) | Спрайт сплющивается при обрезке верхним краем экрана | `sprite.c` |
 | [bug-011](bug-011-corpse-draws-first-death-frame.md) | Труп рисуется первым кадром листа смерти | `sprite.c` |
 | [bug-012](bug-012-corpse-sheet-ignores-enemy-type.md) | Труп сержанта рисуется скином импа | `sprite.c`, `assets.c` |
-| [feat-002](feat-002-item-pickup-sheets.md) | Графика аптечки, брони и патронов из `assets/items/` | `assets.c` |
 | [chore-001](chore-001-github-actions-ci.md) | CI на трёх платформах через GitHub Actions | `.github/workflows/` |
 | [chore-002](chore-002-dead-ternary-text-width.md) | Убрать неработающий тернарник в `text_width()` | `game.c` |
 | [chore-003](chore-003-const-correctness-lint.md) | Три параметра/переменных без `const` | `game.c`, `item.c`, `map.c` |
@@ -167,3 +166,4 @@
 | [06-05](../closed_tasks/06-05-sprites-client-side.md) | Спрайты — клиентская сущность, `SPRITE_PLAYER` | Сделано |
 | [06-06](../closed_tasks/06-06-input-per-tick.md) | Ввод на тик вместо на кадр | Сделано |
 | [bug-003](../closed_tasks/bug-003-dead-fire-pressed-field.md) | Мёртвое поле `fire_pressed` | Сделано, вместе с 06-06 |
+| [feat-002](../closed_tasks/feat-002-item-pickup-sheets.md) | Графика аптечки, брони и патронов из `assets/items/` | Сделано |
