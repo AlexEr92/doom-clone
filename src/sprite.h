@@ -21,9 +21,10 @@ typedef enum {
     SPRITE_MEDKIT,
     SPRITE_AMMO,
     SPRITE_ARMOR,
-    SPRITE_ENEMY_SERG, /* sergeant (brown) */
-    SPRITE_ENEMY_DEAD, /* corpse */
-    SPRITE_PLAYER,     /* another player, coloured by id */
+    SPRITE_ENEMY_SERG,      /* sergeant (brown) */
+    SPRITE_ENEMY_DEAD,      /* imp corpse */
+    SPRITE_ENEMY_SERG_DEAD, /* sergeant corpse */
+    SPRITE_PLAYER,          /* another player, coloured by id */
 } SpriteType;
 
 typedef struct {

@@ -132,7 +132,6 @@
 | [bug-005](bug-005-strafe-speed-fov-scaled.md) | Стрейф медленнее ходьбы в `FOV_PLANE` раз | `player.c` |
 | [bug-006](bug-006-hud-draw-int-digit-order.md) | `draw_int()` рисует цифры HUD в обратном порядке | `hud.c` |
 | [bug-008](bug-008-load-png-leaks-replaced-pixels.md) | `assets_load_png()` теряет пиксели замещаемого слота | `assets.c` |
-| [bug-012](bug-012-corpse-sheet-ignores-enemy-type.md) | Труп сержанта рисуется скином импа | `sprite.c`, `assets.c` |
 | [bug-013](bug-013-procedural-sounds-play-double-speed.md) | Процедурные звуки играют вдвое быстрее и на октаву выше | `audio.c` |
 | [bug-014](bug-014-player-hit-by-player-is-silent.md) | Попадание игрока по игроку не порождает `EV_PLAYER_HURT` | `player.c`, `weapon.c`, `enemy.c` |
 | [bug-015](bug-015-door-closes-silently.md) | Дверь, закрывающаяся сама, и дверь, передумавшая закрываться, беззвучны | `door.c`, `world.c`, `main.c` |
@@ -173,3 +172,4 @@
 | [feat-002](../closed_tasks/feat-002-item-pickup-sheets.md) | Графика аптечки, брони и патронов из `assets/items/` | Сделано |
 | [bug-010](../closed_tasks/bug-010-sprite-squashed-when-clipped.md) | Спрайт сплющивается при обрезке верхним краем экрана | Сделано |
 | [bug-011](../closed_tasks/bug-011-corpse-draws-first-death-frame.md) | Труп рисуется первым кадром листа смерти | Сделано |
+| [bug-012](../closed_tasks/bug-012-corpse-sheet-ignores-enemy-type.md) | Труп сержанта рисуется скином импа | Сделано |

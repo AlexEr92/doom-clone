@@ -28,7 +28,8 @@ typedef struct {
     Texture sprite_barrel;
     Texture sprite_enemy;
     Texture sprite_enemy_serg;
-    Texture sprite_enemy_dead;
+    Texture sprite_enemy_dead;      /* imp corpse */
+    Texture sprite_enemy_serg_dead; /* sergeant corpse */
     /* One sheet per player colour, four facings in four rows: `skin` of a
      * Sprite picks the sheet the way a skin number will in 10-04. */
     Texture sprite_player[MAX_PLAYERS];

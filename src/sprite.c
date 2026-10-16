@@ -18,7 +18,8 @@ int sprite_add(SpriteList *sl, float x, float y, int type)
     switch (type) {
         case SPRITE_ENEMY: scale = 0.72f; break;
         case SPRITE_ENEMY_SERG: scale = 0.78f; break;
-        case SPRITE_ENEMY_DEAD: scale = 0.55f; break;
+        case SPRITE_ENEMY_DEAD:
+        case SPRITE_ENEMY_SERG_DEAD: scale = 0.55f; break;
         case SPRITE_PLAYER: scale = 0.78f; break;
         case SPRITE_BARREL: scale = 0.55f; break;
         /* One scale for every pickup: their sheets are cut out of one
@@ -67,10 +68,10 @@ static int player_view(const PlayerState *p, float cam_x, float cam_y)
 
 static int enemy_sprite_type(const Enemy *e)
 {
-    if (e->state == ESTATE_DEAD) {
-        return SPRITE_ENEMY_DEAD;
+    if (e->type == ENEMY_SERG) {
+        return (e->state == ESTATE_DEAD) ? SPRITE_ENEMY_SERG_DEAD : SPRITE_ENEMY_SERG;
     }
-    return (e->type == ENEMY_SERG) ? SPRITE_ENEMY_SERG : SPRITE_ENEMY;
+    return (e->state == ESTATE_DEAD) ? SPRITE_ENEMY_DEAD : SPRITE_ENEMY;
 }
 
 /* -1 for a pickup nothing draws. */
@@ -137,6 +138,7 @@ static const Texture *sprite_texture(const Assets *a, const Sprite *sp)
         case SPRITE_ENEMY: return &a->sprite_enemy;
         case SPRITE_ENEMY_SERG: return &a->sprite_enemy_serg;
         case SPRITE_ENEMY_DEAD: return &a->sprite_enemy_dead;
+        case SPRITE_ENEMY_SERG_DEAD: return &a->sprite_enemy_serg_dead;
         case SPRITE_MEDKIT: return &a->sprite_medkit;
         case SPRITE_AMMO: return &a->sprite_ammo;
         case SPRITE_ARMOR: return &a->sprite_armor;
@@ -217,7 +219,8 @@ void sprite_render(Framebuffer *fb, const SpriteList *sl, const PlayerState *p, 
          * 10-03 puts an animation frame in Sprite. A corpse has nothing to
          * play and lies in the last frame of its death sheet. Frames sit side
          * by side in one image, so the row stride stays tex->w. */
-        int col = (sp->type == SPRITE_ENEMY_DEAD) ? tex->cols - 1 : 0;
+        int corpse = sp->type == SPRITE_ENEMY_DEAD || sp->type == SPRITE_ENEMY_SERG_DEAD;
+        int col = corpse ? tex->cols - 1 : 0;
         const uint32_t *frame = texture_frame(tex, col, sp->view);
         int texW = tex->fw;
         int texH = tex->fh;

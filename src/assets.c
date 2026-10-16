@@ -589,6 +589,7 @@ static const SheetSlot SHEETS[] = {
         {"assets/players/marine/idle_64x64", 64, 64, offsetof(Assets, sprite_enemy)},
         {"assets/players/swat/idle_64x64", 64, 64, offsetof(Assets, sprite_enemy_serg)},
         {"assets/players/marine/death_64x64", 64, 64, offsetof(Assets, sprite_enemy_dead)},
+        {"assets/players/swat/death_64x64", 64, 64, offsetof(Assets, sprite_enemy_serg_dead)},
         {"assets/items/medkit_64x64", 64, 64, offsetof(Assets, sprite_medkit)},
         {"assets/items/armor_64x64", 64, 64, offsetof(Assets, sprite_armor)},
         {"assets/items/ammo_pistol_64x64", 64, 64, offsetof(Assets, sprite_ammo)},
@@ -620,6 +621,7 @@ int assets_init(Assets *a)
     gen_enemy(&a->sprite_enemy);
     gen_enemy_serg(&a->sprite_enemy_serg);
     gen_enemy_dead(&a->sprite_enemy_dead);
+    gen_enemy_dead(&a->sprite_enemy_serg_dead);
     for (int i = 0; i < MAX_PLAYERS; i++) {
         gen_player(&a->sprite_player[i], PLAYER_COLORS[i]);
     }
@@ -632,9 +634,9 @@ int assets_init(Assets *a)
     /* Verify all sprite/wall textures allocated */
     Texture *all[] = {&a->wall_brick,        &a->wall_door,         &a->floor_tex,
                       &a->ceiling_tex,       &a->sprite_barrel,     &a->sprite_enemy,
-                      &a->sprite_enemy_serg, &a->sprite_enemy_dead, &a->sprite_medkit,
-                      &a->sprite_ammo,       &a->sprite_armor,      &a->weapon_pistol,
-                      &a->weapon_shotgun};
+                      &a->sprite_enemy_serg, &a->sprite_enemy_dead, &a->sprite_enemy_serg_dead,
+                      &a->sprite_medkit,     &a->sprite_ammo,       &a->sprite_armor,
+                      &a->weapon_pistol,     &a->weapon_shotgun};
     for (size_t i = 0; i < sizeof(all) / sizeof(all[0]); i++) {
         if (!all[i]->pixels) {
             fprintf(stderr, "assets: procedural texture %zu failed\n", i);
@@ -664,6 +666,7 @@ void assets_shutdown(Assets *a)
     texture_free(&a->sprite_enemy);
     texture_free(&a->sprite_enemy_serg);
     texture_free(&a->sprite_enemy_dead);
+    texture_free(&a->sprite_enemy_serg_dead);
     for (int i = 0; i < MAX_PLAYERS; i++) {
         texture_free(&a->sprite_player[i]);
     }
