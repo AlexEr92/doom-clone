@@ -77,8 +77,9 @@ chore-008 даёт `netdriver.sh` с `up <N>` и `net-smoke` на чистой �
       завершается с кодом 0
 - [ ] `pgrep -ax doom-clone` в `ps` до запуска и после — пуст; `pgrep -x Xvfb`
       после — пуст
-- [ ] `grep -c "disconnect" .run/server.log` (по реальному формату строки из
-      07-07) равно N после `down` и 0 в момент до него
+- [ ] `grep -c "player [0-9]* left" .run/server.log` (строка, которую
+      `--dedicated` печатает на выход игрока) равно N после `down` и 0 в
+      момент до него
 - [ ] `grep -n "netlag" .claude/skills/run-doom-clone/netdriver.sh` находит
       передачу флага клиентам и не находит в команде запуска сервера
 - [ ] `.claude/skills/run-doom-clone/netdriver.sh net-smoke` проходит как

@@ -27,12 +27,13 @@ typedef struct Client Client; /* opaque */
 /* A client that is not connected. NULL when out of memory. */
 Client *client_create(void);
 
-/* Start joining the server at `addr` (a name or a dotted address) and `port`;
- * client_poll() carries the handshake on. A client whose connection has ended
- * may connect again, as a new player. Returns 0; -1 when the client is
- * connected or connecting already, which it stays, or when the address does not
- * resolve, which leaves it CL_REJECTED with the reason. */
-int client_connect(Client *c, const char *addr, uint16_t port);
+/* Start joining the server at `addr` (a name or a dotted address) and `port`
+ * as the player `name` — what MsgJoin.name carries, cut to NET_NAME_MAX - 1
+ * bytes; NULL is no name. client_poll() carries the handshake on. A client
+ * whose connection has ended may connect again, as a new player. Returns 0; -1
+ * when the client is connected or connecting already, which it stays, or when
+ * the address does not resolve, which leaves it CL_REJECTED with the reason. */
+int client_connect(Client *c, const char *addr, uint16_t port, const char *name);
 
 /* Tell the server the client is leaving, and free it. NULL is ignored. */
 void client_destroy(Client *c);

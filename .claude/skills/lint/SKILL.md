@@ -9,11 +9,13 @@ retyped each time. Two checks make up the gate:
 - **cppcheck** over `src/*.c`;
 - **no SDL where the server needs none** — the simulation (`world.c`,
   `enemy.c`, `weapon.c`, `item.c`, `door.c`, `player.c`, `map.c`,
-  `raycast_world.c`), `net_protocol.c` and `net_server.c` pass
-  `cc -fsyntax-only -Isrc` with no SDL headers on the include path, and
-  none of them reaches a header on an SDL path (`cc -M`). For the
-  simulation this is the mechanical form of "Simulation and rendering are
-  kept apart" in `CLAUDE.md`. The files live in two arrays at the top of `lint.sh`:
+  `raycast_world.c`), `net_protocol.c`, `net_server.c`, `options.c` and
+  `session.c` pass `cc -fsyntax-only -Isrc` with no SDL headers on the
+  include path, and none of them reaches a header on an SDL path (`cc -M`).
+  Both run with `-DENABLE_MULTIPLAYER`, so the server's branches of a file
+  are the ones read. For the simulation this is the mechanical form of
+  "Simulation and rendering are kept apart" in `CLAUDE.md`. The files live
+  in two arrays at the top of `lint.sh`:
   `SIM=`, the simulation modules — a new one is added there — and
   `NOSDL=`, files outside the simulation that the dedicated server links
   all the same, such as the network protocol. Such a file goes into
@@ -48,7 +50,7 @@ Verified output on the current tree:
 
 ```
 cppcheck: чисто (all)
-без SDL: чисто (симуляция и src/net_protocol.c src/net_server.c)
+без SDL: чисто (симуляция и src/net_protocol.c src/net_server.c src/options.c src/session.c)
 ```
 
 Timings measured here: whole project 3.3s, a single file 0.03s, `sim`

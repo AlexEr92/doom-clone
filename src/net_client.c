@@ -15,12 +15,13 @@ struct Client {
     NetHost *net;
     NetPeerId server; /* NET_PEER_NONE once the connection has ended */
     ClientState state;
-    char reason[64];       /* empty while nothing has gone wrong */
-    uint32_t connect_time; /* net_time() at client_connect() */
-    int linked;            /* the transport connection is up */
-    int accepted;          /* MSG_ACCEPT came: the map is loaded, local_player set */
-    int has_world;         /* ... and a snapshot has been put into it */
-    uint32_t input_tick;   /* the number the next input goes out with */
+    char reason[64];         /* empty while nothing has gone wrong */
+    char name[NET_NAME_MAX]; /* what MSG_JOIN names the player */
+    uint32_t connect_time;   /* net_time() at client_connect() */
+    int linked;              /* the transport connection is up */
+    int accepted;            /* MSG_ACCEPT came: the map is loaded, local_player set */
+    int has_world;           /* ... and a snapshot has been put into it */
+    uint32_t input_tick;     /* the number the next input goes out with */
     ClientStats stats;
     World world;
     MsgSnapshot snapshot;
@@ -58,7 +59,7 @@ static void client_end(Client *c, const char *reason)
     snprintf(c->reason, sizeof(c->reason), "%s", reason);
 }
 
-int client_connect(Client *c, const char *addr, uint16_t port)
+int client_connect(Client *c, const char *addr, uint16_t port, const char *name)
 {
     if (c->state == CL_CONNECTING || c->state == CL_CONNECTED) {
         return -1;
@@ -70,6 +71,7 @@ int client_connect(Client *c, const char *addr, uint16_t port)
     c->server = c->net ? net_connect(c->net, addr, port) : NET_PEER_NONE;
     c->state = CL_CONNECTING;
     c->reason[0] = '\0';
+    snprintf(c->name, sizeof(c->name), "%s", name ? name : "");
     c->connect_time = net_time();
     c->linked = 0;
     c->accepted = 0;
@@ -84,13 +86,13 @@ int client_connect(Client *c, const char *addr, uint16_t port)
     return 0;
 }
 
-/* MsgJoin.name stays empty: nothing names a player yet. */
 static void client_send_join(Client *c)
 {
     MsgJoin msg;
     memset(&msg, 0, sizeof(msg));
     msg.h.type = MSG_JOIN;
     msg.proto = PROTO_VERSION;
+    memcpy(msg.name, c->name, sizeof(msg.name));
     net_send(c->net, c->server, NET_CH_RELIABLE, &msg, sizeof(msg), 1);
     c->stats.bytes_out += sizeof(msg);
 }

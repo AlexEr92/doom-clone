@@ -77,6 +77,13 @@ doom_test(item   SRC item.c)
 # которым он наносит урон.
 doom_test(weapon SRC weapon.c raycast_world.c enemy.c player.c map.c door.c)
 doom_test(input  SRC input.c)
+# Командная строка: options.c не знает ни SDL, ни других модулей. Сетевые флаги
+# он принимает только в сетевой сборке, и тест собирается с тем же макросом,
+# что и игра, — в сборке без сети он проверяет, что они отвергаются.
+doom_test(options SRC options.c)
+if(ENABLE_MULTIPLAYER)
+    target_compile_definitions(test_options PRIVATE ENABLE_MULTIPLAYER)
+endif()
 doom_test(game   SRC game.c)
 # Кадр оружия в HUD. Рисование не проверяется; weapon.c линкуется, чтобы
 # Weapon.anim затухал так же, как в тике, — с хитсканом и его зависимостями.
@@ -124,6 +131,15 @@ if(ENABLE_MULTIPLAYER)
         LINK doom_enet)
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/assets/maps)
 
+    # Режимы запуска через таблицу GameSession, как их ведёт цикл кадра: solo,
+    # host и dedicated на 127.0.0.1, клиент против сессии хоста и против
+    # подставного, который говорит на протоколе вручную. Карту пишет в тот же
+    # assets/maps/, что и test_net_client.
+    doom_test(session SRC session.c net_client.c net_server.c net_transport.c net_protocol.c
+        world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c
+        LINK doom_enet)
+    target_compile_definitions(test_session PRIVATE ENABLE_MULTIPLAYER)
+
     # ---- Ручные инструменты: tests/manual/ ----
     # Их запускают руками, и сами они не завершаются, поэтому в ctest их нет.
     # Граница проведена папкой: всё, что лежит в tests/ напрямую, гоняет
@@ -149,10 +165,6 @@ if(ENABLE_MULTIPLAYER)
     # Транспорт между двумя процессами — эхо, kill -9 клиента, частота цикла
     # с net_poll().
     doom_manual(net_echo SRC net_transport.c)
-    # Сервер отдельным процессом, для ручной игры двумя клиентами
-    # (doom-clone --connect), пока игра сама не умеет быть сервером.
-    doom_manual(net_serve SRC net_server.c net_transport.c net_protocol.c
-        world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)
     # Игроки без окна, через net_client.h: мир глазами клиента, игрок по
     # сценарию, нагрузка из нескольких игроков.
     doom_manual(net_bot SRC net_client.c net_transport.c net_protocol.c

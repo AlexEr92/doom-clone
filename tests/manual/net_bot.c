@@ -82,7 +82,8 @@ static double now_s(void)
 }
 
 /* Sleep until the next tick of a 60 Hz schedule that started at the first
- * call: each tick is due at its own multiple of the step, as in net_serve. */
+ * call: each tick is due at its own multiple of the step, as in serve() of
+ * main.c, the dedicated server. */
 static void pace(void)
 {
     static uint64_t start, ticks;
@@ -132,7 +133,7 @@ static int bot_connect(Bot *b)
         fprintf(stderr, "out of memory\n");
         return -1;
     }
-    if (client_connect(b->c, addr, port) != 0) {
+    if (client_connect(b->c, addr, port, "bot") != 0) {
         fprintf(stderr, "cannot join %s:%u: %s\n", addr, (unsigned)port, client_reason(b->c));
         return -1;
     }

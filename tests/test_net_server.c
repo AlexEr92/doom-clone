@@ -62,6 +62,7 @@ typedef struct {
     NetPeerId server; /* the number this bot knows the server by */
     int connected, gone, paused;
     int accepted, rejected;
+    int closed; /* MSG_DISCONNECT came: the server closed the game */
     MsgAccept accept;
     MsgReject reject;
     int snapshots;         /* how many came */
@@ -118,6 +119,9 @@ static void poll_bot(Bot *b)
                 TEST_ASSERT_EQUAL_size_t(sizeof(MsgReject), ev.size);
                 memcpy(&b->reject, ev.data, sizeof(b->reject));
                 b->rejected = 1;
+            } else if (type == MSG_DISCONNECT) {
+                TEST_ASSERT_EQUAL_size_t(sizeof(MsgHeader), ev.size);
+                b->closed = 1;
             } else {
                 MsgSnapshot *snap = &b->recent[b->snapshots % RECENT];
                 TEST_ASSERT_EQUAL_INT(0, snapshot_decode(snap, ev.data, ev.size));
@@ -439,6 +443,20 @@ static void test_client_that_quits_leaves_the_world(void)
     net_destroy(b->host);
     b->host = NULL;
     TICK_UNTIL(!p->active);
+}
+
+/* A server that stops says so to every player, who then knows the game was
+ * closed rather than the connection lost. A client that has not joined has no
+ * game to be told about and is only let go. */
+static void test_destroyed_server_tells_every_player_it_closed_the_game(void)
+{
+    Bot *a = bot_joined();
+    Bot *b = bot_joined();
+    Bot *idle = bot_connect();
+    server_destroy(server);
+    server = NULL;
+    POLL_UNTIL(a->closed && b->closed && idle->gone);
+    TEST_ASSERT_FALSE(idle->closed);
 }
 
 /* What kill -9 of a client looks like: silence. The player stays until the
@@ -768,6 +786,7 @@ int main(void)
     RUN_TEST(test_other_version_with_a_shorter_join_is_rejected);
     RUN_TEST(test_malformed_packets_are_ignored);
     RUN_TEST(test_client_that_quits_leaves_the_world);
+    RUN_TEST(test_destroyed_server_tells_every_player_it_closed_the_game);
     RUN_TEST(test_killed_client_leaves_within_the_timeout_and_frees_its_slot);
     RUN_TEST(test_older_input_is_ignored);
     RUN_TEST(test_lost_input_does_not_stall_the_player);

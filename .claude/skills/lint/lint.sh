@@ -25,12 +25,14 @@ SIM=(src/world.c src/enemy.c src/weapon.c src/item.c src/door.c
 # Not simulation, but linked into the dedicated server all the same, which has
 # no client headers: these must not see SDL either. Kept out of SIM= because
 # that list is where CLAUDE.md draws the simulation boundary. The check only
-# reads the source, so a file built under ENABLE_MULTIPLAYER alone fits here.
-NOSDL=(src/net_protocol.c src/net_server.c)
+# reads the source, so a file built under ENABLE_MULTIPLAYER alone fits here,
+# and it is read with that macro defined: the server's branches are the ones
+# that count.
+NOSDL=(src/net_protocol.c src/net_server.c src/options.c src/session.c)
 
 check_sim() {
     local cc="${CC:-cc}" out sdl
-    if ! out="$("$cc" -std=c11 -fsyntax-only -Isrc "${SIM[@]}" "${NOSDL[@]}" 2>&1)"; then
+    if ! out="$("$cc" -std=c11 -fsyntax-only -DENABLE_MULTIPLAYER -Isrc "${SIM[@]}" "${NOSDL[@]}" 2>&1)"; then
         printf '%s\n' "$out"
         echo "не компилируется без SDL: ${SIM[*]} ${NOSDL[*]}"
         return 1
@@ -38,7 +40,7 @@ check_sim() {
     # A clean compile is not proof: <SDL2/SDL.h> resolves through /usr/include
     # with no -I at all. List every header each file reaches and refuse any on
     # an SDL path. An -M rule opens with "<target>:" and then the source.
-    if ! sdl="$("$cc" -std=c11 -M -Isrc "${SIM[@]}" "${NOSDL[@]}" | awk '
+    if ! sdl="$("$cc" -std=c11 -M -DENABLE_MULTIPLAYER -Isrc "${SIM[@]}" "${NOSDL[@]}" | awk '
         $1 ~ /:$/ { src = $2 }
         {
             for (i = 1; i <= NF; i++) {

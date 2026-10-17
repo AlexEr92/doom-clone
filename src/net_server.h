@@ -24,7 +24,8 @@ typedef struct Server Server; /* opaque */
  * MsgAccept.map, or the port is taken. */
 Server *server_create(uint16_t port, const char *map_path);
 
-/* Tell every client the server is gone, and free it. NULL is ignored. */
+/* Tell every client the server is gone — MSG_DISCONNECT to each one in the
+ * game — and free it. NULL is ignored. */
 void server_destroy(Server *s);
 
 /* Put the player who plays at this machine into the world and return their

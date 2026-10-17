@@ -17,9 +17,11 @@ SDL в `tests/CMakeLists.txt` даны каждому тесту. Не заме�
 другая проверка.
 
 Массив `NOSDL=` в `.claude/skills/lint/lint.sh` сегодня перечисляет
-`src/net_protocol.c` и `src/net_server.c`, а комментарий над ним
-обосновывает список так: «linked into the dedicated server». `net_client.c`
-в выделенный сервер не входит, поэтому комментарий придётся переформулировать:
+`src/net_protocol.c`, `src/net_server.c`, `src/options.c` и
+`src/session.c`, а комментарий над ним обосновывает список так: «linked
+into the dedicated server». Выделенный сервер — тот же `doom-clone`, но
+`net_client.c` в режиме `--dedicated` не работает, поэтому комментарий
+придётся переформулировать:
 в списке лежат сетевые файлы вне симуляции, которым нельзя видеть SDL, —
 сервером они линкуются или нет.
 

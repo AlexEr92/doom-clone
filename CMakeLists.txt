@@ -93,6 +93,8 @@ add_executable(doom-clone
     src/door.c
     src/game.c
     src/item.c
+    src/options.c
+    src/session.c
 )
 
 # vendor/ — для stb_image.h
@@ -115,8 +117,8 @@ else()
 endif()
 
 # ENet и сетевые исходники — только в сетевой сборке. Макрос ENABLE_MULTIPLAYER
-# сообщает main.c, что флаги сетевой игры есть: без него --connect отвечает,
-# что сборка одиночная.
+# сообщает options.c, что флаги сетевой игры есть, а session.c — что есть сервер
+# и клиент: без него --host и --connect отвечают, что сборка одиночная.
 if(ENABLE_MULTIPLAYER)
     target_sources(doom-clone PRIVATE
         src/net_transport.c

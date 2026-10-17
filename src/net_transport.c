@@ -157,10 +157,19 @@ void net_destroy(NetHost *h)
         return;
     }
     release_packet(h);
-    /* Every peer ENet still holds, numbered or being let go: without this the
-     * other side would find out only by its timeout. */
+    /* What net_disconnect() left queued goes out first. A peer let go with
+     * something still queued is told by that alone: a disconnect right behind
+     * it makes ENet at the other end drop the packet unread. Every other peer
+     * ENet still holds is told the host is going: without that the other side
+     * would find out only by its timeout. */
+    enet_host_flush(h->host);
     for (size_t i = 0; i < h->host->peerCount; i++) {
-        enet_peer_disconnect_now(&h->host->peers[i], 0);
+        ENetPeer *peer = &h->host->peers[i];
+        if (peer->state == ENET_PEER_STATE_DISCONNECT_LATER) {
+            enet_peer_reset(peer);
+        } else {
+            enet_peer_disconnect_now(peer, 0);
+        }
     }
     enet_host_destroy(h->host);
     free(h);

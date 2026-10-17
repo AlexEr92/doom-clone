@@ -303,6 +303,22 @@ static void test_disconnect_delivers_what_was_queued(void)
     TEST_ASSERT_EQUAL_INT(0, s->count);
 }
 
+/* A host destroyed right after net_disconnect() still sends what was queued,
+ * and nothing behind it: ENet drops a packet that a disconnect follows into
+ * the same receive. How a server that goes away tells its clients so. */
+static void test_destroy_delivers_what_was_queued_for_a_peer_let_go(void)
+{
+    Watched *s = server();
+    Watched *c = client();
+    NetPeerId to_server = connect_to(s, c, 0);
+
+    send_text(s, 0, NET_CH_RELIABLE, "bye", 1);
+    net_disconnect(s->host, 0);
+    net_destroy(s->host);
+    s->host = NULL;
+    expect_data(c, to_server, "bye");
+}
+
 /* A client that quits says so: the server does not wait for the timeout. */
 static void test_destroying_a_client_disconnects_it_at_once(void)
 {
@@ -433,6 +449,7 @@ int main(void)
     RUN_TEST(test_send_before_connected_is_dropped);
     RUN_TEST(test_disconnect_frees_the_number);
     RUN_TEST(test_disconnect_delivers_what_was_queued);
+    RUN_TEST(test_destroy_delivers_what_was_queued_for_a_peer_let_go);
     RUN_TEST(test_destroying_a_client_disconnects_it_at_once);
     RUN_TEST(test_silent_peer_is_dropped_after_the_timeout);
     RUN_TEST(test_answering_peer_outlives_the_timeout);

@@ -10,109 +10,162 @@
 #include "audio.h"
 #include "game.h"
 #include "world.h"
+#include "options.h"
+#include "session.h"
 #include "config.h"
 #include "utils.h"
-#ifdef ENABLE_MULTIPLAYER
-#include "net_client.h"
-#endif
 #include <SDL.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-/* What the command line asks for. With no server to join the game is the
- * single-player one and opens no socket. */
+/* The player this process looks through, NULL while it has none: a client
+ * before its first snapshot, a dedicated server always. */
+static PlayerState *local_player(const GameSession *s)
+{
+    World *w = s->world(s->ctx);
+    int id = s->local_player(s->ctx);
+    return w && id >= 0 ? &w->players[id] : NULL;
+}
+
+/* ---- --host --dedicated: the server alone ---- */
+
+static volatile sig_atomic_t stop_serving;
+
+static void on_stop_signal(int sig)
+{
+    (void)sig;
+    stop_serving = 1;
+}
+
+/* One second of a dedicated server's ticks, printed when it is over. */
 typedef struct {
-    const char *connect; /* the server to join, NULL to play alone */
-    uint16_t port;
-} Options;
+    double start; /* get_time_seconds() it began at */
+    int ticks;
+    double busy, worst, late_worst; /* seconds */
+} ServerSecond;
 
-static void usage(const char *prog)
+static void server_second_print(const ServerSecond *sec, double t0, const World *w)
 {
-    fprintf(stderr,
-            "usage: %s [--connect <address> [--port <n>]]\n"
-            "  --connect <address>  join the server at <address> instead of playing alone\n"
-            "  --port <n>           the server's port, %d by default\n",
-            prog, NET_PORT_DEFAULT);
+    int players = 0;
+    for (int i = 0; i < MAX_PLAYERS; i++) {
+        players += w->players[i].active;
+    }
+    printf("%8.2f s  %d ticks, %d players, tick mean %.3f ms worst %.3f ms, "
+           "late worst %.3f ms\n",
+           sec->start + 1.0 - t0, sec->ticks, players,
+           sec->ticks ? sec->busy / sec->ticks * 1e3 : 0.0, sec->worst * 1e3,
+           sec->late_worst * 1e3);
+    fflush(stdout);
 }
 
-static int parse_options(int argc, char **argv, Options *o)
+/* No window, no sound, no graphics: a machine with no display can serve, and
+ * of assets/ only maps/ is read. The server ticks at TICK_RATE and prints
+ * every player who joins or leaves and, once a second, how many ticks that
+ * second held and what they cost — mean and worst time in a tick, and how
+ * late the latest one started (requirements.md, P4). SIGINT or SIGTERM stops
+ * it, and every client is told the game is closed. */
+static int serve(const Options *o, const char *map_path)
 {
-    o->connect = NULL;
-    o->port = NET_PORT_DEFAULT;
-    for (int i = 1; i < argc; i++) {
-        const char *arg = argv[i];
-        if (strcmp(arg, "--connect") != 0 && strcmp(arg, "--port") != 0) {
-            fprintf(stderr, "Unknown argument '%s'\n", arg);
-            return -1;
-        }
-        if (i + 1 >= argc) {
-            fprintf(stderr, "%s needs a value\n", arg);
-            return -1;
-        }
-        const char *value = argv[++i];
-        if (strcmp(arg, "--connect") == 0) {
-            o->connect = value;
-            continue;
-        }
-        char *end;
-        long port = strtol(value, &end, 10);
-        if (end == value || *end != '\0' || port < 1 || port > 65535) {
-            fprintf(stderr, "--port: '%s' is not a port number\n", value);
-            return -1;
-        }
-        o->port = (uint16_t)port;
+    /* SDL for its clock alone, which needs no display. */
+    if (SDL_Init(SDL_INIT_TIMER) != 0) {
+        fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
+        return 1;
     }
-#ifndef ENABLE_MULTIPLAYER
-    if (o->connect) {
-        fprintf(stderr, "--connect: this build has no network game (ENABLE_MULTIPLAYER=OFF)\n");
-        return -1;
+    GameSession sess;
+    if (session_open(&sess, o, map_path) != 0) {
+        SDL_Quit();
+        return 1;
     }
-#endif
+    signal(SIGINT, on_stop_signal);
+    signal(SIGTERM, on_stop_signal);
+    printf("serving %s on port %u, %d snapshots a second\n", map_path, (unsigned)o->port,
+           o->snapshot_rate);
+    fflush(stdout);
+
+    const World *w = sess.world(sess.ctx);
+    int present[MAX_PLAYERS] = {0};
+    double t0 = get_time_seconds(), start = t0;
+    ServerSecond sec = {t0, 0, 0.0, 0.0, 0.0};
+    /* Each tick is due at its own multiple of the step, so the rate does not
+     * drift; one more than a quarter second late, the schedule starts again
+     * rather than catch up in a burst. */
+    for (uint64_t ticks = 0; !stop_serving; ticks++) {
+        double due = start + (double)ticks * FIXED_DT;
+        double now = get_time_seconds();
+        if (now - due > 0.25) {
+            start = now - (double)ticks * FIXED_DT;
+            due = now;
+        }
+        /* SDL_Delay() sleeps whole milliseconds, so it is asked for the whole
+         * ones left and the last fraction is waited out here. */
+        while (now < due && !stop_serving) {
+            SDL_Delay((Uint32)((due - now) * 1000.0));
+            now = get_time_seconds();
+        }
+        double begin = get_time_seconds();
+        sess.tick(sess.ctx, NULL, FIXED_DT);
+        double took = get_time_seconds() - begin;
+
+        for (int i = 0; i < MAX_PLAYERS; i++) {
+            if (w->players[i].active != present[i]) {
+                present[i] = w->players[i].active;
+                printf("%8.2f s  player %d %s\n", get_time_seconds() - t0, i,
+                       present[i] ? "joined" : "left");
+                fflush(stdout);
+            }
+        }
+
+        if (begin - sec.start >= 1.0) {
+            server_second_print(&sec, t0, w);
+            sec = (ServerSecond){sec.start + 1.0, 0, 0.0, 0.0, 0.0};
+        }
+        sec.ticks++;
+        sec.busy += took;
+        sec.worst = took > sec.worst ? took : sec.worst;
+        double late = begin > due ? begin - due : 0.0;
+        sec.late_worst = late > sec.late_worst ? late : sec.late_worst;
+    }
+
+    sess.close(sess.ctx);
+    printf("stopped\n");
+    SDL_Quit();
     return 0;
-}
-
-#ifdef ENABLE_MULTIPLAYER
-/* Join the server, or join it again, as a new player, once the last
- * connection has ended. Says why on stderr when it cannot even start. */
-static void join(Client *c, const Options *o)
-{
-    ClientState st = client_state(c);
-    if (st == CL_CONNECTING || st == CL_CONNECTED) {
-        return;
-    }
-    if (client_connect(c, o->connect, o->port) != 0) {
-        fprintf(stderr, "Cannot join %s: %s\n", o->connect, client_reason(c));
-    }
-}
-#endif
-
-/* The player this process looks through, NULL while it has no world to look
- * at: a client before its first snapshot. */
-static PlayerState *local_player(World *w)
-{
-    return w ? &w->players[w->local_player] : NULL;
 }
 
 int main(int argc, char **argv)
 {
     Options opt;
-    if (parse_options(argc, argv, &opt) != 0) {
-        usage(argv[0]);
-        return 1;
+    int parsed = parse_options(argc, argv, &opt);
+    if (parsed != 0) {
+        options_usage(parsed < 0 ? stderr : stdout, argv[0]);
+        return parsed < 0 ? 1 : 0;
     }
 
     const char *map_path = "assets/maps/level1.txt";
+    if (opt.mode == LAUNCH_DEDICATED) {
+        return serve(&opt, map_path);
+    }
+
+    /* Before the window: a map that does not load, a port that is taken or an
+     * address that does not resolve is said on stderr with nothing opened. */
+    GameSession sess;
+    if (session_open(&sess, &opt, map_path) != 0) {
+        return 1;
+    }
 
     Engine eng;
     if (engine_init(&eng) != 0) {
         fprintf(stderr, "Engine init failed\n");
+        sess.close(sess.ctx);
         return 1;
     }
 
     Assets assets;
     if (assets_init(&assets) != 0) {
         fprintf(stderr, "Assets init failed\n");
+        sess.close(sess.ctx);
         engine_shutdown(&eng);
         return 1;
     }
@@ -128,45 +181,10 @@ int main(int argc, char **argv)
     game_init(&game, &eng);
 
     /* The world this process looks at: its own in a single-player game; in a
-     * network one the client's copy of the server's, which is not there until
-     * the first snapshot comes. */
-    World solo;
-    World *world = NULL;
-#ifdef ENABLE_MULTIPLAYER
-    Client *client = NULL;
-    if (opt.connect) {
-        client = client_create();
-        if (client) {
-            join(client, &opt);
-        }
-        if (!client || client_state(client) == CL_REJECTED) {
-            client_destroy(client);
-            assets_shutdown(&assets);
-            audio_shutdown(&audio);
-            engine_shutdown(&eng);
-            return 1;
-        }
-    }
-#endif
-    if (!opt.connect) {
-        if (world_load(&solo, map_path) != 0) {
-            fprintf(stderr,
-                    "Failed to load map '%s'. Run from the project root "
-                    "(assets are resolved relative to the working directory).\n",
-                    map_path);
-            assets_shutdown(&assets);
-            audio_shutdown(&audio);
-            engine_shutdown(&eng);
-            return 1;
-        }
-        /* A freshly loaded world has every slot free, so this cannot fail. */
-        solo.local_player = world_add_player(&solo, 0);
-        world = &solo;
-    }
-
-    /* A client always looks through a player of its own; a dedicated server has
-     * none, which is what local_player < 0 means, and renders nothing. */
-    PlayerState *me = local_player(world);
+     * network one the server's — here, or the client's copy of it, which is not
+     * there until the first snapshot comes. */
+    World *world = sess.world(sess.ctx);
+    PlayerState *me = local_player(&sess);
 
     /* The client turns from wherever its player spawned facing: the angle in
      * every input is absolute, and a zero would spin the player round on the
@@ -222,26 +240,17 @@ int main(int argc, char **argv)
             }
         }
 
-        /* Restart requested: reload a fresh world. The FSM state is already
-         * set by the event handler (GSTATE_MENU for pause/dead/win, or
-         * GSTATE_PLAYING for menu->start). A network game is the server's to
-         * restart: all the client does is join again once it has been let go. */
+        /* Restart requested: a fresh world in a game of one's own, the same one
+         * in a network game, which a client joins again if it has been let go.
+         * The FSM state is already set by the event handler (GSTATE_MENU for
+         * pause/dead/win, or GSTATE_PLAYING for menu->start). */
         if (game.restart) {
-#ifdef ENABLE_MULTIPLAYER
-            if (client) {
-                join(client, &opt);
-                world = client_world(client);
+            if (sess.restart(sess.ctx) != 0) {
+                eng.running = 0;
+                break;
             }
-#endif
-            if (!opt.connect) {
-                if (world_load(&solo, map_path) != 0) {
-                    fprintf(stderr, "Failed to reload map '%s'\n", map_path);
-                    eng.running = 0;
-                    break;
-                }
-                solo.local_player = world_add_player(&solo, 0);
-            }
-            me = local_player(world);
+            world = sess.world(sess.ctx);
+            me = local_player(&sess);
             game.restart = 0;
             input_init(&input);
             if (me) {
@@ -260,66 +269,63 @@ int main(int argc, char **argv)
             }
         }
 
-        if (game.state == GSTATE_PLAYING && me) {
+        int playing = game.state == GSTATE_PLAYING && me;
+        if (playing) {
             /* Turning is the client's own, so it follows the frame rather than
              * the tick; each tick below is handed the angle as it stands. */
             input_turn(&input, frame_time);
+        } else {
+            /* The player is in no tick in this state, so a press made in it has
+             * nowhere to go: kept, it would fire on the first tick after. */
+            input_clear_edges(&input);
+        }
+        /* A world of one's own stops with the player; one shared with others
+         * goes on, with nobody playing at this machine. */
+        if (playing || sess.shared) {
             accumulator += frame_time;
             while (accumulator >= FIXED_DT) {
-                PlayerInput pi = input_sample(&input, world->tick);
-                accumulator -= FIXED_DT;
-#ifdef ENABLE_MULTIPLAYER
-                /* The server runs the tick; the client numbers the input. Its
-                 * events come with the snapshots, and play after the poll. */
-                if (client) {
-                    client_send_input(client, &pi);
-                    continue;
+                PlayerInput pi;
+                if (playing) {
+                    pi = input_sample(&input, world->tick);
                 }
-#endif
-                world_step(world, &pi, 1, FIXED_DT);
-                audio_play_events(&audio, world);
+                accumulator -= FIXED_DT;
+                sess.tick(sess.ctx, playing ? &pi : NULL, FIXED_DT);
+                /* A remote world's events come with the snapshots, and play
+                 * after the poll. */
+                if (!sess.remote) {
+                    audio_play_events(&audio, world);
+                }
             }
+        } else {
+            accumulator = 0.0;
+        }
 
-            /* Win/Lose transitions */
+        /* Win/Lose transitions */
+        if (playing) {
             if (me->hp <= 0.0f) {
                 game.state = GSTATE_DEAD;
             } else if (enemy_all_dead(&world->enemies)) {
                 game.state = GSTATE_WIN;
             }
-        } else {
-            /* Nothing is simulated in this state, so a press made in it has no
-             * tick to go to: kept, it would fire on the first tick after. */
-            input_clear_edges(&input);
-            accumulator = 0.0;
         }
         input_end_frame(&input);
 
-#ifdef ENABLE_MULTIPLAYER
-        /* Polled in every state: the server's world goes on under the menu and
+        /* Polled in every state: a server's world goes on under the menu and
          * the pause, and a connection left unpolled times out. After the ticks,
          * so the inputs of this frame leave in it. */
-        if (client) {
-            ClientState was = client_state(client);
-            client_poll(client);
-            ClientState is = client_state(client);
-            world = client_world(client);
-            me = local_player(world);
-            if (world) {
-                audio_play_events(&audio, world);
-            }
-            if (is != was && is == CL_CONNECTED) {
-                input.angle = me->angle;
-                sprite_anim_init(&anim, &assets);
-            } else if (is != was) {
-                /* No screen says so yet: the reason goes to stderr and the
-                 * game to the menu, where Enter joins again. */
-                fprintf(stderr, "%s %s: %s\n",
-                        is == CL_REJECTED ? "Cannot join" : "Disconnected from", opt.connect,
-                        client_reason(client));
-                game.state = GSTATE_MENU;
-            }
+        SessionChange change = sess.poll(sess.ctx);
+        world = sess.world(sess.ctx);
+        me = local_player(&sess);
+        if (sess.remote && world) {
+            audio_play_events(&audio, world);
         }
-#endif
+        if (change == SESS_JOINED) {
+            input.angle = me->angle;
+            sprite_anim_init(&anim, &assets);
+        } else if (change == SESS_LOST) {
+            /* The menu, where Enter joins again. */
+            game.state = GSTATE_MENU;
+        }
 
         game_update(&game, frame_time);
 
@@ -333,7 +339,7 @@ int main(int argc, char **argv)
              * stop only the world: the last enemy shot still falls, and
              * whoever killed the player finishes the shot. A network game is
              * not paused at all: its world goes on under the overlay. */
-            int stopped = game.state == GSTATE_PAUSED && !opt.connect;
+            int stopped = game.state == GSTATE_PAUSED && !sess.shared;
             sprite_anim_update(&anim, world, stopped ? 0.0f : (float)frame_time);
             sprites_build_from_world(&sprites, world, world->local_player, &anim, &assets);
             sprite_render(&eng.fb, &sprites, me, &cam, &assets);
@@ -351,9 +357,7 @@ int main(int argc, char **argv)
         engine_present(&eng);
     }
 
-#ifdef ENABLE_MULTIPLAYER
-    client_destroy(client);
-#endif
+    sess.close(sess.ctx);
     assets_shutdown(&assets);
     audio_shutdown(&audio);
     engine_shutdown(&eng);

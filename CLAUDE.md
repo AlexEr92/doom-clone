@@ -67,10 +67,13 @@ in one process (`test_net_transport.c`), and its timeouts by moving ENet's
 clock with `enet_time_set()` rather than by waiting; the server likewise,
 against bots that speak the protocol by hand (`test_net_server.c`); the
 client against both the server and a stand-in that sends what the server
-never does (`test_net_client.c`). Everything at the top of `tests/` runs
-under CTest; `tests/manual/` holds what is run by hand — `net_echo`,
-`net_serve`, `net_bot` — built into `build/tests/` with the game so an API
-change breaks it rather than leaving it stale. `tests/README.md` describes
+never does (`test_net_client.c`); the launch modes through the
+`GameSession` table, as the frame loop drives them (`test_session.c`).
+Everything at the top of `tests/` runs under CTest; `tests/manual/` holds
+what is run by hand — `net_echo`, `net_bot` — built into `build/tests/`
+with the game so an API change breaks it rather than leaving it stale. The
+server they and the windowed clients play on is the game itself,
+`doom-clone --host --dedicated`. `tests/README.md` describes
 the layout, how to add a test, and the question each manual tool answers.
 Coverage is measured in `build-cov/` by `.claude/skills/coverage/coverage.sh`,
 whose thresholds (lines 78 %, decisions 68 %) are a ratchet that only goes
@@ -188,10 +191,16 @@ fire, use, weapon switch — are cleared by the sample that carries them, so
 a press reaches exactly one tick however many ticks the frame holds;
 `input_end_frame()` clears only what belongs to the frame. Game states
 (`GSTATE_*`) and the 3×5 bitmap font every overlay uses live in `game.c`.
-Started with `--connect <addr>`, the same loop is a network client
-(`net_client.h`): a tick sends its `PlayerInput` instead of running
-`world_step()`, and `client_poll()`, once a frame in every state, puts the
-newest snapshot into the client's own `World` as it is.
+What the fixed step runs is the launch mode's, and the loop does not branch
+on it: `session_open()` (`session.h`) hands it a `GameSession`. Alone it is
+`world_step()`; with `--host`, `server_tick()` with the local player's
+input; with `--connect <addr>` the tick sends the `PlayerInput`, and
+`poll()`, once a frame in every state, puts the newest snapshot into the
+client's own `World` as it is. A world shared with other players goes on
+ticking under the menu and the pause. `--host --dedicated` runs no frame
+loop at all: no window, no assets, no sound, SDL for its timer alone. The
+command line is `options.c`, which reaches no other module and is tested on
+its own.
 
 ### Colour packing — easy to break silently
 

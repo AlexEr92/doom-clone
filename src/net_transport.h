@@ -55,7 +55,10 @@ NetPeerId net_connect(NetHost *h, const char *addr, uint16_t port);
  * no NET_EV_DISCONNECT is reported for it: the caller already knows. */
 void net_disconnect(NetHost *h, NetPeerId peer);
 
-/* Tell every peer the host is going away, then close it. NULL is ignored. */
+/* Tell every peer the host is going away, then close it. NULL is ignored.
+ * What is queued for a peer net_disconnect() let go still leaves, and is all
+ * that peer is told: a server that goes away sends its clients a message
+ * saying so, and lets each one go. */
 void net_destroy(NetHost *h);
 
 /* Queue `size` bytes for `peer` on `channel` (NetChannel). `reliable` packets

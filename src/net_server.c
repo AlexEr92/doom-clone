@@ -97,10 +97,21 @@ Server *server_create(uint16_t port, const char *map_path)
     return s;
 }
 
+/* A client in the game is told why it ended — the server closed it rather than
+ * lost the connection; one still joining is only let go, by net_destroy(). */
 void server_destroy(Server *s)
 {
     if (!s) {
         return;
+    }
+    MsgHeader bye;
+    memset(&bye, 0, sizeof(bye));
+    bye.type = MSG_DISCONNECT;
+    for (NetPeerId peer = 0; peer < NET_MAX_PEERS; peer++) {
+        if (s->clients[peer].joined) {
+            net_send(s->net, peer, NET_CH_RELIABLE, &bye, sizeof(bye), 1);
+            net_disconnect(s->net, peer);
+        }
     }
     net_destroy(s->net);
     free(s);

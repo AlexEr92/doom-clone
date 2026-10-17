@@ -255,7 +255,7 @@ static Client *client_new(uint16_t port)
     Client *c = client_create();
     TEST_ASSERT_NOT_NULL(c);
     clients[client_count++] = c;
-    TEST_ASSERT_EQUAL_INT(0, client_connect(c, "127.0.0.1", port));
+    TEST_ASSERT_EQUAL_INT(0, client_connect(c, "127.0.0.1", port, NULL));
     TEST_ASSERT_EQUAL_INT(CL_CONNECTING, client_state(c));
     return c;
 }
@@ -349,7 +349,7 @@ static void test_second_client_plays_as_the_next_player(void)
 static void test_connect_while_connected_changes_nothing(void)
 {
     Client *c = client_joined();
-    TEST_ASSERT_EQUAL_INT(-1, client_connect(c, "127.0.0.1", TEST_PORT));
+    TEST_ASSERT_EQUAL_INT(-1, client_connect(c, "127.0.0.1", TEST_PORT, NULL));
     TEST_ASSERT_EQUAL_INT(CL_CONNECTED, client_state(c));
     TEST_ASSERT_NOT_NULL(client_world(c));
 }
@@ -471,13 +471,15 @@ static void test_eleventh_client_is_rejected_as_full(void)
 
 /* ---- losing the server ---- */
 
+/* The server says it is closing the game, and the client says so in turn
+ * rather than that the connection is lost. */
 static void test_server_that_quits_ends_the_game(void)
 {
     Client *c = client_joined();
     server_destroy(server);
     server = NULL;
     TICK_UNTIL(client_state(c) == CL_DISCONNECTED);
-    TEST_ASSERT_NOT_NULL(client_reason(c));
+    TEST_ASSERT_EQUAL_STRING("the server closed the game", client_reason(c));
     TEST_ASSERT_NOT_NULL(client_world(c));
 }
 
@@ -511,7 +513,7 @@ static void test_client_joins_again_after_the_server_comes_back(void)
 
     server = server_create(TEST_PORT, MAP_PATH);
     TEST_ASSERT_NOT_NULL(server);
-    TEST_ASSERT_EQUAL_INT(0, client_connect(c, "127.0.0.1", TEST_PORT));
+    TEST_ASSERT_EQUAL_INT(0, client_connect(c, "127.0.0.1", TEST_PORT, NULL));
     TEST_ASSERT_EQUAL_INT(CL_CONNECTING, client_state(c));
     TEST_ASSERT_NULL(client_world(c));
     TEST_ASSERT_EQUAL_INT(-1, client_local_player(c));
@@ -527,6 +529,34 @@ static void test_join_names_this_protocol_version(void)
     fake_client_joining();
     TEST_ASSERT_EQUAL_INT(MSG_JOIN, fake.join.h.type);
     TEST_ASSERT_EQUAL_INT(PROTO_VERSION, fake.join.proto);
+    TEST_ASSERT_EQUAL_STRING("", fake.join.name);
+}
+
+/* The name a client joins under reaches MsgJoin.name, cut to fit it, and the
+ * next connection carries the name it was given rather than the last one's. */
+static void test_join_carries_the_players_name(void)
+{
+    static const struct {
+        const char *name;
+        const char *sent;
+    } cases[] = {
+            {"doomguy", "doomguy"},
+            {"a_name_longer_than_fits", "a_name_longer_t"},
+            {NULL, ""},
+    };
+    fake_start();
+    Client *c = client_create();
+    TEST_ASSERT_NOT_NULL(c);
+    clients[client_count++] = c;
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        int joins = fake.joins;
+        TEST_ASSERT_EQUAL_INT(0, client_connect(c, "127.0.0.1", FAKE_PORT, cases[i].name));
+        TICK_UNTIL(fake.joins > joins);
+        TEST_ASSERT_EQUAL_STRING(cases[i].sent, fake.join.name);
+        TEST_ASSERT_EQUAL_CHAR('\0', fake.join.name[NET_NAME_MAX - 1]);
+        fake_send_reject(REJECT_SERVER_FULL);
+        TICK_UNTIL(client_state(c) == CL_REJECTED);
+    }
 }
 
 /* The client is in the game from its first snapshot, not from MSG_ACCEPT: a
@@ -656,7 +686,7 @@ static void test_address_that_does_not_resolve_is_rejected_at_once(void)
     Client *c = client_create();
     TEST_ASSERT_NOT_NULL(c);
     clients[client_count++] = c;
-    TEST_ASSERT_EQUAL_INT(-1, client_connect(c, "", TEST_PORT));
+    TEST_ASSERT_EQUAL_INT(-1, client_connect(c, "", TEST_PORT, NULL));
     TEST_ASSERT_EQUAL_INT(CL_REJECTED, client_state(c));
     TEST_ASSERT_NOT_NULL(client_reason(c));
 }
@@ -858,7 +888,7 @@ static void test_stats_count_the_payload(void)
     TICK_UNTIL(client_state(c) == CL_DISCONNECTED);
     TEST_ASSERT_EQUAL_UINT64(sizeof(MsgAccept) + first + second + sizeof(bye),
                              client_stats(c).bytes_in);
-    TEST_ASSERT_EQUAL_INT(0, client_connect(c, "127.0.0.1", FAKE_PORT));
+    TEST_ASSERT_EQUAL_INT(0, client_connect(c, "127.0.0.1", FAKE_PORT, NULL));
     st = client_stats(c);
     TEST_ASSERT_EQUAL_UINT32(0, st.snapshots);
     TEST_ASSERT_EQUAL_UINT64(0, st.bytes_in);
@@ -882,6 +912,7 @@ int main(void)
     RUN_TEST(test_killed_server_is_noticed_within_the_timeout);
     RUN_TEST(test_client_joins_again_after_the_server_comes_back);
     RUN_TEST(test_join_names_this_protocol_version);
+    RUN_TEST(test_join_carries_the_players_name);
     RUN_TEST(test_accept_alone_does_not_connect);
     RUN_TEST(test_reject_says_why);
     RUN_TEST(test_accept_naming_a_path_is_rejected);

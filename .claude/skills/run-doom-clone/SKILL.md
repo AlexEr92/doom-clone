@@ -108,18 +108,27 @@ Useless headless — it needs a real display. Must run from the project root.
 ## Network game
 
 `driver.sh` drives one single-player window. A network game needs a server
-and clients, and the tools for it live in `tests/manual/` (built into
-`build/tests/` with `ENABLE_MULTIPLAYER`, not run by CTest). Run every one
-of them from the project root — the client opens the map `MSG_ACCEPT`
-names under `assets/maps/`.
+and clients: the server is the game itself, and the bots live in
+`tests/manual/` (built into `build/tests/` with `ENABLE_MULTIPLAYER`, not
+run by CTest). Run every one of them from the project root — the server
+opens `assets/maps/level1.txt`, the client the map `MSG_ACCEPT` names under
+`assets/maps/`.
 
 ```bash
-build/tests/net_serve [--stats] [map] [port]   # the server; --stats: ticks, tick cost, lateness a second
-build/doom-clone --connect 127.0.0.1           # a client with a window
+env -u DISPLAY build/doom-clone --host --dedicated & srv=$!   # the server: no window, logs on stdout
+build/doom-clone --connect 127.0.0.1 --name p1 # a client with a window
+build/doom-clone --host                        # instead of the above: a server with a player at a window
 build/tests/net_bot look [--rate 3]            # the world as the server has it; --rate: ticks, snapshots, KB/s
 build/tests/net_bot run go 3.5 12.5 kill 1 kill 2 go 10.5 12.5 face 10.5 11 use
 build/tests/net_bot swarm 9 60                 # nine players walking and firing for 60 s
 ```
+
+`--port N` moves the server and everyone joining it off 27015 (`net_bot
+--port N …`); `--snaprate N`, 15–60, sets the server's snapshots a second.
+The dedicated server prints `serving …` on start, `player N joined` /
+`player N left` as players come and go, once a second
+`N ticks, N players, tick mean … ms worst … ms, late worst … ms` (P4), and
+`stopped` on its way out. `doom-clone --help` lists the flags.
 
 `run` steps: `go X Y`, `face X Y`, `kill N`, `use`, `fire`, `wait S`; each
 prints `done …`, a step that times out (20 s) or that the bot dies in ends
@@ -151,8 +160,15 @@ DISPLAY=:100 import -window root shot.png
 - **A bot is a real player.** It takes a slot — `look` included — and
   enemies go for it; there is no spectator. Count it in when asserting the
   number of players (`me` names it).
-- **Kill the server by name**: `pkill -INT -x net_serve` lets the clients go
-  at once, `pkill -9 -x net_serve` leaves them to notice by the 5 s timeout.
+- **Stop the server by its pid, not by name**: `kill -INT $srv` lets the
+  clients go at once — each prints `Disconnected from 127.0.0.1: the server
+  closed the game` — and `kill -9 $srv` leaves them to notice by the 5 s
+  timeout. The server is a `doom-clone` like every client, so `pkill -x
+  doom-clone` takes them all.
+- **`driver.sh` takes a running server for its game.** It finds the game
+  by process name: with a server up, `driver.sh start` reports the game
+  already running and launches nothing, and `driver.sh stop` kills the
+  server. Stop the server before `driver.sh` or `check.sh`.
 
 ## Test
 
