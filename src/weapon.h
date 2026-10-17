@@ -9,7 +9,16 @@ struct EventQueue;
 struct Map;
 struct DoorList;
 
-typedef enum { WEAPON_PISTOL = 0, WEAPON_SHOTGUN, WEAPON_COUNT } WeaponType;
+/* The order is the order of the keys 1-5 and of the weapon names in
+ * docs/assets-spec.md. */
+typedef enum {
+    WEAPON_PISTOL = 0,
+    WEAPON_SHOTGUN,
+    WEAPON_AK47,
+    WEAPON_RIFLE,
+    WEAPON_GRENADE,
+    WEAPON_COUNT
+} WeaponType;
 
 /* How long a shot shows, in seconds: a muzzle flash, whatever the weapon. It
  * is not fire_cd — a flash stretched over a slow weapon's cooldown plays in
@@ -18,7 +27,8 @@ typedef enum { WEAPON_PISTOL = 0, WEAPON_SHOTGUN, WEAPON_COUNT } WeaponType;
 
 typedef struct {
     int type;
-    int ammo; /* current ammo */
+    int owned; /* picked up: only an owned weapon can be switched to */
+    int ammo;  /* current ammo, kept per weapon whether owned or not */
     int max_ammo;
     float damage;   /* per pellet/bullet */
     int pellets;    /* 1 for pistol, >1 for shotgun */
@@ -34,10 +44,13 @@ typedef struct {
     float fire_button; /* 0/1 from input */
 } WeaponSystem;
 
-/* Called by player_init(): a WeaponSystem only ever exists inside a player. */
+/* Called by player_init(): a WeaponSystem only ever exists inside a player.
+ * The player owns the pistol alone; every other weapon is to be picked up,
+ * and comes with no ammo until then. */
 void weapon_system_init(WeaponSystem *ws);
 
-/* Switch p's weapon by index (0..WEAPON_COUNT-1). */
+/* Switch p's weapon by index (0..WEAPON_COUNT-1). A weapon p does not own is
+ * not switched to. */
 void weapon_switch(struct PlayerState *p, int idx);
 
 /* Try to fire p's current weapon. One world ray per pellet, cast from the
@@ -46,6 +59,8 @@ void weapon_switch(struct PlayerState *p, int idx);
  * `players` is the array p itself lives in, so a shot cannot hit its owner.
  * el may be NULL for a world with no enemies; evq may be NULL.
  * Also triggers the weapon animation and cooldown.
+ * The grenade launcher fires a projectile, not a ray, and there are no
+ * projectiles before task 10-07: with it in hand nothing happens at all.
  */
 void weapon_try_fire(struct PlayerState *p, const struct Map *m, const struct DoorList *dl,
                      struct PlayerState *players, int player_count, struct EnemyList *el,

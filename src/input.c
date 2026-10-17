@@ -33,6 +33,9 @@ void input_handle_event(InputState *in, SDL_Event *ev, int *running)
                     break;
                 case SDLK_1: in->switch1 = 1; break;
                 case SDLK_2: in->switch2 = 1; break;
+                case SDLK_3: in->switch3 = 1; break;
+                case SDLK_4: in->switch4 = 1; break;
+                case SDLK_5: in->switch5 = 1; break;
                 case SDLK_e: in->use = 1; break;
                 case SDLK_m: in->mute = 1; break;
                 case SDLK_p: in->pause_toggle = 1; break;
@@ -119,6 +122,15 @@ PlayerInput input_sample(InputState *in, uint32_t tick)
     if (in->switch2) {
         pi.buttons |= BTN_WEAPON2;
     }
+    if (in->switch3) {
+        pi.buttons |= BTN_WEAPON3;
+    }
+    if (in->switch4) {
+        pi.buttons |= BTN_WEAPON4;
+    }
+    if (in->switch5) {
+        pi.buttons |= BTN_WEAPON5;
+    }
     input_clear_edges(in);
     return pi;
 }
@@ -128,6 +140,9 @@ void input_clear_edges(InputState *in)
     in->fire_pressed = 0;
     in->switch1 = 0;
     in->switch2 = 0;
+    in->switch3 = 0;
+    in->switch4 = 0;
+    in->switch5 = 0;
     in->use = 0;
 }
 

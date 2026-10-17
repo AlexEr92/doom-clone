@@ -10,9 +10,10 @@
  * reads rand(), or carries state world_load() forgot to reset.
  *
  * The two runs are seeded differently on purpose: the simulation must not
- * consume rand() at all. Shotgun spread does (weapon.c), which is why the run
- * below never switches to it — that draw becomes deterministic in stage 7,
- * where the server seeds it from the value it hands out in MSG_ACCEPT.
+ * consume rand() at all. Weapon spread does (weapon.c), which is why the run
+ * below keeps to the pistol, the one weapon without it — that draw becomes
+ * deterministic in stage 7, where the server seeds it from the value it hands
+ * out in MSG_ACCEPT.
  *
  * The map is written out by the test, so it depends on neither the working
  * directory nor assets/maps/. The tick keeps no render state of its own, so
@@ -283,6 +284,38 @@ static void test_a_tick_without_input_keeps_the_facing(void)
     TEST_ASSERT_EQUAL_UINT32(1, first.tick);
 }
 
+/* Key n takes the n-th weapon, and only one the player owns: a player who has
+ * just joined has the pistol alone, and keys 2-5 leave it in hand. Two keys in
+ * one tick end on the later weapon. */
+static void test_a_weapon_key_takes_only_an_owned_weapon(void)
+{
+    static const uint16_t keys[WEAPON_COUNT] = {BTN_WEAPON1, BTN_WEAPON2, BTN_WEAPON3, BTN_WEAPON4,
+                                                BTN_WEAPON5};
+    TEST_ASSERT_EQUAL_INT(0, world_load(&first, MAP_PATH));
+    TEST_ASSERT_EQUAL_INT(0, world_add_player(&first, 0));
+    PlayerState *p = &first.players[0];
+    PlayerInput in = {0, 0, p->angle};
+
+    for (int k = 0; k < WEAPON_COUNT; k++) {
+        in.buttons = keys[k];
+        world_step(&first, &in, 1, FIXED_DT);
+        TEST_ASSERT_EQUAL_INT(WEAPON_PISTOL, p->weapons.current);
+    }
+
+    for (int k = 0; k < WEAPON_COUNT; k++) {
+        p->weapons.weapons[k].owned = 1;
+    }
+    for (int k = WEAPON_COUNT - 1; k >= 0; k--) {
+        in.buttons = keys[k];
+        world_step(&first, &in, 1, FIXED_DT);
+        TEST_ASSERT_EQUAL_INT(k, p->weapons.current);
+    }
+
+    in.buttons = BTN_WEAPON4 | BTN_WEAPON2;
+    world_step(&first, &in, 1, FIXED_DT);
+    TEST_ASSERT_EQUAL_INT(WEAPON_RIFLE, p->weapons.current);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -291,5 +324,6 @@ int main(void)
     RUN_TEST(test_the_scripted_run_exercises_the_world);
     RUN_TEST(test_a_tick_clears_the_event_queue_it_fills);
     RUN_TEST(test_a_tick_without_input_keeps_the_facing);
+    RUN_TEST(test_a_weapon_key_takes_only_an_owned_weapon);
     return UNITY_END();
 }

@@ -407,8 +407,13 @@ typedef struct {
 } SheetSlot;
 
 static const SheetSlot SHEETS[] = {
-        {"assets/weapons/pistol_fp_128x128", 128, 128, offsetof(Assets, weapon_pistol)},
-        {"assets/weapons/shotgun_fp_128x128", 128, 128, offsetof(Assets, weapon_shotgun)},
+        {"assets/weapons/pistol_fp_128x128", 128, 128, offsetof(Assets, weapon_fp[WEAPON_PISTOL])},
+        {"assets/weapons/shotgun_fp_128x128", 128, 128,
+         offsetof(Assets, weapon_fp[WEAPON_SHOTGUN])},
+        {"assets/weapons/ak47_fp_128x128", 128, 128, offsetof(Assets, weapon_fp[WEAPON_AK47])},
+        {"assets/weapons/rifle_fp_128x128", 128, 128, offsetof(Assets, weapon_fp[WEAPON_RIFLE])},
+        {"assets/weapons/grenade_launcher_fp_128x128", 128, 128,
+         offsetof(Assets, weapon_fp[WEAPON_GRENADE])},
         {"assets/items/medkit_64x64", 64, 64, offsetof(Assets, sprite_medkit)},
         {"assets/items/armor_64x64", 64, 64, offsetof(Assets, sprite_armor)},
         {"assets/items/ammo_pistol_64x64", 64, 64, offsetof(Assets, sprite_ammo)},
@@ -532,11 +537,15 @@ int assets_init(Assets *a)
     gen_medkit(&a->sprite_medkit);
     gen_ammo(&a->sprite_ammo);
     gen_armor(&a->sprite_armor);
-    gen_weapon(&a->weapon_pistol);
-    gen_weapon_shotgun(&a->weapon_shotgun);
-    /* A character has no procedural variant: a stand-in that looks like a
-     * character, or like somebody else's, would hide a missing file, and the
+    gen_weapon(&a->weapon_fp[WEAPON_PISTOL]);
+    gen_weapon_shotgun(&a->weapon_fp[WEAPON_SHOTGUN]);
+    /* A character has no procedural variant, and neither has any weapon after
+     * the first two: a stand-in that looks like a character, or like somebody
+     * else's — or like another weapon — would hide a missing file, and the
      * checker cannot be mistaken for anything. */
+    assets_gen_missing(&a->weapon_fp[WEAPON_AK47]);
+    assets_gen_missing(&a->weapon_fp[WEAPON_RIFLE]);
+    assets_gen_missing(&a->weapon_fp[WEAPON_GRENADE]);
     assets_gen_missing(&a->missing);
     for (int s = 0; s < MAX_SKINS; s++) {
         for (int k = 0; k < ANIM_COUNT; k++) {
@@ -545,12 +554,18 @@ int assets_init(Assets *a)
     }
 
     /* Verify all sprite/wall textures allocated */
-    Texture *all[] = {&a->wall_brick,    &a->wall_door,      &a->floor_tex,   &a->ceiling_tex,
-                      &a->sprite_barrel, &a->sprite_medkit,  &a->sprite_ammo, &a->sprite_armor,
-                      &a->weapon_pistol, &a->weapon_shotgun, &a->missing};
+    Texture *all[] = {&a->wall_brick,  &a->wall_door,     &a->floor_tex,
+                      &a->ceiling_tex, &a->sprite_barrel, &a->sprite_medkit,
+                      &a->sprite_ammo, &a->sprite_armor,  &a->missing};
     for (size_t i = 0; i < sizeof(all) / sizeof(all[0]); i++) {
         if (!all[i]->pixels) {
             fprintf(stderr, "assets: procedural texture %zu failed\n", i);
+            return -1;
+        }
+    }
+    for (int k = 0; k < WEAPON_COUNT; k++) {
+        if (!a->weapon_fp[k].pixels) {
+            fprintf(stderr, "assets: texture of weapon %d failed\n", k);
             return -1;
         }
     }
@@ -587,6 +602,7 @@ void assets_shutdown(Assets *a)
     texture_free(&a->sprite_medkit);
     texture_free(&a->sprite_ammo);
     texture_free(&a->sprite_armor);
-    texture_free(&a->weapon_pistol);
-    texture_free(&a->weapon_shotgun);
+    for (int k = 0; k < WEAPON_COUNT; k++) {
+        texture_free(&a->weapon_fp[k]);
+    }
 }

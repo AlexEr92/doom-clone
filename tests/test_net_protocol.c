@@ -134,8 +134,10 @@ static void test_players_arrive_where_the_server_has_them(void)
     p->angle = -1.25f;
     p->hp = 64.0f;
     p->armor = 30.0f;
-    weapon_switch(p, WEAPON_SHOTGUN);
-    p->weapons.weapons[WEAPON_SHOTGUN].ammo = 7;
+    /* the last weapon there is, picked up: the whole range goes on the wire */
+    p->weapons.weapons[WEAPON_GRENADE].owned = 1;
+    weapon_switch(p, WEAPON_GRENADE);
+    p->weapons.weapons[WEAPON_GRENADE].ammo = 7;
     server.players[1].alive = 0;
     server.players[1].hp = 0.0f;
 
@@ -155,7 +157,8 @@ static void test_players_arrive_where_the_server_has_them(void)
         TEST_ASSERT_EQUAL_INT(s->alive, c->alive);
         TEST_ASSERT_EQUAL_INT(s->weapons.current, c->weapons.current);
     }
-    TEST_ASSERT_EQUAL_INT(7, client.players[2].weapons.weapons[WEAPON_SHOTGUN].ammo);
+    TEST_ASSERT_EQUAL_INT(WEAPON_GRENADE, client.players[2].weapons.current);
+    TEST_ASSERT_EQUAL_INT(7, client.players[2].weapons.weapons[WEAPON_GRENADE].ammo);
 }
 
 /* A slot freed on the server is left out of the snapshot, and the ids of the

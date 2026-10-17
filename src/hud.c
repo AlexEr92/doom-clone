@@ -252,7 +252,7 @@ void hud_draw(Framebuffer *fb, const PlayerState *pl)
     }
     draw_int(fb, abx - 30, aby - 1, w->ammo, am_col, 1);
 
-    /* Weapon name-ish indicator: PISTOL=1, SHOTGUN=2 (two blocks lit) */
+    /* Weapon indicator: a block per weapon, key 1 rightmost, the one in hand lit */
     int wsx = SCREEN_W - 24;
     int wsy = ar_by;
     for (int i = 0; i < WEAPON_COUNT; i++) {

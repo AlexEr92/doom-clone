@@ -3,7 +3,7 @@
 ## Project
 
 A Doom-style raycaster in C11 on SDL2, about 2400 lines in `src/`: one map,
-two weapons, two enemy types, doors, pickups, procedural audio. It is being
+five weapons, two enemy types, doors, pickups, procedural audio. It is being
 turned into a networked deathmatch — see [Ongoing work](#ongoing-work).
 
 ## Commands
@@ -163,10 +163,10 @@ it again to predict, so the order inside — players, doors, enemies, items,
 weapons — is fixed, and nothing in it may read the wall clock or `rand()`.
 `tests/replay_test.c` holds the line: two runs of one input sequence from
 one `world_load()` must come out bit-identical. The one `rand()` left is
-shotgun spread in `weapon_try_fire()`, rolled on the server alone:
-`server_create()` seeds it with the seed `MSG_ACCEPT` carries
-(`docs/roadmap.md`, key decision 9), and the replay never switches to the
-shotgun. Do not add a second one.
+weapon spread in `weapon_try_fire()` — the shotgun's, the AK47's, the
+rifle's — rolled on the server alone: `server_create()` seeds it with the
+seed `MSG_ACCEPT` carries (`docs/roadmap.md`, key decision 9), and the
+replay keeps to the pistol, which has none. Do not add a second one.
 
 `src/config.h` is the single source of truth for the limits (`MAX_PLAYERS`,
 `MAX_ENEMIES`, `MAX_SPRITES`, …), the tick rate and the network constants,

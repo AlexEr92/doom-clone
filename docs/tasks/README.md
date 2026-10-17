@@ -94,7 +94,6 @@
 
 | # | Задача | Зависит от |
 |---|---|---|
-| [10-05](10-05-five-weapons.md) | Пять стволов и патроны к каждому | 10-01 |
 | [10-06](10-06-world-weapons-pickups.md) | Оружие на земле и маркеры карты | 10-05, 09-07 |
 | [10-07](10-07-grenade-launcher.md) | Гранатомёт: снаряд, полёт, взрыв | 10-05, 07-03 |
 | [10-08](10-08-status-bar-graphics.md) | Графика статус-бара | 10-05, 10-01 |
@@ -126,6 +125,7 @@
 | [bug-017](bug-017-hud-face-mouth-inverted.md) | Рот лица в статус-баре перевёрнут: хмурится при полном здоровье | `hud.c` |
 | [bug-018](bug-018-lint-changed-deleted-file.md) | `lint.sh changed` отдаёт cppcheck удалённый `src/*.c` и падает | `lint.sh`, `SKILL.md` |
 | [bug-019](bug-019-hud-weapon-freezes-mid-flash.md) | Оружие в руках замирает на кадре вспышки под оверлеем победы/смерти | `main.c`, `sprite.c`, `hud.c` |
+| [bug-021](bug-021-snapshot-lacks-weapon-ownership.md) | Снапшот не несёт `owned` и патроны стволов не в руках | `net_protocol.c/.h` |
 | [chore-001](chore-001-github-actions-ci.md) | CI на трёх платформах через GitHub Actions | `.github/workflows/` |
 | [chore-003](chore-003-const-correctness-lint.md) | Указатели без `const`, хотя только читаются | `enemy.c`, `game.c`, `player.c`, `world.c` |
 | [chore-005](chore-005-sanitizer-build.md) | Сборка с ASan/UBSan для локальных и CI-прогонов | `CMakeLists.txt`, `driver.sh` |
@@ -192,3 +192,4 @@
 | [10-04](../closed_tasks/10-04-player-skins.md) | Десять скинов игроков | Сделано: скин игрока — его `id` |
 | [07-06](../closed_tasks/07-06-audio-events.md) | Звук через сетевые события | Сделано |
 | [07-07](../closed_tasks/07-07-launch-modes.md) | Режимы запуска + headless-сборка | Сделано |
+| [10-05](../closed_tasks/10-05-five-weapons.md) | Пять стволов и патроны к каждому | Сделано |

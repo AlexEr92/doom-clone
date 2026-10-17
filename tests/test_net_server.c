@@ -566,6 +566,26 @@ static void test_press_is_not_lost_under_a_newer_input(void)
     TEST_ASSERT_EQUAL_INT(DOOR_OPENING, d->state);
 }
 
+/* The weapon keys are presses too, all five of them: keys 3-5 overtaken in
+ * the same way still switch, each to a weapon the player has picked up. */
+static void test_a_weapon_key_is_not_lost_under_a_newer_input(void)
+{
+    static const uint16_t keys[] = {BTN_WEAPON3, BTN_WEAPON4, BTN_WEAPON5};
+    Bot *b = bot_joined();
+    PlayerState *p = &server_world(server)->players[b->accept.your_id];
+    uint32_t seq = 1;
+    for (int k = 0; k < 3; k++) {
+        int weapon = WEAPON_AK47 + k;
+        p->weapons.weapons[weapon].owned = 1;
+        bot_send_input(b, seq++, keys[k], 0.0f);
+        bot_send_input(b, seq++, 0, 0.0f);
+        for (int i = 0; i < 5; i++) {
+            tick(NULL);
+        }
+        TEST_ASSERT_EQUAL_INT(weapon, p->weapons.current);
+    }
+}
+
 /* E pressed once and nothing after: the ticks that repeat the input carry no
  * second press, which would close the door again. */
 static void test_press_is_not_repeated_while_input_is_late(void)
@@ -792,6 +812,7 @@ int main(void)
     RUN_TEST(test_lost_input_does_not_stall_the_player);
     RUN_TEST(test_silent_client_stands_still_after_the_timeout);
     RUN_TEST(test_press_is_not_lost_under_a_newer_input);
+    RUN_TEST(test_a_weapon_key_is_not_lost_under_a_newer_input);
     RUN_TEST(test_press_is_not_repeated_while_input_is_late);
     RUN_TEST(test_each_client_hears_its_own_empty_click_alone);
     RUN_TEST(test_an_enemy_death_reaches_every_client_near_it);

@@ -2,6 +2,12 @@
 #include "weapon.h"
 #include <string.h>
 
+/* The button that selects each weapon: key 1 the first in WeaponType, and on. */
+static const uint16_t WEAPON_BUTTONS[WEAPON_COUNT] = {
+        [WEAPON_PISTOL] = BTN_WEAPON1, [WEAPON_SHOTGUN] = BTN_WEAPON2, [WEAPON_AK47] = BTN_WEAPON3,
+        [WEAPON_RIFLE] = BTN_WEAPON4,  [WEAPON_GRENADE] = BTN_WEAPON5,
+};
+
 int world_load(World *w, const char *map_path)
 {
     if (map_load(&w->map, map_path) != 0) {
@@ -188,11 +194,12 @@ void world_step(World *w, const PlayerInput inputs[], int count, double dt)
             continue;
         }
         uint16_t buttons = tick_input[i].buttons;
-        if (buttons & BTN_WEAPON1) {
-            weapon_switch(p, WEAPON_PISTOL);
-        }
-        if (buttons & BTN_WEAPON2) {
-            weapon_switch(p, WEAPON_SHOTGUN);
+        /* Two keys in one tick: the later weapon in the table wins, and a
+         * weapon not picked up yet is no choice at all. */
+        for (int k = 0; k < WEAPON_COUNT; k++) {
+            if (buttons & WEAPON_BUTTONS[k]) {
+                weapon_switch(p, k);
+            }
         }
         weapon_update(p, dt);
         if (buttons & BTN_FIRE) {

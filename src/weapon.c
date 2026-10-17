@@ -12,30 +12,55 @@
  * map, so a shot is stopped by geometry rather than by the cutoff. */
 #define WEAPON_RANGE 48.0f
 
+/* Balance by eye, to be tuned on the deathmatch map (task 09-05). Only the
+ * pistol is owned at the start, and only it has ammo: the rest comes with
+ * the weapon when it is picked up, or with ammo found before it. */
 void weapon_system_init(WeaponSystem *ws)
 {
     memset(ws, 0, sizeof(*ws));
     ws->weapons[WEAPON_PISTOL] = (Weapon){
             .type = WEAPON_PISTOL,
+            .owned = 1,
             .ammo = 50,
             .max_ammo = 50,
             .damage = 15.0f,
             .pellets = 1,
             .spread = 0.0f,
             .fire_cd = 0.45f,
-            .cooldown = 0.0f,
-            .anim = 0.0f,
     };
     ws->weapons[WEAPON_SHOTGUN] = (Weapon){
             .type = WEAPON_SHOTGUN,
-            .ammo = 20,
             .max_ammo = 20,
             .damage = 10.0f,
             .pellets = 7,
             .spread = 0.12f,
             .fire_cd = 0.85f,
-            .cooldown = 0.0f,
-            .anim = 0.0f,
+    };
+    /* fast and light, and it wanders */
+    ws->weapons[WEAPON_AK47] = (Weapon){
+            .type = WEAPON_AK47,
+            .max_ammo = 120,
+            .damage = 8.0f,
+            .pellets = 1,
+            .spread = 0.06f,
+            .fire_cd = 0.12f,
+    };
+    /* slow and heavy, and goes where it is aimed */
+    ws->weapons[WEAPON_RIFLE] = (Weapon){
+            .type = WEAPON_RIFLE,
+            .max_ammo = 15,
+            .damage = 60.0f,
+            .pellets = 1,
+            .spread = 0.005f,
+            .fire_cd = 1.2f,
+    };
+    ws->weapons[WEAPON_GRENADE] = (Weapon){
+            .type = WEAPON_GRENADE,
+            .max_ammo = 8,
+            .damage = 100.0f,
+            .pellets = 1,
+            .spread = 0.0f,
+            .fire_cd = 1.5f,
     };
     ws->current = WEAPON_PISTOL;
 }
@@ -43,6 +68,9 @@ void weapon_system_init(WeaponSystem *ws)
 void weapon_switch(PlayerState *p, int idx)
 {
     if (idx < 0 || idx >= WEAPON_COUNT) {
+        return;
+    }
+    if (!p->weapons.weapons[idx].owned) {
         return;
     }
     if (idx == p->weapons.current) {
@@ -72,6 +100,9 @@ void weapon_try_fire(PlayerState *p, const Map *m, const DoorList *dl, PlayerSta
 {
     WeaponSystem *ws = &p->weapons;
     Weapon *w = &ws->weapons[ws->current];
+    if (ws->current == WEAPON_GRENADE) {
+        return;
+    }
     if (w->cooldown > 0.0f) {
         return;
     }

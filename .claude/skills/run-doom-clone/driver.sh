@@ -23,7 +23,7 @@ XVFB_LOG="$RUN_DIR/xvfb.log"
 XVFB_PID="$RUN_DIR/xvfb.pid"
 
 # Movement and turn keys are read as HELD state, so one let go within a frame
-# is swallowed; fire/use/1/2 are latched until a tick takes them
+# is swallowed; fire/use/1-5 are latched until a tick takes them
 # (input_sample() in input.c). 150ms is reliably >= 1 frame for all of them.
 HOLD_MS_DEFAULT=150
 

@@ -344,10 +344,7 @@ int main(int argc, char **argv)
             sprites_build_from_world(&sprites, world, world->local_player, &anim, &assets);
             sprite_render(&eng.fb, &sprites, me, &cam, &assets);
             const WeaponSystem *ws = &me->weapons;
-            hud_draw_weapon(&eng.fb,
-                            ws->current == WEAPON_PISTOL ? &assets.weapon_pistol
-                                                         : &assets.weapon_shotgun,
-                            ws->weapons[ws->current].anim);
+            hud_draw_weapon(&eng.fb, &assets.weapon_fp[ws->current], ws->weapons[ws->current].anim);
             hud_draw(&eng.fb, me);
         } else {
             fb_clear(&eng.fb, make_color(15, 10, 20));

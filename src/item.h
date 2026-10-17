@@ -18,7 +18,7 @@ typedef struct {
     ItemType type;
     float x, y;   /* where the pickup lies, in world cells */
     float amount; /* hp/ammo/armor amount */
-    int weapon;   /* for ammo: which weapon (WEAPON_PISTOL/SHOTGUN) */
+    int weapon;   /* for ammo: which weapon (WeaponType) */
 } Item;
 
 typedef struct {

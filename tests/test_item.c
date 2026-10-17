@@ -42,6 +42,10 @@ static void give_weapons(PlayerState *p)
     p->weapons.weapons[WEAPON_SHOTGUN].type = WEAPON_SHOTGUN;
     p->weapons.weapons[WEAPON_SHOTGUN].ammo = 20;
     p->weapons.weapons[WEAPON_SHOTGUN].max_ammo = 20;
+    for (int k = WEAPON_AK47; k < WEAPON_COUNT; k++) {
+        p->weapons.weapons[k].type = k;
+        p->weapons.weapons[k].max_ammo = 30;
+    }
     p->weapons.current = WEAPON_PISTOL;
 }
 
@@ -200,6 +204,21 @@ static void test_ammo_goes_to_the_named_weapon(void)
     TEST_ASSERT_EQUAL_INT(50, P0->weapons.weapons[WEAPON_PISTOL].ammo);
 }
 
+/* Every weapon is refilled on its own: a box for each, of a different size,
+ * all picked up in one tick, and each weapon holds what its box held. */
+static void test_each_weapon_is_refilled_on_its_own(void)
+{
+    for (int k = 0; k < WEAPON_COUNT; k++) {
+        P0->weapons.weapons[k].ammo = 0;
+        place(5.0f, 5.0f, ITEM_AMMO, (float)(k + 1), k);
+    }
+
+    update();
+    for (int k = 0; k < WEAPON_COUNT; k++) {
+        TEST_ASSERT_EQUAL_INT(k + 1, P0->weapons.weapons[k].ammo);
+    }
+}
+
 static void test_ammo_caps_at_max_ammo(void)
 {
     Weapon *w = &P0->weapons.weapons[WEAPON_PISTOL];
@@ -352,6 +371,7 @@ int main(void)
     RUN_TEST(test_armor_adds_and_caps_at_100);
     RUN_TEST(test_armor_is_left_alone_when_full);
     RUN_TEST(test_ammo_goes_to_the_named_weapon);
+    RUN_TEST(test_each_weapon_is_refilled_on_its_own);
     RUN_TEST(test_ammo_caps_at_max_ammo);
     RUN_TEST(test_full_ammo_is_left_alone);
     RUN_TEST(test_ammo_for_an_unknown_weapon_is_not_picked_up);

@@ -5,6 +5,7 @@
 
 #include "config.h"
 #include "utils.h"
+#include "weapon.h"
 
 #define TEX_SIZE 64
 
@@ -43,8 +44,10 @@ typedef struct {
     Texture sprite_medkit;
     Texture sprite_ammo;
     Texture sprite_armor;
-    Texture weapon_pistol;
-    Texture weapon_shotgun;
+    /* The weapon in hand, by WeaponType. The pistol and the shotgun have a
+     * procedural variant; a weapon without one is the checker when its file
+     * is missing, never another weapon. */
+    Texture weapon_fp[WEAPON_COUNT];
 } Assets;
 
 int assets_init(Assets *a);
@@ -64,8 +67,8 @@ int assets_load_sheet(Texture *t, const char *path, int fw, int fh);
  * Returns 0 on success, -1 if the name carries no such suffix. */
 int assets_parse_frame_size(const char *path, int *fw, int *fh);
 
-/* Magenta/black checker, 64x64, one frame: what an entity with no procedural
- * variant shows when its file is missing or rejected. */
+/* Magenta/black checker, 64x64, one frame: what an entity or a weapon with no
+ * procedural variant shows when its file is missing or rejected. */
 void assets_gen_missing(Texture *t);
 
 /* Read the list of skins out of <dir>/skins.txt, one name per line in skin

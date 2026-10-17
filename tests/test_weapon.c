@@ -1,5 +1,5 @@
-/* weapon.c: the weapon table, switching, per-tick cooldown/animation decay and
- * the world hitscan.
+/* weapon.c: the weapon table and who owns what in it, switching, per-tick
+ * cooldown/animation decay and the world hitscan.
  *
  * Firing no longer needs a rendered frame, so the trace it uses is linked for
  * real: raycast_world.c against a map and a door built in memory, enemy.c for
@@ -105,26 +105,79 @@ static float pistol_damage(void)
     return players[SHOOTER].weapons.weapons[WEAPON_PISTOL].damage;
 }
 
-static void test_weapon_system_init_fills_both_weapons(void)
+/* What picking a weapon up will do (task 10-06): own it, with a full load. */
+static void give(PlayerState *p, int weapon)
 {
-    const Weapon *pistol = &players[SHOOTER].weapons.weapons[WEAPON_PISTOL];
-    const Weapon *shotgun = &players[SHOOTER].weapons.weapons[WEAPON_SHOTGUN];
+    Weapon *w = &p->weapons.weapons[weapon];
+    w->owned = 1;
+    w->ammo = w->max_ammo;
+}
 
-    TEST_ASSERT_EQUAL_INT(WEAPON_PISTOL, pistol->type);
-    TEST_ASSERT_EQUAL_INT(50, pistol->ammo);
+/* Every weapon but the grenade launcher, which fires nothing before 10-07. */
+static int is_hitscan(int weapon)
+{
+    return weapon != WEAPON_GRENADE;
+}
+
+static void test_weapon_system_init_fills_every_weapon(void)
+{
+    const Weapon *ws = players[SHOOTER].weapons.weapons;
+    const Weapon *pistol = &ws[WEAPON_PISTOL];
+    const Weapon *shotgun = &ws[WEAPON_SHOTGUN];
+    const Weapon *ak47 = &ws[WEAPON_AK47];
+    const Weapon *rifle = &ws[WEAPON_RIFLE];
+    const Weapon *grenade = &ws[WEAPON_GRENADE];
+
+    for (int i = 0; i < WEAPON_COUNT; i++) {
+        TEST_ASSERT_EQUAL_INT(i, ws[i].type);
+        TEST_ASSERT_TRUE(ws[i].max_ammo > 0);
+        TEST_ASSERT_TRUE(ws[i].damage > 0.0f);
+        TEST_ASSERT_TRUE(ws[i].pellets >= 1);
+        TEST_ASSERT_TRUE(ws[i].fire_cd > 0.0f);
+    }
+
     TEST_ASSERT_EQUAL_INT(50, pistol->max_ammo);
     TEST_ASSERT_EQUAL_INT(1, pistol->pellets);
     TEST_ASSERT_EQUAL_FLOAT(0.0f, pistol->spread);
 
-    TEST_ASSERT_EQUAL_INT(WEAPON_SHOTGUN, shotgun->type);
-    TEST_ASSERT_EQUAL_INT(20, shotgun->ammo);
     TEST_ASSERT_EQUAL_INT(20, shotgun->max_ammo);
     TEST_ASSERT_TRUE(shotgun->pellets > 1);
     TEST_ASSERT_TRUE(shotgun->spread > 0.0f);
-
     /* the shotgun trades rate of fire for a heavier volley */
     TEST_ASSERT_TRUE(shotgun->fire_cd > pistol->fire_cd);
     TEST_ASSERT_TRUE(shotgun->damage * shotgun->pellets > pistol->damage);
+
+    /* the automatic: fast, light, and it wanders */
+    TEST_ASSERT_TRUE(ak47->fire_cd < pistol->fire_cd);
+    TEST_ASSERT_TRUE(ak47->damage < pistol->damage);
+    TEST_ASSERT_TRUE(ak47->spread > 0.0f);
+
+    /* the rifle: slow, heavy, and next to no spread */
+    TEST_ASSERT_TRUE(rifle->fire_cd > pistol->fire_cd);
+    TEST_ASSERT_TRUE(rifle->damage > pistol->damage);
+    TEST_ASSERT_TRUE(rifle->spread < ak47->spread);
+
+    /* the grenade launcher: the slowest of all, and the fewest rounds */
+    for (int i = 0; i < WEAPON_COUNT; i++) {
+        if (i != WEAPON_GRENADE) {
+            TEST_ASSERT_TRUE(grenade->fire_cd > ws[i].fire_cd);
+            TEST_ASSERT_TRUE(grenade->max_ammo < ws[i].max_ammo);
+        }
+    }
+}
+
+/* A deathmatch starts with the pistol, loaded; the rest is on the map. */
+static void test_weapon_system_init_owns_the_pistol_alone(void)
+{
+    const Weapon *ws = players[SHOOTER].weapons.weapons;
+    TEST_ASSERT_EQUAL_INT(1, ws[WEAPON_PISTOL].owned);
+    TEST_ASSERT_EQUAL_INT(ws[WEAPON_PISTOL].max_ammo, ws[WEAPON_PISTOL].ammo);
+    for (int i = 0; i < WEAPON_COUNT; i++) {
+        if (i != WEAPON_PISTOL) {
+            TEST_ASSERT_EQUAL_INT(0, ws[i].owned);
+            TEST_ASSERT_EQUAL_INT(0, ws[i].ammo);
+        }
+    }
 }
 
 static void test_weapon_system_init_starts_ready_with_the_pistol(void)
@@ -139,11 +192,28 @@ static void test_weapon_system_init_starts_ready_with_the_pistol(void)
 
 static void test_weapon_switch_selects_by_index(void)
 {
-    weapon_switch(&players[SHOOTER], WEAPON_SHOTGUN);
-    TEST_ASSERT_EQUAL_INT(WEAPON_SHOTGUN, players[SHOOTER].weapons.current);
+    for (int i = 0; i < WEAPON_COUNT; i++) {
+        give(&players[SHOOTER], i);
+    }
+    for (int i = WEAPON_COUNT - 1; i >= 0; i--) {
+        weapon_switch(&players[SHOOTER], i);
+        TEST_ASSERT_EQUAL_INT(i, players[SHOOTER].weapons.current);
+    }
+}
 
-    weapon_switch(&players[SHOOTER], WEAPON_PISTOL);
-    TEST_ASSERT_EQUAL_INT(WEAPON_PISTOL, players[SHOOTER].weapons.current);
+/* A weapon not picked up is no choice: the one in hand stays. */
+static void test_weapon_switch_refuses_a_weapon_not_owned(void)
+{
+    for (int i = 0; i < WEAPON_COUNT; i++) {
+        weapon_switch(&players[SHOOTER], i);
+        TEST_ASSERT_EQUAL_INT(WEAPON_PISTOL, players[SHOOTER].weapons.current);
+    }
+
+    give(&players[SHOOTER], WEAPON_RIFLE);
+    weapon_switch(&players[SHOOTER], WEAPON_RIFLE);
+    TEST_ASSERT_EQUAL_INT(WEAPON_RIFLE, players[SHOOTER].weapons.current);
+    weapon_switch(&players[SHOOTER], WEAPON_AK47);
+    TEST_ASSERT_EQUAL_INT(WEAPON_RIFLE, players[SHOOTER].weapons.current);
 }
 
 static void test_weapon_switch_ignores_an_index_outside_the_table(void)
@@ -178,7 +248,7 @@ static void test_weapon_update_runs_down_the_cooldown(void)
     TEST_ASSERT_TRUE(w->cooldown <= 0.0f);
 }
 
-/* Both weapons cool down, not just the one in hand. */
+/* Every weapon cools down, not just the one in hand. */
 static void test_weapon_update_ticks_every_weapon(void)
 {
     for (int i = 0; i < WEAPON_COUNT; i++) {
@@ -218,7 +288,11 @@ static void test_weapon_update_decays_the_animation_to_zero(void)
 static void test_shot_animation_is_the_same_for_every_weapon(void)
 {
     for (int i = 0; i < WEAPON_COUNT; i++) {
+        if (!is_hitscan(i)) {
+            continue;
+        }
         player_init(&players[SHOOTER], 2, 2);
+        give(&players[SHOOTER], i);
         weapon_switch(&players[SHOOTER], i);
         aim(&players[SHOOTER], 2.5f, 2.5f, 0.0f);
         fire();
@@ -239,11 +313,13 @@ static void test_shot_animation_is_the_same_for_every_weapon(void)
 /* Ammo, cooldowns and selection are per player, not global. */
 static void test_two_players_keep_separate_weapon_state(void)
 {
+    give(&players[VICTIM], WEAPON_SHOTGUN);
     weapon_switch(&players[VICTIM], WEAPON_SHOTGUN);
     players[VICTIM].weapons.weapons[WEAPON_PISTOL].ammo = 3;
 
     TEST_ASSERT_EQUAL_INT(WEAPON_PISTOL, players[SHOOTER].weapons.current);
     TEST_ASSERT_EQUAL_INT(50, players[SHOOTER].weapons.weapons[WEAPON_PISTOL].ammo);
+    TEST_ASSERT_EQUAL_INT(0, players[SHOOTER].weapons.weapons[WEAPON_SHOTGUN].owned);
     TEST_ASSERT_EQUAL_INT(WEAPON_SHOTGUN, players[VICTIM].weapons.current);
     TEST_ASSERT_EQUAL_INT(3, players[VICTIM].weapons.weapons[WEAPON_PISTOL].ammo);
 }
@@ -278,6 +354,7 @@ static int count_events(GameEventKind kind)
 static void test_a_point_blank_blast_is_one_shot_and_one_pain(void)
 {
     aim(&players[SHOOTER], 2.5f, 2.5f, 0.0f);
+    give(&players[SHOOTER], WEAPON_SHOTGUN);
     weapon_switch(&players[SHOOTER], WEAPON_SHOTGUN);
     const Weapon *w = &players[SHOOTER].weapons.weapons[WEAPON_SHOTGUN];
     int e = add_enemy(3.5f, 2.5f);
@@ -301,6 +378,7 @@ static void test_ten_blasts_in_one_tick_fit_the_queue(void)
         player_init(p, 2, 1 + i);
         p->id = (uint8_t)i;
         p->angle = 0.0f;
+        give(p, WEAPON_SHOTGUN);
         weapon_switch(p, WEAPON_SHOTGUN);
         int e = add_enemy(3.5f, p->y);
         enemies.items[e].hp = 1000.0f;
@@ -313,6 +391,77 @@ static void test_ten_blasts_in_one_tick_fit_the_queue(void)
     TEST_ASSERT_EQUAL_INT(MAX_PLAYERS, count_events(EV_SHOT));
     TEST_ASSERT_EQUAL_INT(MAX_PLAYERS, count_events(EV_ENEMY_HURT));
     TEST_ASSERT_EQUAL_INT(2 * MAX_PLAYERS, events.count);
+}
+
+/* Every weapon that fires a ray hurts what it hits at point-blank, where
+ * spread cannot carry a pellet off the target, by its damage per pellet. */
+static void test_every_hitscan_weapon_damages_what_it_hits(void)
+{
+    for (int i = 0; i < WEAPON_COUNT; i++) {
+        if (!is_hitscan(i)) {
+            continue;
+        }
+        enemy_list_init(&enemies);
+        player_init(&players[SHOOTER], 2, 2);
+        give(&players[SHOOTER], i);
+        weapon_switch(&players[SHOOTER], i);
+        aim(&players[SHOOTER], 2.5f, 2.5f, 0.0f);
+        int e = add_enemy(3.5f, 2.5f);
+        enemies.items[e].hp = 1000.0f;
+        const Weapon *w = &players[SHOOTER].weapons.weapons[i];
+
+        fire();
+
+        TEST_ASSERT_FLOAT_WITHIN(1e-3f, 1000.0f - w->damage * (float)w->pellets,
+                                 enemies.items[e].hp);
+    }
+}
+
+/* Each weapon spends its own rounds: a shot from one leaves the rest alone. */
+static void test_each_weapon_spends_its_own_ammo(void)
+{
+    PlayerState *p = &players[SHOOTER];
+    for (int i = 0; i < WEAPON_COUNT; i++) {
+        give(p, i);
+    }
+    aim(p, 2.5f, 2.5f, 0.0f);
+    for (int i = 0; i < WEAPON_COUNT; i++) {
+        if (!is_hitscan(i)) {
+            continue;
+        }
+        weapon_switch(p, i);
+        fire();
+        for (int k = 0; k < WEAPON_COUNT; k++) {
+            const Weapon *w = &p->weapons.weapons[k];
+            int fired = is_hitscan(k) && k <= i;
+            TEST_ASSERT_EQUAL_INT(w->max_ammo - fired, w->ammo);
+        }
+    }
+}
+
+/* The grenade launcher is there to be selected and seen; its projectile is
+ * task 10-07. Until then the trigger does nothing: no round, no cooldown, no
+ * flash, no sound, no damage — not even the click of an empty weapon. */
+static void test_the_grenade_launcher_fires_nothing_yet(void)
+{
+    PlayerState *p = &players[SHOOTER];
+    give(p, WEAPON_GRENADE);
+    weapon_switch(p, WEAPON_GRENADE);
+    TEST_ASSERT_EQUAL_INT(WEAPON_GRENADE, p->weapons.current);
+    aim(p, 2.5f, 2.5f, 0.0f);
+    int e = add_enemy(3.5f, 2.5f);
+    const Weapon *w = &p->weapons.weapons[WEAPON_GRENADE];
+
+    fire();
+    TEST_ASSERT_EQUAL_INT(w->max_ammo, w->ammo);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, w->cooldown);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, w->anim);
+    TEST_ASSERT_EQUAL_INT(0, events.count);
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, imp_max_hp(), enemies.items[e].hp);
+
+    p->weapons.weapons[WEAPON_GRENADE].ammo = 0;
+    fire();
+    TEST_ASSERT_EQUAL_INT(0, events.count);
 }
 
 static void test_a_shot_does_not_go_through_a_wall(void)
@@ -454,9 +603,11 @@ static void test_a_weapon_on_cooldown_does_not_fire(void)
 int main(void)
 {
     UNITY_BEGIN();
-    RUN_TEST(test_weapon_system_init_fills_both_weapons);
+    RUN_TEST(test_weapon_system_init_fills_every_weapon);
+    RUN_TEST(test_weapon_system_init_owns_the_pistol_alone);
     RUN_TEST(test_weapon_system_init_starts_ready_with_the_pistol);
     RUN_TEST(test_weapon_switch_selects_by_index);
+    RUN_TEST(test_weapon_switch_refuses_a_weapon_not_owned);
     RUN_TEST(test_weapon_switch_ignores_an_index_outside_the_table);
     RUN_TEST(test_weapon_switch_to_the_current_weapon_is_a_no_op);
     RUN_TEST(test_weapon_update_runs_down_the_cooldown);
@@ -467,6 +618,9 @@ int main(void)
     RUN_TEST(test_a_shot_damages_an_enemy_in_the_open);
     RUN_TEST(test_a_point_blank_blast_is_one_shot_and_one_pain);
     RUN_TEST(test_ten_blasts_in_one_tick_fit_the_queue);
+    RUN_TEST(test_every_hitscan_weapon_damages_what_it_hits);
+    RUN_TEST(test_each_weapon_spends_its_own_ammo);
+    RUN_TEST(test_the_grenade_launcher_fires_nothing_yet);
     RUN_TEST(test_a_shot_does_not_go_through_a_wall);
     RUN_TEST(test_a_shot_does_not_go_through_a_closed_door);
     RUN_TEST(test_a_shot_stops_at_the_nearest_enemy);

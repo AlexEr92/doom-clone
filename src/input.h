@@ -15,8 +15,11 @@ union SDL_Event;
 #define BTN_RIGHT (1u << 3)
 #define BTN_FIRE (1u << 4)
 #define BTN_USE (1u << 5)
-#define BTN_WEAPON1 (1u << 6)
+#define BTN_WEAPON1 (1u << 6) /* keys 1-5: WeaponType in order */
 #define BTN_WEAPON2 (1u << 7)
+#define BTN_WEAPON3 (1u << 8)
+#define BTN_WEAPON4 (1u << 9)
+#define BTN_WEAPON5 (1u << 10)
 
 /* What one player did during one tick — the only thing world_step() reads.
  * InputState below is the raw SDL state a client accumulates over a frame and
@@ -40,10 +43,11 @@ typedef struct InputState {
     float angle;          /* the client's facing, radians in [-PI, PI] */
     int fire;             /* held */
     int fire_pressed;     /* tick edge: a press, even one released already */
-    int switch1, switch2; /* tick edge: weapon switch */
-    int use;              /* tick edge: door use (E) */
-    int mute;             /* frame edge: toggle mute (M) */
-    int pause_toggle;     /* frame edge: pause (P) */
+    int switch1, switch2; /* tick edge: weapon switch, keys 1-5 */
+    int switch3, switch4, switch5;
+    int use;          /* tick edge: door use (E) */
+    int mute;         /* frame edge: toggle mute (M) */
+    int pause_toggle; /* frame edge: pause (P) */
 } InputState;
 
 void input_init(InputState *in);

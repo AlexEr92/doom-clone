@@ -2,8 +2,8 @@
  *
  * The generators need no test — a framebuffer is what would show them wrong.
  * What is checked here is the contract between a file name and the code that
- * asks for it, the four ways a file can be refused, and how the list of skins
- * turns into skin numbers.
+ * asks for it, the four ways a file can be refused, how the list of skins
+ * turns into skin numbers, and which weapon each sheet goes to.
  *
  * PNGs are written by the test itself rather than kept as fixtures: the
  * suffix is part of the name, so a case needs a file named for it, and CTest
@@ -376,6 +376,66 @@ static void test_skin_list_stops_at_max_skins(void)
     remove_dir(SKIN_DIR);
 }
 
+/* ---- Weapons in hand ---- */
+
+/* The file of each weapon, under the names docs/assets-spec.md gives them. */
+static const char *const WEAPON_SHEETS[WEAPON_COUNT] = {
+        [WEAPON_PISTOL] = "assets/weapons/pistol_fp_128x128.png",
+        [WEAPON_SHOTGUN] = "assets/weapons/shotgun_fp_128x128.png",
+        [WEAPON_AK47] = "assets/weapons/ak47_fp_128x128.png",
+        [WEAPON_RIFLE] = "assets/weapons/rifle_fp_128x128.png",
+        [WEAPON_GRENADE] = "assets/weapons/grenade_launcher_fp_128x128.png",
+};
+
+/* With no files the pistol and the shotgun are drawn by their generators, and
+ * every other weapon as the checker — not as one of those two. */
+static void test_without_files_a_weapon_with_no_generator_is_the_checker(void)
+{
+    TEST_ASSERT_EQUAL_INT(0, assets_init(&assets));
+    const Texture *pistol = &assets.weapon_fp[WEAPON_PISTOL];
+    const Texture *shotgun = &assets.weapon_fp[WEAPON_SHOTGUN];
+    TEST_ASSERT_EQUAL_INT(128, pistol->fh);
+    TEST_ASSERT_EQUAL_INT(128, shotgun->fh);
+    TEST_ASSERT_NOT_EQUAL(0, memcmp(pistol->pixels, shotgun->pixels,
+                                    (size_t)pistol->w * pistol->h * sizeof(uint32_t)));
+    assert_checker(&assets.weapon_fp[WEAPON_AK47]);
+    assert_checker(&assets.weapon_fp[WEAPON_RIFLE]);
+    assert_checker(&assets.weapon_fp[WEAPON_GRENADE]);
+    assets_shutdown(&assets);
+}
+
+/* Each weapon takes the sheet named for it and no other: the five sheets are
+ * one to five frames long, and the length shows which went where. They go into
+ * an assets/weapons/ of the test's own, so the test stands aside where there
+ * already is one — next to the real files, it would overwrite and delete them.
+ * assets/ itself is left behind: other suites keep their maps in it. */
+static void test_each_weapon_takes_the_sheet_named_for_it(void)
+{
+    make_dir("assets");
+    if (make_dir("assets/weapons") != 0) {
+        TEST_IGNORE_MESSAGE("assets/weapons/ is already here: not writing sheets into it");
+    }
+    for (int k = 0; k < WEAPON_COUNT; k++) {
+        TEST_ASSERT_EQUAL_INT(0, write_sheet(WEAPON_SHEETS[k], 128 * (k + 1), 128));
+    }
+
+    int rc = assets_init(&assets);
+    int cols[WEAPON_COUNT];
+    for (int k = 0; k < WEAPON_COUNT; k++) {
+        cols[k] = assets.weapon_fp[k].cols;
+    }
+    assets_shutdown(&assets);
+    for (int k = 0; k < WEAPON_COUNT; k++) {
+        remove(WEAPON_SHEETS[k]);
+    }
+    remove_dir("assets/weapons");
+
+    TEST_ASSERT_EQUAL_INT(0, rc);
+    for (int k = 0; k < WEAPON_COUNT; k++) {
+        TEST_ASSERT_EQUAL_INT(k + 1, cols[k]);
+    }
+}
+
 /* ---- Single-frame textures ---- */
 
 static void test_texture_alloc_declares_one_frame(void)
@@ -404,6 +464,8 @@ int main(void)
     RUN_TEST(test_without_the_skin_list_every_character_is_the_checker);
     RUN_TEST(test_skins_are_numbered_by_their_line);
     RUN_TEST(test_skin_list_stops_at_max_skins);
+    RUN_TEST(test_without_files_a_weapon_with_no_generator_is_the_checker);
+    RUN_TEST(test_each_weapon_takes_the_sheet_named_for_it);
     RUN_TEST(test_texture_alloc_declares_one_frame);
     return UNITY_END();
 }

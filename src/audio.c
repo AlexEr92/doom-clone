@@ -258,6 +258,23 @@ void audio_play_volume(Audio *a, SoundId id, float vol)
     Mix_PlayChannel(ch, c, 0);
 }
 
+/* What each weapon sounds like when it fires. The three after the shotgun
+ * borrow a sound until they get their own (task 10-10). One case a weapon and
+ * no default: a weapon added to WeaponType without a sound here is a -Wswitch
+ * warning rather than quietly another weapon's sound. */
+static SoundId shot_sound(WeaponType type)
+{
+    switch (type) {
+        case WEAPON_PISTOL: return SND_PISTOL;
+        case WEAPON_SHOTGUN: return SND_SHOTGUN;
+        case WEAPON_AK47: return SND_PISTOL;
+        case WEAPON_RIFLE: return SND_SHOTGUN;
+        case WEAPON_GRENADE: return SND_SHOTGUN;
+        case WEAPON_COUNT: break;
+    }
+    return SND_PISTOL;
+}
+
 float audio_event_sound(const World *w, const GameEvent *e, SoundId *id)
 {
     if (w->local_player < 0) {
@@ -273,7 +290,7 @@ float audio_event_sound(const World *w, const GameEvent *e, SoundId *id)
             if (e->actor < w->player_count) {
                 type = w->players[e->actor].weapons.current;
             }
-            snd = type == WEAPON_PISTOL ? SND_PISTOL : SND_SHOTGUN;
+            snd = shot_sound((WeaponType)type);
             level = 0.5f;
             break;
         }

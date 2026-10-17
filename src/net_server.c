@@ -17,7 +17,8 @@
  * to exactly one tick (input_sample()), and the server keeps it that way: a
  * press is never lost under a newer input that came in the same tick, nor
  * repeated when no input comes. */
-#define BTN_ONCE (BTN_FIRE | BTN_USE | BTN_WEAPON1 | BTN_WEAPON2)
+#define BTN_ONCE                                                                                   \
+    (BTN_FIRE | BTN_USE | BTN_WEAPON1 | BTN_WEAPON2 | BTN_WEAPON3 | BTN_WEAPON4 | BTN_WEAPON5)
 
 /* Buttons that are held, and so still held while an input is late. The trigger
  * is both: a click fires once, a held trigger keeps firing. */

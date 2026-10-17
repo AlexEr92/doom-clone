@@ -143,7 +143,7 @@ code and report whether it still holds:
 - **The tick is deterministic.** Nothing reached from `world_step()` reads
   the wall clock or `rand()`:
   `grep -nE '\b(rand|srand|time|clock|SDL_GetTicks)\s*\(' <simulation files>`.
-  The one known `rand()` is shotgun spread in `weapon_try_fire()`, which
+  The one known `rand()` is weapon spread in `weapon_try_fire()`, which
   stage 7 seeds from `MSG_ACCEPT` (`docs/roadmap.md`, key decision 9); any
   other is a finding. The grep sees the simulation files only: when the
   diff adds a call inside the tick, open the callee with `LSP`

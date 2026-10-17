@@ -182,17 +182,27 @@ static void test_tick_edges_outlive_a_frame_with_no_tick(void)
 {
     press(SDLK_1);
     press(SDLK_2);
+    press(SDLK_3);
+    press(SDLK_4);
+    press(SDLK_5);
     press(SDLK_e);
     press(SDLK_SPACE);
     release(SDLK_SPACE);
     input_end_frame(&in);
     TEST_ASSERT_EQUAL_INT(1, in.switch1);
     TEST_ASSERT_EQUAL_INT(1, in.switch2);
+    TEST_ASSERT_EQUAL_INT(1, in.switch3);
+    TEST_ASSERT_EQUAL_INT(1, in.switch4);
+    TEST_ASSERT_EQUAL_INT(1, in.switch5);
     TEST_ASSERT_EQUAL_INT(1, in.use);
     TEST_ASSERT_EQUAL_INT(1, in.fire_pressed);
 
     PlayerInput pi = input_sample(&in, 0);
-    TEST_ASSERT_EQUAL_HEX16(BTN_WEAPON1 | BTN_WEAPON2 | BTN_USE | BTN_FIRE, pi.buttons);
+    TEST_ASSERT_EQUAL_HEX16(BTN_WEAPON1 | BTN_WEAPON2 | BTN_WEAPON3 | BTN_WEAPON4 | BTN_WEAPON5 |
+                                    BTN_USE | BTN_FIRE,
+                            pi.buttons);
+    pi = input_sample(&in, 1);
+    TEST_ASSERT_EQUAL_HEX16(0, pi.buttons);
 }
 
 /* Holding an edge key down does not need a key-up to fire again: every
@@ -246,18 +256,34 @@ static void test_the_mask_is_built_from_the_keys(void)
     press(SDLK_e);
     press(SDLK_1);
     press(SDLK_2);
+    press(SDLK_3);
+    press(SDLK_4);
+    press(SDLK_5);
     press(SDLK_a);
     press(SDLK_d);
 
     PlayerInput pi = input_sample(&in, 0);
     TEST_ASSERT_EQUAL_HEX16(BTN_FORWARD | BTN_BACK | BTN_LEFT | BTN_RIGHT | BTN_FIRE | BTN_USE |
-                                    BTN_WEAPON1 | BTN_WEAPON2,
+                                    BTN_WEAPON1 | BTN_WEAPON2 | BTN_WEAPON3 | BTN_WEAPON4 |
+                                    BTN_WEAPON5,
                             pi.buttons);
 
     PlayerInput idle;
     input_init(&in);
     idle = input_sample(&in, 0);
     TEST_ASSERT_EQUAL_HEX16(0, idle.buttons);
+}
+
+/* Digit n selects the n-th weapon: each key sets its own bit and no other. */
+static void test_each_weapon_key_sets_its_own_bit(void)
+{
+    const SDL_Keycode keys[] = {SDLK_1, SDLK_2, SDLK_3, SDLK_4, SDLK_5};
+    const uint16_t bits[] = {BTN_WEAPON1, BTN_WEAPON2, BTN_WEAPON3, BTN_WEAPON4, BTN_WEAPON5};
+    for (int i = 0; i < 5; i++) {
+        press(keys[i]);
+        PlayerInput pi = input_sample(&in, 0);
+        TEST_ASSERT_EQUAL_HEX16(bits[i], pi.buttons);
+    }
 }
 
 static void test_a_sample_carries_its_tick_and_the_angle(void)
@@ -327,6 +353,7 @@ static void test_cleared_edges_reach_no_tick(void)
     press(SDLK_w);
     press(SDLK_e);
     press(SDLK_2);
+    press(SDLK_5);
     press(SDLK_SPACE);
     release(SDLK_SPACE);
 
@@ -440,6 +467,7 @@ int main(void)
     RUN_TEST(test_mouse_fires_like_the_fire_key);
     RUN_TEST(test_mouse_motion_accumulates_until_end_of_frame);
     RUN_TEST(test_the_mask_is_built_from_the_keys);
+    RUN_TEST(test_each_weapon_key_sets_its_own_bit);
     RUN_TEST(test_a_sample_carries_its_tick_and_the_angle);
     RUN_TEST(test_an_edge_reaches_exactly_one_tick_of_a_frame);
     RUN_TEST(test_held_fire_reaches_every_tick);

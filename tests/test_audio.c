@@ -160,6 +160,23 @@ static void test_another_players_shot_fades_with_distance(void)
     TEST_ASSERT_EQUAL_INT(SND_COUNT, id);
 }
 
+/* Every weapon has a sound of its own entry. The three after the shotgun
+ * borrow the pistol's and the shotgun's until task 10-10 gives them theirs. */
+static void test_every_weapon_has_its_shot_sound(void)
+{
+    const SoundId expected[WEAPON_COUNT] = {
+            [WEAPON_PISTOL] = SND_PISTOL,   [WEAPON_SHOTGUN] = SND_SHOTGUN,
+            [WEAPON_AK47] = SND_PISTOL,     [WEAPON_RIFLE] = SND_SHOTGUN,
+            [WEAPON_GRENADE] = SND_SHOTGUN,
+    };
+    for (int k = 0; k < WEAPON_COUNT; k++) {
+        SoundId id;
+        world.players[ME].weapons.current = k;
+        TEST_ASSERT_EQUAL_FLOAT(0.5f, sound_of(EV_SHOT, ME, 5.0f, 5.0f, &id));
+        TEST_ASSERT_EQUAL_INT(expected[k], id);
+    }
+}
+
 static void test_another_players_pickup_and_click_are_not_heard(void)
 {
     SoundId id;
@@ -188,12 +205,16 @@ static void test_what_happens_elsewhere_fades_with_distance(void)
     }
 }
 
-/* A shooter the world does not hold sounds like the pistol, and a kind of
- * event there is no sound for is silence. */
+/* A shooter the world does not hold, or one holding no weapon there is,
+ * sounds like the pistol, and a kind of event there is no sound for is
+ * silence. */
 static void test_what_the_world_cannot_place_is_played_safely(void)
 {
     SoundId id;
     TEST_ASSERT_EQUAL_FLOAT(0.5f, sound_of(EV_SHOT, MAX_PLAYERS, 5.0f, 5.0f, &id));
+    TEST_ASSERT_EQUAL_INT(SND_PISTOL, id);
+    world.players[ME].weapons.current = WEAPON_COUNT;
+    TEST_ASSERT_EQUAL_FLOAT(0.5f, sound_of(EV_SHOT, ME, 5.0f, 5.0f, &id));
     TEST_ASSERT_EQUAL_INT(SND_PISTOL, id);
     TEST_ASSERT_EQUAL_FLOAT(0.0f, sound_of(EV_COUNT, ME, 5.0f, 5.0f, &id));
     TEST_ASSERT_EQUAL_INT(SND_COUNT, id);
@@ -318,6 +339,7 @@ int main(void)
     RUN_TEST(test_every_sound_lasts_its_synthesis_length);
     RUN_TEST(test_own_events_play_at_their_level_from_anywhere);
     RUN_TEST(test_another_players_shot_fades_with_distance);
+    RUN_TEST(test_every_weapon_has_its_shot_sound);
     RUN_TEST(test_another_players_pickup_and_click_are_not_heard);
     RUN_TEST(test_what_happens_elsewhere_fades_with_distance);
     RUN_TEST(test_what_the_world_cannot_place_is_played_safely);
