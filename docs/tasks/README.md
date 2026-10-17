@@ -139,6 +139,7 @@
 | [chore-009](chore-009-net-smoke-lag-loss.md) | `net-stress`: 4 клиента под `--netlag`/`--netloss` | `netdriver.sh` |
 | [chore-010](chore-010-sanitizers-in-review-harness.md) | Санитайзеры в `check.sh` и у тестера | `check.sh`, `tester.md`, `CLAUDE.md` |
 | [chore-013](chore-013-lint-net-client-no-sdl.md) | `lint.sh sim` не проверяет, что `net_client.c` собирается без SDL | `lint.sh`, `SKILL.md`, `harness.md` |
+| [chore-017](chore-017-record-game-audio.md) | Запись звука игры в `driver.sh` и анализатор всплесков | `driver.sh`, `SKILL.md`, `harness.md` |
 | [feat-003](feat-003-remote-shot-animation.md) | Выстрел чужого игрока и врага в снапшоте: `ANIM_SHOOT` по сети | `net_protocol.c/.h` |
 | [feat-004](feat-004-player-chooses-skin.md) | Игрок сам выбирает персонажа из свободных: экран выбора после входа | `net_protocol.h`, `net_server.c`, `game.c`, `sprite.c` |
 | [test-002](test-002-fps-with-network.md) | Замер FPS клиента с работающей сетью | `SKILL.md`, `netdriver.sh` |

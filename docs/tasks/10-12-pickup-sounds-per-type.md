@@ -102,7 +102,8 @@
 - [ ] `gcc -fsyntax-only -Isrc src/item.c` проходит без SDL
 - [ ] `ctest --test-dir build -R item --output-on-failure` проходит
 - [ ] Ручная проверка на машине со звуком: аптечка, патроны и броня на
-      слух различимы
+      слух различимы. Что каждый подбор вообще звучит, можно проверить
+      записью (`driver.sh start --record-audio`, `audio-bursts`, chore-017)
 - [ ] `cmake --build build` без предупреждений, `clang-format --dry-run
       -Werror` на тронутых файлах проходит
 - [ ] `driver.sh smoke` проходит

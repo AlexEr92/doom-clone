@@ -125,8 +125,12 @@
 - [ ] `grep -n "SND_DOOR\b" src/*.c src/*.h` ничего не находит
 - [ ] `gcc -fsyntax-only -Isrc src/door.c src/world.c` проходит без SDL
 - [ ] `ctest --test-dir build -R door --output-on-failure` проходит
-- [ ] Ручная проверка на машине со звуком: дверь открывается — звучит
-      `SND_DOOR_OPEN`, через 4 с закрывается сама — звучит `SND_DOOR_CLOSE`
+- [ ] Дверь открывается — звучит `SND_DOOR_OPEN`, через 4 с закрывается
+      сама — звучит `SND_DOOR_CLOSE`. Если chore-017 сделана — записью:
+      `driver.sh start --record-audio <файл>`, открыть дверь, подождать
+      6 с, `driver.sh audio-bursts <файл>` показывает два всплеска с
+      промежутком около 4 с; иначе на слух. Что оба звука различаются,
+      проверяется на слух на машине со звуком
 - [ ] `cmake --build build` без предупреждений, `clang-format --dry-run
       -Werror` на тронутых `src/*.c`, `src/*.h` и `tests/test_door.c`
       проходит
