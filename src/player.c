@@ -4,12 +4,6 @@
 #include "utils.h"
 #include <math.h>
 
-/* Strafing used to follow the camera plane vector directly, and that vector is
- * FOV_PLANE long rather than 1 — so sideways movement has always been that
- * much slower than forward. Almost certainly unintended, but preserved here to
- * keep this refactor free of gameplay changes. */
-#define STRAFE_SPEED (MOVE_SPEED * FOV_PLANE)
-
 void player_init(PlayerState *p, int start_x, int start_y)
 {
     p->id = 0;
@@ -96,19 +90,19 @@ void player_update(PlayerState *p, const Map *m, DoorList *dl, const PlayerInput
     p->angle = wrap_angle(in->angle);
     float ca = cosf(p->angle);
     float sa = sinf(p->angle);
-    float fwd = MOVE_SPEED * (float)dt;
-    float side = STRAFE_SPEED * (float)dt;
+    /* Sideways is as fast as forward: one speed for all four directions. */
+    float step = MOVE_SPEED * (float)dt;
 
     if (in->buttons & BTN_FORWARD) {
-        try_move(p, m, dl, players, player_count, p->x + ca * fwd, p->y + sa * fwd);
+        try_move(p, m, dl, players, player_count, p->x + ca * step, p->y + sa * step);
     }
     if (in->buttons & BTN_BACK) {
-        try_move(p, m, dl, players, player_count, p->x - ca * fwd, p->y - sa * fwd);
+        try_move(p, m, dl, players, player_count, p->x - ca * step, p->y - sa * step);
     }
     if (in->buttons & BTN_LEFT) {
-        try_move(p, m, dl, players, player_count, p->x - sa * side, p->y + ca * side);
+        try_move(p, m, dl, players, player_count, p->x - sa * step, p->y + ca * step);
     }
     if (in->buttons & BTN_RIGHT) {
-        try_move(p, m, dl, players, player_count, p->x + sa * side, p->y - ca * side);
+        try_move(p, m, dl, players, player_count, p->x + sa * step, p->y - ca * step);
     }
 }

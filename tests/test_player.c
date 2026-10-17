@@ -135,24 +135,55 @@ static void test_forward_and_back_follow_the_facing_angle(void)
     TEST_ASSERT_EQUAL_FLOAT(4.5f, player.y);
 }
 
-/* Strafing is perpendicular to the facing angle. Its speed is deliberately not
- * asserted: it is FOV-scaled today, which is bug-005. */
-static void test_strafe_moves_sideways(void)
+/* Strafing is perpendicular to the facing angle and exactly as fast as walking,
+ * either way: the speed is a movement constant, not the length of the camera
+ * plane, which is the field of view. */
+static void test_strafe_moves_sideways_as_fast_as_walking(void)
 {
     player.x = 3.5f;
     player.y = 4.5f;
-    in.angle = 0.0f; /* +X, so sideways is Y */
+    in.angle = 0.0f; /* +X, so left is +Y */
 
     in.buttons = BTN_LEFT;
     step(1);
-    TEST_ASSERT_TRUE(player.y > 4.5f);
+    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 4.5f + MOVE_SPEED * (float)TEST_STEP, player.y);
     TEST_ASSERT_EQUAL_FLOAT(3.5f, player.x);
 
-    float left_y = player.y;
     in.buttons = BTN_RIGHT;
     step(2);
-    TEST_ASSERT_TRUE(player.y < left_y);
+    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 4.5f - MOVE_SPEED * (float)TEST_STEP, player.y);
     TEST_ASSERT_EQUAL_FLOAT(3.5f, player.x);
+}
+
+/* A wall stops a sidestep exactly where it stops a step forward, on either
+ * side: from one start, walking into the south wall and strafing into it with
+ * the wall on the left or on the right all end at the same distance from it. */
+static void test_strafe_stops_at_a_wall_like_walking(void)
+{
+    player.x = 2.5f;
+    player.y = 5.5f;
+    in.angle = TEST_PI / 2.0f; /* +Y, facing the south wall */
+    in.buttons = BTN_FORWARD;
+    step(240);
+    float walked_y = player.y;
+    TEST_ASSERT_TRUE(walked_y > 6.5f);
+    TEST_ASSERT_TRUE(walked_y + PLAYER_RADIUS <= 7.0f);
+
+    player.x = 2.5f;
+    player.y = 5.5f;
+    in.angle = 0.0f; /* +X: the south wall is on the left */
+    in.buttons = BTN_LEFT;
+    step(240);
+    TEST_ASSERT_FLOAT_WITHIN(1e-5f, walked_y, player.y);
+    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 2.5f, player.x);
+
+    player.x = 2.5f;
+    player.y = 5.5f;
+    in.angle = TEST_PI; /* -X: the south wall is on the right */
+    in.buttons = BTN_RIGHT;
+    step(240);
+    TEST_ASSERT_FLOAT_WITHIN(1e-5f, walked_y, player.y);
+    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 2.5f, player.x);
 }
 
 /* The facing is the input's, taken as given, and nothing else turns the
@@ -319,7 +350,8 @@ int main(void)
     RUN_TEST(test_player_init_centres_the_player_in_the_start_cell);
     RUN_TEST(test_idle_input_does_not_move_the_player);
     RUN_TEST(test_forward_and_back_follow_the_facing_angle);
-    RUN_TEST(test_strafe_moves_sideways);
+    RUN_TEST(test_strafe_moves_sideways_as_fast_as_walking);
+    RUN_TEST(test_strafe_stops_at_a_wall_like_walking);
     RUN_TEST(test_the_player_faces_the_angle_of_the_input);
     RUN_TEST(test_angle_stays_wrapped);
     RUN_TEST(test_player_cannot_walk_into_a_wall);

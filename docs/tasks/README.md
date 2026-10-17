@@ -131,7 +131,6 @@
 
 | # | Задача | Где |
 |---|---|---|
-| [bug-005](bug-005-strafe-speed-fov-scaled.md) | Стрейф медленнее ходьбы в `FOV_PLANE` раз | `player.c` |
 | [bug-006](bug-006-hud-draw-int-digit-order.md) | `draw_int()` рисует цифры HUD в обратном порядке | `hud.c` |
 | [bug-008](bug-008-load-png-leaks-replaced-pixels.md) | `assets_load_png()` теряет пиксели замещаемого слота | `assets.c` |
 | [bug-014](bug-014-player-hit-by-player-is-silent.md) | Попадание игрока по игроку не порождает `EV_PLAYER_HURT` | `player.c`, `weapon.c`, `enemy.c` |
@@ -184,3 +183,4 @@
 | [chore-002](../closed_tasks/chore-002-dead-ternary-text-width.md) | Убрать неработающий тернарник в `text_width()` | Сделано |
 | [07-01](../closed_tasks/07-01-enet-build.md) | Подключить ENet к сборке | Сделано |
 | [07-02](../closed_tasks/07-02-net-transport.md) | `net_transport` — обёртка над ENet | Сделано |
+| [bug-005](../closed_tasks/bug-005-strafe-speed-fov-scaled.md) | Стрейф медленнее ходьбы в `FOV_PLANE` раз | Сделано |
