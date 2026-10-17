@@ -134,6 +134,7 @@
 | [bug-017](bug-017-hud-face-mouth-inverted.md) | Рот лица в статус-баре перевёрнут: хмурится при полном здоровье | `hud.c` |
 | [bug-018](bug-018-lint-changed-deleted-file.md) | `lint.sh changed` отдаёт cppcheck удалённый `src/*.c` и падает | `lint.sh`, `SKILL.md` |
 | [bug-019](bug-019-hud-weapon-freezes-mid-flash.md) | Оружие в руках замирает на кадре вспышки под оверлеем победы/смерти | `main.c`, `sprite.c`, `hud.c` |
+| [bug-020](bug-020-coverage-stale-gcno-masks-failure.md) | `coverage.sh`: устаревшие `.gcno` ломают замер, сбой gcovr выдаётся за «НИЖЕ ПОРОГА» | `coverage.sh`, `SKILL.md` |
 | [chore-001](chore-001-github-actions-ci.md) | CI на трёх платформах через GitHub Actions | `.github/workflows/` |
 | [chore-003](chore-003-const-correctness-lint.md) | Указатели без `const`, хотя только читаются | `enemy.c`, `game.c`, `player.c`, `world.c` |
 | [chore-005](chore-005-sanitizer-build.md) | Сборка с ASan/UBSan для локальных и CI-прогонов | `CMakeLists.txt`, `driver.sh` |
@@ -142,6 +143,7 @@
 | [chore-010](chore-010-sanitizers-in-review-harness.md) | Санитайзеры в `check.sh` и у тестера | `check.sh`, `tester.md`, `CLAUDE.md` |
 | [chore-013](chore-013-lint-net-client-no-sdl.md) | `lint.sh sim` не проверяет, что `net_client.c` собирается без SDL | `lint.sh`, `SKILL.md`, `harness.md` |
 | [chore-014](chore-014-raise-coverage-thresholds.md) | Поднять пороги покрытия до измеренной базы | `coverage.sh`, `SKILL.md`, `CLAUDE.md` |
+| [chore-016](chore-016-stale-coverage-docs.md) | Устаревшие числа и примеры в `SKILL.md` про покрытие и `check.sh` | `coverage/SKILL.md`, `check/SKILL.md` |
 | [feat-003](feat-003-remote-shot-animation.md) | Выстрел чужого игрока и врага в снапшоте: `ANIM_SHOOT` по сети | `net_protocol.c/.h` |
 | [test-002](test-002-fps-with-network.md) | Замер FPS клиента с работающей сетью | `SKILL.md`, `netdriver.sh` |
 | [test-003](test-003-text-module-layout-test.md) | Общий модуль шрифта 3×5 и тест раскладки глифов | `text.c`, `hud.c`, `game.c` |
