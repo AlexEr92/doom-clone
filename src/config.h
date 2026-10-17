@@ -33,6 +33,11 @@
 #define SNAPSHOT_RATE 20 /* Hz, overridable by a launch flag */
 #define NET_PORT_DEFAULT 27015
 
+/* N9: the largest snapshot that fits in a 1500-byte MTU with room left for the
+ * IP, UDP and ENet headers. One byte over and ENet fragments it, and an
+ * unreliable packet with a fragment lost is lost whole. */
+#define SNAPSHOT_MAX_BYTES 1400
+
 /* Connections one host holds at once: every player, plus one so that a full
  * server can still let a client in long enough to tell it so (MSG_REJECT). */
 #define NET_MAX_PEERS (MAX_PLAYERS + 1)

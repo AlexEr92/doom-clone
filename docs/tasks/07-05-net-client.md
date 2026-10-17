@@ -33,8 +33,9 @@
       (таймаут 5 с → `CL_REJECTED` с причиной)
 - [ ] По `MSG_ACCEPT`: `world_load()` карты из пакета, запомнить `your_id`
       как `local_player`
-- [ ] `MSG_SNAPSHOT` → `snapshot_apply()` в локальный `World`;
-      снапшоты с `tick` старше уже применённого игнорировать
+- [ ] `MSG_SNAPSHOT` → `snapshot_decode()` → `snapshot_apply()` в
+      локальный `World`; пакет, который `snapshot_decode()` не принял,
+      отбрасывать. Снапшоты с `tick` старше уже применённого игнорировать
 - [ ] Отправка `MSG_INPUT` каждый тик (60 Гц), unreliable
 - [ ] События из снапшота складывать в `EventQueue` мира — их разберёт 07-06
 - [ ] Рендер: `sprites_build_from_world()` (06-05) + существующий

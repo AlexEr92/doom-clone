@@ -72,7 +72,6 @@
 
 | # | Задача | Зависит от |
 |---|---|---|
-| [07-03](07-03-net-protocol.md) | `net_protocol.h` — структуры пакетов | 06-02 |
 | [07-04](07-04-net-server.md) | Сервер: тик, приём ввода, снапшоты | 07-02, 07-03, 06-06 |
 | [07-05](07-05-net-client.md) | Клиент: отправка ввода, приём снапшотов | 07-04 |
 | [07-06](07-06-audio-events.md) | Звук через сетевые события | 07-05 |
@@ -187,3 +186,4 @@
 | [07-02](../closed_tasks/07-02-net-transport.md) | `net_transport` — обёртка над ENet | Сделано |
 | [bug-005](../closed_tasks/bug-005-strafe-speed-fov-scaled.md) | Стрейф медленнее ходьбы в `FOV_PLANE` раз | Сделано |
 | [bug-006](../closed_tasks/bug-006-hud-draw-int-digit-order.md) | `draw_int()` рисует цифры HUD в обратном порядке | Сделано |
+| [07-03](../closed_tasks/07-03-net-protocol.md) | `net_protocol.h` — структуры пакетов | Сделано |

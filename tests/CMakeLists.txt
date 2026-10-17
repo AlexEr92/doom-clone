@@ -96,6 +96,11 @@ if(ENABLE_MULTIPLAYER)
     # Транспорт по настоящим сокетам на 127.0.0.1, сервер и клиенты в одном
     # процессе. Таймауты тест проверяет сдвигом часов ENet, а не ожиданием.
     doom_test(net_transport SRC net_transport.c LINK doom_enet)
+    # Формат пакетов и снапшот мира. ENet ему не нужен — сокетов тест не
+    # открывает, — но протокол есть только в сетевой сборке. Линкует всю
+    # симуляцию: snapshot_apply() заводит игроков и врагов её же функциями.
+    doom_test(net_protocol SRC net_protocol.c
+        world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)
 
     # Ручная проверка транспорта между двумя процессами — эхо, kill -9
     # клиента, частота цикла с net_poll(). Сама не завершается, поэтому в
