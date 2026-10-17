@@ -98,7 +98,8 @@ doom-clone/
 │   └── closed_tasks/     # закрытые задачи
 ├── vendor/               # stb_image.h, unity/ (юнит-тесты), enet/ (submodule)
 ├── src/                  # исходники (.c/.h)
-├── tests/                # юнит-тесты на Unity, по файлу на модуль
+├── tests/                # юнит-тесты на Unity, по файлу на модуль; manual/ — ручные
+│                         # инструменты; что где — tests/README.md
 └── assets/
     ├── maps/             # ASCII-карты (level1.txt)
     ├── sounds/           # звуки

@@ -67,14 +67,10 @@ clock with `enet_time_set()` rather than by waiting; the server likewise,
 against bots that speak the protocol by hand (`test_net_server.c`); the
 client against both the server and a stand-in that sends what the server
 never does (`test_net_client.c`). Everything at the top of `tests/` runs
-under CTest; `tests/manual/` holds what is run by hand, built into
-`build/tests/` with the game so an API change breaks it rather than
-leaving it stale. Between two processes — an echo, a `kill -9` of either
-side — `net_echo server|client` checks the transport; `net_serve`, run
-from the project root, is the server two `doom-clone --connect 127.0.0.1`
-play on; `net_bot` joins with no window to print the world as the server
-has it, play steps by script or load the server with a swarm — the
-`run-doom-clone` skill says when to use which.
+under CTest; `tests/manual/` holds what is run by hand — `net_echo`,
+`net_serve`, `net_bot` — built into `build/tests/` with the game so an API
+change breaks it rather than leaving it stale. `tests/README.md` describes
+the layout, how to add a test, and the question each manual tool answers.
 Coverage is measured in `build-cov/` by `.claude/skills/coverage/coverage.sh`,
 whose thresholds (lines 65 %, decisions 55 %) are a ratchet that only goes
 up; its `SKILL.md` explains how to read the numbers.
@@ -271,7 +267,8 @@ follow-up work.
   is committed to `tests/manual/` in the task's commit: as a mode of a tool
   already there when it fits one, else as its own file built by
   `doom_manual()` in `tests/CMakeLists.txt`, with a header comment on what
-  it answers and how to run it. The "Закрыто" note names it; a one-off
+  it answers and how to run it, and a row in the table of
+  `tests/README.md`. The "Закрыто" note names it; a one-off
   experiment stays in the scratchpad. More work to make it serve beyond the
   task goes to `project-manager` as a task on the committed file — a
   scratchpad does not outlive its session, so a task must never point at
