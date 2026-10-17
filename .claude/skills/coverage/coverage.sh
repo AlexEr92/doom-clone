@@ -51,6 +51,18 @@ run_tests() {
     }
 }
 
+# The counters the last ctest wrote, file by file. Given the build tree,
+# gcovr would also read the .gcno of test targets removed or renamed since:
+# CMake leaves their object directories behind, gcov fails on a source that
+# is gone, and gcovr fails with it. Only what ctest ran is measured.
+datafiles() {
+    mapfile -t DATA < <(find "$BUILD" -name '*.gcda' | sort)
+    [ "${#DATA[@]}" -gt 0 ] || {
+        echo "в $BUILD нет счётчиков — сначала coverage.sh без аргументов" >&2
+        exit 2
+    }
+}
+
 summary() {
     [ -f "$BUILD/CTestTestfile.cmake" ] || {
         echo "$BUILD не собран — сначала coverage.sh без аргументов" >&2
@@ -64,10 +76,21 @@ summary() {
         echo "внимание: src/ или tests/ менялись после последнего прогона — числа ниже устарели;" >&2
         echo "  свежие даст coverage.sh без аргументов" >&2
     fi
-    "${GCOVR[@]}" --sort uncovered-percent --print-summary \
+    datafiles
+    local out rc
+    out="$("${GCOVR[@]}" --sort uncovered-percent --print-summary \
         --fail-under-line "$LINE_MIN" --fail-under-decision "$DECISION_MIN" \
-        "$@" "$BUILD" 2>&1 | grep -v '^(INFO)'
-    local rc=${PIPESTATUS[0]}
+        "$@" "${DATA[@]}" 2>&1)"
+    rc=$?
+    printf '%s\n' "$out" | grep -v '^(INFO)'
+    # A bit mask: 2 is lines under the threshold, 8 decisions. Any other bit
+    # is gcovr itself failing, and so is a bare 2, which is also what argparse
+    # exits with on a bad argument: a threshold miss is one gcovr names.
+    if [ "$rc" -ne 0 ] && { [ $((rc & ~10)) -ne 0 ] \
+        || ! grep -q 'failed minimum' <<<"$out"; }; then
+        echo "покрытие: НЕ ПОСЧИТАНО — gcovr завершился с кодом $rc" >&2
+        exit 2
+    fi
     if [ "$rc" -ne 0 ]; then
         echo "покрытие: НИЖЕ ПОРОГА (строки $LINE_MIN %, decisions $DECISION_MIN %)"
         return 1
@@ -83,10 +106,16 @@ merge_base() {
 }
 
 changed_lines() {
-    local rev="$1" base="$2" json diff
+    local rev="$1" base="$2" json diff log
     json="$BUILD/coverage.json"
     diff="$BUILD/changed.diff"
-    "${GCOVR[@]}" --json -o "$json" "$BUILD" 2>/dev/null || exit 2
+    log="$BUILD/gcovr-json.log"
+    datafiles
+    "${GCOVR[@]}" --json -o "$json" "${DATA[@]}" 2>"$log" || {
+        grep -v '^(INFO)' "$log" >&2
+        echo "gcovr не выгрузил покрытие в JSON — изменённые строки не посчитаны" >&2
+        exit 2
+    }
     git diff -U0 "$base" -- 'src/*.c' 'src/*.h' >"$diff"
     # New files git does not track yet are changed in full.
     git ls-files --others --exclude-standard -- 'src/*.c' 'src/*.h' \

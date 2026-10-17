@@ -134,7 +134,6 @@
 | [bug-017](bug-017-hud-face-mouth-inverted.md) | Рот лица в статус-баре перевёрнут: хмурится при полном здоровье | `hud.c` |
 | [bug-018](bug-018-lint-changed-deleted-file.md) | `lint.sh changed` отдаёт cppcheck удалённый `src/*.c` и падает | `lint.sh`, `SKILL.md` |
 | [bug-019](bug-019-hud-weapon-freezes-mid-flash.md) | Оружие в руках замирает на кадре вспышки под оверлеем победы/смерти | `main.c`, `sprite.c`, `hud.c` |
-| [bug-020](bug-020-coverage-stale-gcno-masks-failure.md) | `coverage.sh`: устаревшие `.gcno` ломают замер, сбой gcovr выдаётся за «НИЖЕ ПОРОГА» | `coverage.sh`, `SKILL.md` |
 | [chore-001](chore-001-github-actions-ci.md) | CI на трёх платформах через GitHub Actions | `.github/workflows/` |
 | [chore-003](chore-003-const-correctness-lint.md) | Указатели без `const`, хотя только читаются | `enemy.c`, `game.c`, `player.c`, `world.c` |
 | [chore-005](chore-005-sanitizer-build.md) | Сборка с ASan/UBSan для локальных и CI-прогонов | `CMakeLists.txt`, `driver.sh` |
@@ -195,3 +194,4 @@
 | [chore-015](../closed_tasks/chore-015-net-bot.md) | `tests/manual/net_bot` (look, run, swarm) и папка `tests/manual/` | Сделано |
 | [chore-014](../closed_tasks/chore-014-raise-coverage-thresholds.md) | Поднять пороги покрытия до измеренной базы | Сделано |
 | [chore-016](../closed_tasks/chore-016-stale-coverage-docs.md) | Устаревшие числа и примеры в `SKILL.md` про покрытие и `check.sh` | Сделано |
+| [bug-020](../closed_tasks/bug-020-coverage-stale-gcno-masks-failure.md) | `coverage.sh`: устаревшие `.gcno` ломают замер, сбой gcovr выдаётся за «НИЖЕ ПОРОГА» | Сделано |

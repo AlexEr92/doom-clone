@@ -31,13 +31,16 @@ Verified against gcovr 7.0 and gcc 13.3.
 
 A full run takes about two seconds once `build-cov/` exists. Counters are
 reset before every `ctest`, so a test deleted since the last run is not
-credited with its lines. `report` rebuilds nothing and reads what the last
-run left: when `src/` or `tests/` changed after it, it warns on stderr
-before the numbers. A revision `changed` cannot resolve fails at once,
-before the build.
+credited with its lines, and gcovr reads only the counters `ctest` wrote:
+the object files a removed or renamed test leaves in `build-cov/` are not
+measured. `report` rebuilds nothing and reads what the last run left: when
+`src/` or `tests/` changed after it, it warns on stderr before the numbers.
+A revision `changed` cannot resolve fails at once, before the build.
 
 Exit codes: `0` thresholds hold, `1` they do not, `2` the build, the tests
-or the tooling failed — failing tests are never reported as coverage.
+or the tooling failed — failing tests are never reported as coverage, and
+neither is gcovr failing: then its error comes first and the last line is
+`покрытие: НЕ ПОСЧИТАНО — gcovr завершился с кодом N`.
 
 Verified summary on the current tree (the per-file table above it is
 gcovr's, sorted by uncovered share):
