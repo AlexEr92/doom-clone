@@ -206,7 +206,7 @@ int main(int argc, char **argv)
             raycast_render(&eng.fb, me, &cam, &world.map, &assets, &world.doors);
             /* A pause stops the animations with the world. Death and victory
              * stop only the world: the last enemy shot still falls, and
-             * whoever killed the player keeps at it. */
+             * whoever killed the player finishes the shot. */
             sprite_anim_update(&anim, &world,
                                game.state == GSTATE_PAUSED ? 0.0f : (float)frame_time);
             sprites_build_from_world(&sprites, &world, world.local_player, &anim, &assets);

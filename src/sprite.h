@@ -45,14 +45,16 @@ typedef struct SpriteList {
 
 /* What the client remembers of one character between frames: the animation
  * it is playing and what it looked like last frame, which is how the client
- * tells running and getting hurt from standing — the world has neither a
- * velocity nor a record of damage. */
+ * tells running, getting hurt and firing from standing — the world has
+ * neither a velocity nor a record of damage or of shots. */
 typedef struct {
     int anim;        /* AnimId being played */
     float phase;     /* seconds since it started */
     float pain_left; /* seconds of ANIM_PAIN the last drop in hp is still owed */
     float run_left;  /* seconds of ANIM_RUN the last move is still owed */
+    float shot_left; /* seconds of the last shot's flash still to show */
     float x, y, hp;  /* as the last frame saw them */
+    float reload;    /* likewise: what goes up when the character fires */
     int seen;        /* 0 until a frame has seen the character: nothing to compare */
 } AnimClock;
 

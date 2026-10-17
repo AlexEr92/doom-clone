@@ -193,14 +193,14 @@ static void test_weapon_update_ticks_every_weapon(void)
     }
 }
 
-/* The animation runs from 1 to 0 over the weapon's fire_cd and stops at zero. */
+/* The animation runs from 1 to 0 over WEAPON_SHOT_TIME and stops at zero. */
 static void test_weapon_update_decays_the_animation_to_zero(void)
 {
     Weapon *w = &players[SHOOTER].weapons.weapons[WEAPON_PISTOL];
     w->anim = 1.0f;
 
     weapon_update(&players[SHOOTER], TEST_STEP);
-    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 1.0f - (float)TEST_STEP / w->fire_cd, w->anim);
+    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 1.0f - (float)TEST_STEP / WEAPON_SHOT_TIME, w->anim);
 
     for (int i = 0; i < 60; i++) {
         weapon_update(&players[SHOOTER], TEST_STEP);
@@ -212,10 +212,10 @@ static void test_weapon_update_decays_the_animation_to_zero(void)
     TEST_ASSERT_EQUAL_FLOAT(0.0f, w->anim);
 }
 
-/* A shot shows for as long as its weapon cools down, so the next one starts
- * on a fresh animation instead of one stuck at its end. The two count the same
- * time down in different steps of float, which may put them a tick apart. */
-static void test_shot_animation_lasts_the_cooldown(void)
+/* A shot shows for WEAPON_SHOT_TIME whatever the weapon: a flash is a flash,
+ * and the shotgun's long cooldown must not play it in slow motion. Counted in
+ * steps of float, the end may land a tick off. */
+static void test_shot_animation_is_the_same_for_every_weapon(void)
 {
     for (int i = 0; i < WEAPON_COUNT; i++) {
         player_init(&players[SHOOTER], 2, 2);
@@ -232,7 +232,7 @@ static void test_shot_animation_lasts_the_cooldown(void)
                 shown = t;
             }
         }
-        TEST_ASSERT_INT_WITHIN(1, (int)roundf(w->fire_cd / (float)TEST_STEP), shown);
+        TEST_ASSERT_INT_WITHIN(1, (int)roundf(WEAPON_SHOT_TIME / (float)TEST_STEP), shown);
     }
 }
 
@@ -409,7 +409,7 @@ int main(void)
     RUN_TEST(test_weapon_update_runs_down_the_cooldown);
     RUN_TEST(test_weapon_update_ticks_every_weapon);
     RUN_TEST(test_weapon_update_decays_the_animation_to_zero);
-    RUN_TEST(test_shot_animation_lasts_the_cooldown);
+    RUN_TEST(test_shot_animation_is_the_same_for_every_weapon);
     RUN_TEST(test_two_players_keep_separate_weapon_state);
     RUN_TEST(test_a_shot_damages_an_enemy_in_the_open);
     RUN_TEST(test_a_shot_does_not_go_through_a_wall);

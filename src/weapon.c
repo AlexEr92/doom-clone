@@ -58,9 +58,8 @@ void weapon_update(PlayerState *p, double dt)
         if (w->cooldown > 0.0f) {
             w->cooldown -= (float)dt;
         }
-        /* The shot shows for exactly as long as the weapon cools down. */
         if (w->anim > 0.0f) {
-            w->anim -= (float)dt / w->fire_cd;
+            w->anim -= (float)dt / WEAPON_SHOT_TIME;
             if (w->anim < 0.0f) {
                 w->anim = 0.0f;
             }

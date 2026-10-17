@@ -81,11 +81,11 @@ static int item_sprite_type(int type)
 
 /* Animation speeds, in frames of the sheet a second: how many frames there
  * are is the file's business, how fast they go is the code's. The shot is not
- * among them — it lasts as long as the weapon's fire_cd or the enemy's
- * attack_cd, whatever the length of the sheet. */
+ * among them: whoever fires, the flash lasts WEAPON_SHOT_TIME, as it does on
+ * the weapon in hand, whatever the length of the sheet. */
 #define ANIM_IDLE_FPS 4.0f
 #define ANIM_RUN_FPS 8.0f
-#define ANIM_DEATH_FPS 10.0f
+#define ANIM_DEATH_FPS 5.0f
 
 /* How long a drop in hp shows as pain; the whole pain sheet plays across it. */
 #define ANIM_PAIN_TIME 0.3f
@@ -115,26 +115,37 @@ void sprite_anim_init(SpriteAnim *sa, const Assets *a)
 
 /* One frame of one character's clock. The rules are the same for a player
  * and an enemy and are checked in order, the first that holds winning: dead,
- * hurt, shooting, moving, standing. Hurt and moving are told by comparing the
- * character with what the last frame saw of it. */
-static void clock_step(AnimClock *c, float x, float y, float hp, int dead, int shooting, float dt)
+ * hurt, shooting, moving, standing. Hurt, moving and firing are told by
+ * comparing the character with what the last frame saw of it: hp goes down
+ * with a hit, `reload` goes up with a shot. The flash then runs on this clock
+ * and not on the world's, so it plays out after the world has stopped — on
+ * whoever fired the shot that killed the player, say. `aiming` holds the
+ * shooting animation between shots. */
+static void clock_step(AnimClock *c, float x, float y, float hp, float reload, int dead, int aiming,
+                       float dt)
 {
     int moved = c->seen && (x != c->x || y != c->y);
     int hurt = c->seen && hp < c->hp;
+    int fired = c->seen && reload > c->reload;
     c->x = x;
     c->y = y;
     c->hp = hp;
+    c->reload = reload;
     c->seen = 1;
 
     if (dead) {
         c->pain_left = 0.0f;
         c->run_left = 0.0f;
+        c->shot_left = 0.0f;
     } else {
         if (hurt) {
             c->pain_left = ANIM_PAIN_TIME;
         }
         if (moved) {
             c->run_left = ANIM_RUN_HOLD;
+        }
+        if (fired) {
+            c->shot_left = WEAPON_SHOT_TIME;
         }
     }
 
@@ -143,7 +154,7 @@ static void clock_step(AnimClock *c, float x, float y, float hp, int dead, int s
         anim = ANIM_DEATH;
     } else if (c->pain_left > 0.0f) {
         anim = ANIM_PAIN;
-    } else if (shooting) {
+    } else if (aiming || c->shot_left > 0.0f) {
         anim = ANIM_SHOOT;
     } else if (c->run_left > 0.0f) {
         anim = ANIM_RUN;
@@ -160,6 +171,7 @@ static void clock_step(AnimClock *c, float x, float y, float hp, int dead, int s
     }
     c->pain_left = fmaxf(c->pain_left - dt, 0.0f);
     c->run_left = fmaxf(c->run_left - dt, 0.0f);
+    c->shot_left = fmaxf(c->shot_left - dt, 0.0f);
 }
 
 void sprite_anim_update(SpriteAnim *sa, const World *w, float dt)
@@ -173,12 +185,16 @@ void sprite_anim_update(SpriteAnim *sa, const World *w, float dt)
             memset(c, 0, sizeof(*c));
             continue;
         }
+        /* A shot sets Weapon.anim back up to 1. A player has no attack state
+         * to stand aiming in between shots. */
         const Weapon *wp = &p->weapons.weapons[p->weapons.current];
-        clock_step(c, p->x, p->y, p->hp, !p->alive, wp->anim > 0.0f, dt);
+        clock_step(c, p->x, p->y, p->hp, wp->anim, !p->alive, 0, dt);
     }
     for (int i = 0; i < w->enemies.count; i++) {
+        /* An attack resets attack_cooldown, and an enemy in ESTATE_ATTACK
+         * aims at its target between attacks. */
         const Enemy *e = &w->enemies.items[i];
-        clock_step(&sa->enemies[i], e->x, e->y, e->hp, e->state == ESTATE_DEAD,
+        clock_step(&sa->enemies[i], e->x, e->y, e->hp, e->attack_cooldown, e->state == ESTATE_DEAD,
                    e->state == ESTATE_ATTACK, dt);
     }
 }
@@ -193,11 +209,11 @@ static const Texture *character_sheet(const Assets *a, int skin, int anim)
     return &a->skin_anim[skin][anim];
 }
 
-/* Column of a sheet `cols` frames long that clock c has reached. `shot` is
- * how far into shooting the character is, counted in shots: it runs from 0 to
- * 1 over one, and on past 1 for an enemy that keeps attacking. Run and idle
- * loop; pain and death stop on their last frame. */
-static int clock_frame(const AnimClock *c, int cols, float shot)
+/* Column of a sheet `cols` frames long that clock c has reached. Run and idle
+ * loop; pain and death stop on their last frame. A shot is laid out as the
+ * weapon in hand lays it out (hud_weapon_frame()): the first frame aims, and
+ * the flash spreads over the rest while shot_left runs down. */
+static int clock_frame(const AnimClock *c, int cols)
 {
     if (cols <= 1) {
         return 0;
@@ -205,7 +221,12 @@ static int clock_frame(const AnimClock *c, int cols, float shot)
     int f;
     switch (c->anim) {
         case ANIM_RUN: return (int)(c->phase * ANIM_RUN_FPS) % cols;
-        case ANIM_SHOOT: return (int)(shot * (float)cols) % cols;
+        case ANIM_SHOOT:
+            if (c->shot_left <= 0.0f) {
+                return 0;
+            }
+            f = 1 + (int)((1.0f - c->shot_left / WEAPON_SHOT_TIME) * (float)(cols - 1));
+            break;
         case ANIM_PAIN: f = (int)(c->phase / ANIM_PAIN_TIME * (float)cols); break;
         case ANIM_DEATH: f = (int)(c->phase * ANIM_DEATH_FPS); break;
         default: return (int)(c->phase * ANIM_IDLE_FPS) % cols;
@@ -213,11 +234,11 @@ static int clock_frame(const AnimClock *c, int cols, float shot)
     return f < cols - 1 ? f : cols - 1;
 }
 
-static void set_character(Sprite *sp, const Assets *a, int skin, const AnimClock *c, float shot)
+static void set_character(Sprite *sp, const Assets *a, int skin, const AnimClock *c)
 {
     sp->skin = skin;
     sp->anim = c->anim;
-    sp->frame = clock_frame(c, character_sheet(a, skin, c->anim)->cols, shot);
+    sp->frame = clock_frame(c, character_sheet(a, skin, c->anim)->cols);
 }
 
 void sprites_build_from_world(SpriteList *sl, const World *w, int local_player,
@@ -233,10 +254,7 @@ void sprites_build_from_world(SpriteList *sl, const World *w, int local_player,
             break;
         }
         int skin = (e->type >= 0 && e->type < ENEMY_COUNT) ? sa->enemy_skin[e->type] : -1;
-        /* An enemy has no weapon: it attacks once every attack_cd for as long
-         * as it stays in ESTATE_ATTACK, and the shot loops in step. */
-        const AnimClock *c = &sa->enemies[i];
-        set_character(&sl->items[idx], a, skin, c, c->phase / enemy_def(e->type)->attack_cd);
+        set_character(&sl->items[idx], a, skin, &sa->enemies[i]);
     }
 
     for (int i = 0; i < w->items.count; i++) {
@@ -270,11 +288,9 @@ void sprites_build_from_world(SpriteList *sl, const World *w, int local_player,
         if (idx < 0) {
             break;
         }
-        /* The skin is the id until 10-04 hands skins out, and the shot runs
-         * down with Weapon.anim, which lasts the weapon's fire_cd. The facing
-         * lets a deathmatch tell whether it has been noticed. */
-        const Weapon *wp = &p->weapons.weapons[p->weapons.current];
-        set_character(&sl->items[idx], a, p->id, &sa->players[i], 1.0f - wp->anim);
+        /* The skin is the id until 10-04 hands skins out. The facing lets a
+         * deathmatch tell whether it has been noticed. */
+        set_character(&sl->items[idx], a, p->id, &sa->players[i]);
         sl->items[idx].view = me ? player_view(p, me->x, me->y) : 0;
     }
 }

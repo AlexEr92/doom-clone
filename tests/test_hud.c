@@ -43,8 +43,8 @@ static void test_single_frame_sheet_stays_on_it(void)
 }
 
 /* A pistol shot at 60 FPS: every shot frame shows, in order, none of them
- * skipped, for fire_cd in all to within a tick, and then the weapon is back
- * at rest rather than stuck on the last frame. */
+ * skipped, for WEAPON_SHOT_TIME in all to within a tick, and then the weapon
+ * is back at rest rather than stuck on the last frame. */
 static void test_pistol_shot_plays_every_frame_once_at_60_fps(void)
 {
     PlayerState p;
@@ -71,7 +71,7 @@ static void test_pistol_shot_plays_every_frame_once_at_60_fps(void)
         TEST_ASSERT_TRUE(ticks[f] > 0);
         shot += ticks[f];
     }
-    TEST_ASSERT_INT_WITHIN(1, (int)roundf(w->fire_cd / (float)TEST_STEP), shot);
+    TEST_ASSERT_INT_WITHIN(1, (int)roundf(WEAPON_SHOT_TIME / (float)TEST_STEP), shot);
 }
 
 int main(void)

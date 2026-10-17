@@ -11,6 +11,11 @@ struct DoorList;
 
 typedef enum { WEAPON_PISTOL = 0, WEAPON_SHOTGUN, WEAPON_COUNT } WeaponType;
 
+/* How long a shot shows, in seconds: a muzzle flash, whatever the weapon. It
+ * is not fire_cd — a flash stretched over a slow weapon's cooldown plays in
+ * slow motion; the weapon rests for whatever is left of it. */
+#define WEAPON_SHOT_TIME 0.15f
+
 typedef struct {
     int type;
     int ammo; /* current ammo */
@@ -20,7 +25,7 @@ typedef struct {
     float spread;   /* radians of random spread (per pellet) */
     float fire_cd;  /* seconds between shots */
     float cooldown; /* current cooldown remaining */
-    float anim;     /* shot animation: 1 = just fired, down to 0 over fire_cd */
+    float anim;     /* shot animation: 1 = just fired, down to 0 over WEAPON_SHOT_TIME */
 } Weapon;
 
 typedef struct {

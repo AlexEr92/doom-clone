@@ -5,9 +5,9 @@
  * sprite_render() is not tested: a framebuffer is what would show it wrong.
  * zBuffer, which it reads, is defined here so that raycast.c and the whole
  * renderer behind it stay out of the link. The world and the sheets are built
- * by hand: the clocks read only positions, hp and states out of the one, and
- * only the length of each sheet out of the other. enemy.c is linked for
- * enemy_def(), assets.c for the skin names. */
+ * by hand: the clocks read only positions, hp, states and what a shot resets
+ * out of the one, and only the length of each sheet out of the other. enemy.c
+ * is linked for enemy_def(), assets.c for the skin names. */
 
 #include "unity.h"
 #include "sprite.h"
@@ -173,7 +173,9 @@ static void test_nine_players_draw_apart_and_animate_apart(void)
 
     for (int i = 0; i < 20; i++) {
         w.players[3].x += 0.05f;
-        w.players[6].weapons.weapons[WEAPON_PISTOL].anim = 0.5f;
+        if (i == 15) {
+            w.players[6].weapons.weapons[WEAPON_PISTOL].anim = 1.0f;
+        }
         frame(FRAME_DT);
     }
     for (int id = 1; id < MAX_PLAYERS; id++) {
@@ -275,42 +277,82 @@ static void test_run_does_not_blink_between_moves(void)
     TEST_ASSERT_EQUAL_INT(ANIM_IDLE, player_sprite(1)->anim);
 }
 
-/* An attacking enemy shows the shot, looping in step with its attack_cd. */
-static void test_attacking_enemy_shoots(void)
+/* An attacking enemy aims, on the first frame of the sheet, until it attacks.
+ * Each attack resets attack_cooldown, and that is the shot: the flash runs
+ * through the rest of the sheet, in order, for WEAPON_SHOT_TIME to within a
+ * frame, and the enemy is back to aiming for the next one. */
+static void test_attacking_enemy_flashes_on_each_attack(void)
 {
     Enemy *e = add_enemy(ENEMY_IMP, 5.0f, 5.0f);
     e->state = ESTATE_ATTACK;
-    frame(FRAME_DT);
+    frames(30, FRAME_DT);
     TEST_ASSERT_EQUAL_INT(ANIM_SHOOT, enemy_sprite(0)->anim);
     TEST_ASSERT_EQUAL_INT(0, enemy_sprite(0)->frame);
 
-    int ticks = (int)roundf(enemy_def(ENEMY_IMP)->attack_cd / FRAME_DT);
-    frames(ticks / 2, FRAME_DT);
-    TEST_ASSERT_EQUAL_INT(SHEET_COLS[ANIM_SHOOT] / 2, enemy_sprite(0)->frame);
-    /* and a little past attack_cd, with the next attack, it starts over */
-    frames(ticks / 2 + 3, FRAME_DT);
+    for (int attack = 0; attack < 2; attack++) {
+        e->attack_cooldown = enemy_def(ENEMY_IMP)->attack_cd;
+        int seen[8] = {0};
+        int last = 0;
+        for (int i = 0; i < 60; i++) {
+            frame(FRAME_DT);
+            e->attack_cooldown -= FRAME_DT; /* as the next tick counts it */
+            int f = enemy_sprite(0)->frame;
+            TEST_ASSERT_EQUAL_INT(ANIM_SHOOT, enemy_sprite(0)->anim);
+            if (f != 0) {
+                TEST_ASSERT_TRUE(f == last || f == last + 1);
+            }
+            seen[f]++;
+            last = f;
+        }
+        TEST_ASSERT_EQUAL_INT(0, last);
+        int flash = 0;
+        for (int f = 1; f < SHEET_COLS[ANIM_SHOOT]; f++) {
+            TEST_ASSERT_TRUE(seen[f] > 0);
+            flash += seen[f];
+        }
+        TEST_ASSERT_INT_WITHIN(1, (int)roundf(WEAPON_SHOT_TIME / FRAME_DT), flash);
+    }
+}
+
+/* The flash runs on the client's clock, not the world's: the shot that kills
+ * the player stops the world, and the enemy that fired it still finishes. */
+static void test_shot_plays_out_when_the_world_stops(void)
+{
+    Enemy *e = add_enemy(ENEMY_SERG, 5.0f, 5.0f);
+    e->state = ESTATE_ATTACK;
+    frame(FRAME_DT);
+    e->attack_cooldown = enemy_def(ENEMY_SERG)->attack_cd;
+    frame(FRAME_DT);
+    TEST_ASSERT_EQUAL_INT(1, enemy_sprite(0)->frame);
+
+    frames((int)roundf(WEAPON_SHOT_TIME / FRAME_DT) + 1, FRAME_DT);
     TEST_ASSERT_EQUAL_INT(ANIM_SHOOT, enemy_sprite(0)->anim);
     TEST_ASSERT_EQUAL_INT(0, enemy_sprite(0)->frame);
 }
 
-/* A player's shot follows Weapon.anim: frame 0 as it is fired, the last as it
- * runs out, and no shot at all once it has. */
-static void test_player_shot_follows_the_weapon(void)
+/* A player's shot starts when Weapon.anim goes back up, flashes for
+ * WEAPON_SHOT_TIME and leaves no shot behind: a player does not stand aiming
+ * between shots the way an attacking enemy does. */
+static void test_player_shot_starts_with_the_weapon(void)
 {
     PlayerState *p = add_player(1, 2.0f, 8.0f);
     Weapon *wp = &p->weapons.weapons[WEAPON_PISTOL];
+    frame(FRAME_DT);
+    TEST_ASSERT_EQUAL_INT(ANIM_IDLE, player_sprite(1)->anim);
+
     wp->anim = 1.0f;
     frame(FRAME_DT);
     TEST_ASSERT_EQUAL_INT(ANIM_SHOOT, player_sprite(1)->anim);
-    TEST_ASSERT_EQUAL_INT(0, player_sprite(1)->frame);
+    TEST_ASSERT_EQUAL_INT(1, player_sprite(1)->frame);
 
-    wp->anim = 0.05f;
-    frame(FRAME_DT);
-    TEST_ASSERT_EQUAL_INT(SHEET_COLS[ANIM_SHOOT] - 1, player_sprite(1)->frame);
-
-    wp->anim = 0.0f;
-    frame(FRAME_DT);
+    int shown = 1;
+    while (player_sprite(1)->anim == ANIM_SHOOT && shown < 60) {
+        wp->anim = fmaxf(wp->anim - FRAME_DT / WEAPON_SHOT_TIME, 0.0f);
+        frame(FRAME_DT);
+        shown++;
+    }
     TEST_ASSERT_EQUAL_INT(ANIM_IDLE, player_sprite(1)->anim);
+    TEST_ASSERT_INT_WITHIN(1, (int)roundf(WEAPON_SHOT_TIME / FRAME_DT), shown - 1);
 }
 
 /* A drop in hp shows as pain, over anything else the character is doing, and
@@ -325,8 +367,10 @@ static void test_hp_drop_shows_pain_for_a_while(void)
     TEST_ASSERT_EQUAL_INT(ANIM_PAIN, enemy_sprite(0)->anim);
     TEST_ASSERT_EQUAL_INT(0, enemy_sprite(0)->frame);
 
+    /* and back to aiming: getting hurt is not a shot */
     frames(60, FRAME_DT);
     TEST_ASSERT_EQUAL_INT(ANIM_SHOOT, enemy_sprite(0)->anim);
+    TEST_ASSERT_EQUAL_INT(0, enemy_sprite(0)->frame);
 }
 
 /* The death plays once and the body stays in its last frame; hitting the
@@ -353,6 +397,47 @@ static void test_death_plays_once_and_stays_down(void)
     frame(FRAME_DT);
     TEST_ASSERT_EQUAL_INT(ANIM_DEATH, enemy_sprite(0)->anim);
     TEST_ASSERT_EQUAL_INT(SHEET_COLS[ANIM_DEATH] - 1, enemy_sprite(0)->frame);
+}
+
+/* A fall is there to be watched: each frame of it shows for a fifth of a
+ * second, so the body comes to rest on the last one 0.8 s after the shot —
+ * not in a blink. */
+static void test_death_takes_its_time(void)
+{
+    Enemy *e = add_enemy(ENEMY_IMP, 5.0f, 5.0f);
+    frame(FRAME_DT);
+    e->hp = 0.0f;
+    e->state = ESTATE_DEAD;
+    frame(FRAME_DT);
+    TEST_ASSERT_EQUAL_INT(0, enemy_sprite(0)->frame);
+
+    int falling = 0;
+    while (enemy_sprite(0)->frame < SHEET_COLS[ANIM_DEATH] - 1 && falling < 180) {
+        frame(FRAME_DT);
+        falling++;
+    }
+    TEST_ASSERT_INT_WITHIN(1, (int)roundf(0.8f / FRAME_DT), falling);
+}
+
+/* A shot does not outlive the one who fired it: someone who dies mid-flash
+ * and is back on their feet straight after stands, not shooting. */
+static void test_death_ends_the_flash(void)
+{
+    PlayerState *p = add_player(1, 2.0f, 8.0f);
+    frame(FRAME_DT);
+    p->weapons.weapons[WEAPON_PISTOL].anim = 1.0f;
+    frame(FRAME_DT);
+    TEST_ASSERT_EQUAL_INT(ANIM_SHOOT, player_sprite(1)->anim);
+
+    p->alive = 0;
+    p->hp = 0.0f;
+    frame(FRAME_DT);
+    TEST_ASSERT_EQUAL_INT(ANIM_DEATH, player_sprite(1)->anim);
+
+    p->alive = 1;
+    p->hp = 100.0f;
+    frame(FRAME_DT);
+    TEST_ASSERT_EQUAL_INT(ANIM_IDLE, player_sprite(1)->anim);
 }
 
 /* A dead player stays on the screen, lying where they fell. */
@@ -401,10 +486,13 @@ int main(void)
     RUN_TEST(test_longer_idle_sheet_loops);
     RUN_TEST(test_running_character_cycles_the_run);
     RUN_TEST(test_run_does_not_blink_between_moves);
-    RUN_TEST(test_attacking_enemy_shoots);
-    RUN_TEST(test_player_shot_follows_the_weapon);
+    RUN_TEST(test_attacking_enemy_flashes_on_each_attack);
+    RUN_TEST(test_shot_plays_out_when_the_world_stops);
+    RUN_TEST(test_player_shot_starts_with_the_weapon);
     RUN_TEST(test_hp_drop_shows_pain_for_a_while);
     RUN_TEST(test_death_plays_once_and_stays_down);
+    RUN_TEST(test_death_takes_its_time);
+    RUN_TEST(test_death_ends_the_flash);
     RUN_TEST(test_dead_player_is_drawn_dying);
     RUN_TEST(test_a_freed_slot_forgets_its_last_player);
     RUN_TEST(test_zero_dt_holds_every_animation);

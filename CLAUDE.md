@@ -126,9 +126,9 @@ the multiplayer work has been; do not add a new one.
   rebuilds it from the world every frame. No entity holds a sprite id, and
   `sprite.h` is included from `main.c` and `sprite.c` only.
 - **Animation is the client's.** `SpriteAnim` (`sprite.h`) keeps a clock
-  per player and enemy id and tells running and getting hurt by comparing
-  each frame with the last; nothing in the world carries a velocity, a
-  damage flag or a skin for the sake of a picture.
+  per player and enemy id and tells running, getting hurt and firing by
+  comparing each frame with the last; nothing in the world carries a
+  velocity, a damage flag, a shot flag or a skin for the sake of a picture.
 - **Hitscan is world-space.** `weapon_try_fire()` traces `world_raycast()`
   and reads neither the camera nor `zBuffer`.
 - **Pickups carry their own position**; which sprite draws one is decided
