@@ -1,5 +1,6 @@
 /* net_protocol.c: a world turned into a snapshot, the snapshot into bytes and
- * back, and the result put into another world.
+ * back, and the result put into another world; and which events a snapshot
+ * carries to the player who receives it.
  *
  * The other world is what a client holds — the same map loaded fresh, with
  * nobody in it — so a round trip through snapshot_write(), snapshot_encode(),
@@ -464,6 +465,103 @@ static void test_set_events_keeps_the_first_that_fit(void)
     TEST_ASSERT_EQUAL_FLOAT(0.0f, snap.events[1].x);
 }
 
+/* ---- the events a receiver gets ---- */
+
+#define LISTENER 2
+
+static PlayerState listener_at(float x, float y)
+{
+    PlayerState p;
+    memset(&p, 0, sizeof(p));
+    p.id = LISTENER;
+    p.x = x;
+    p.y = y;
+    return p;
+}
+
+static GameEvent event_at(GameEventKind kind, int actor, float x, float y)
+{
+    GameEvent e = {(uint8_t)kind, (uint8_t)actor, x, y};
+    return e;
+}
+
+static void assert_picked(int i, GameEventKind kind, int actor)
+{
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(kind, snap.events[i].kind, "kind");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(actor, snap.events[i].actor, "actor");
+}
+
+/* The receiver's own events go first, as they happened, however far off they
+ * were posted — pain is posted where the hit came from. The rest follow
+ * nearest first, and two as near as each other in the order they happened. */
+static void test_picked_events_are_the_receivers_then_the_nearest(void)
+{
+    PlayerState me = listener_at(0.0f, 0.0f);
+    const GameEvent in[] = {
+            event_at(EV_DOOR, 0, 5.0f, 0.0f),                /* 5 away */
+            event_at(EV_SHOT, LISTENER, 0.0f, 0.0f),         /* own */
+            event_at(EV_ENEMY_HURT, 1, 0.0f, 1.0f),          /* 1 away */
+            event_at(EV_PLAYER_HURT, LISTENER, 11.5f, 0.0f), /* own, hit from afar */
+            event_at(EV_SHOT, 4, 3.0f, 0.0f),                /* 3 away */
+            event_at(EV_ENEMY_DEATH, 7, -1.0f, 0.0f),        /* 1 away, later */
+    };
+
+    snapshot_pick_events(&snap, in, 6, &me);
+
+    TEST_ASSERT_EQUAL_UINT8(6, snap.event_count);
+    assert_picked(0, EV_SHOT, LISTENER);
+    assert_picked(1, EV_PLAYER_HURT, LISTENER);
+    assert_picked(2, EV_ENEMY_HURT, 1);
+    assert_picked(3, EV_ENEMY_DEATH, 7);
+    assert_picked(4, EV_SHOT, 4);
+    assert_picked(5, EV_DOOR, 0);
+    TEST_ASSERT_EQUAL_FLOAT(11.5f, snap.events[1].x);
+}
+
+/* What the receiver would not hear is not sent: another player's pickup and
+ * empty click wherever they are, and anything past the range of its kind. */
+static void test_what_the_receiver_cannot_hear_is_not_picked(void)
+{
+    PlayerState me = listener_at(4.0f, 4.0f);
+    const GameEvent in[] = {
+            event_at(EV_PICKUP, 4, 4.0f, 4.0f),
+            event_at(EV_NO_AMMO, 4, 4.0f, 4.0f),
+            event_at(EV_SHOT, 4, 4.0f + event_range(EV_SHOT) + 0.5f, 4.0f),
+            event_at(EV_DOOR, 3, 4.0f, 4.0f + event_range(EV_DOOR)),
+            event_at(EV_ENEMY_HURT, 1, 5.0f, 4.0f),
+    };
+
+    snapshot_pick_events(&snap, in, 5, &me);
+
+    TEST_ASSERT_EQUAL_UINT8(1, snap.event_count);
+    assert_picked(0, EV_ENEMY_HURT, 1);
+    TEST_ASSERT_EQUAL_UINT8(0, snap.events[1].kind); /* the rest of the list is cleared */
+}
+
+/* The three ticks between two snapshots post more than one carries: here each
+ * posts a full queue, and the n-th door of each lies about as far as the n-th
+ * of the others. What goes is the nearest MAX_EVENTS of all three ticks —
+ * not the first tick's, which is all the list would hold in order. */
+static void test_the_nearest_of_every_tick_since_the_last_snapshot_are_picked(void)
+{
+    PlayerState me = listener_at(0.0f, 0.0f);
+    GameEvent in[3 * MAX_EVENTS];
+    for (int t = 0; t < 3; t++) {
+        for (int i = 0; i < MAX_EVENTS; i++) {
+            float dist = (float)i * 0.4f + (float)t * 0.1f;
+            in[t * MAX_EVENTS + i] = event_at(EV_DOOR, t * MAX_EVENTS + i, dist, 0.0f);
+        }
+    }
+
+    snapshot_pick_events(&snap, in, 3 * MAX_EVENTS, &me);
+
+    /* nearest first: door i of ticks 0, 1 and 2, then door i + 1 */
+    TEST_ASSERT_EQUAL_UINT8(MAX_EVENTS, snap.event_count);
+    for (int k = 0; k < MAX_EVENTS; k++) {
+        assert_picked(k, EV_DOOR, (k % 3) * MAX_EVENTS + k / 3);
+    }
+}
+
 static void test_the_ticks_travel_with_the_snapshot(void)
 {
     server.tick = 1234;
@@ -622,6 +720,9 @@ int main(void)
     RUN_TEST(test_a_door_that_has_not_moved_keeps_its_direction);
     RUN_TEST(test_events_replace_the_client_queue);
     RUN_TEST(test_set_events_keeps_the_first_that_fit);
+    RUN_TEST(test_picked_events_are_the_receivers_then_the_nearest);
+    RUN_TEST(test_what_the_receiver_cannot_hear_is_not_picked);
+    RUN_TEST(test_the_nearest_of_every_tick_since_the_last_snapshot_are_picked);
     RUN_TEST(test_the_ticks_travel_with_the_snapshot);
     RUN_TEST(test_decode_gives_back_what_encode_was_given);
     RUN_TEST(test_decode_rejects_bytes_too_short_for_the_head);

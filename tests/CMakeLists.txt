@@ -67,6 +67,7 @@ function(doom_test module)
 endfunction()
 
 doom_test(utils)
+doom_test(event)
 doom_test(map    SRC map.c door.c)
 doom_test(door   SRC door.c)
 doom_test(player SRC player.c map.c door.c)

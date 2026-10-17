@@ -279,19 +279,19 @@ static PlayerInput client_input(const ServerClient *c, const PlayerState *p, uin
     return in;
 }
 
-/* Every client gets a snapshot of its own, because last_input_tick is the
- * receiver's. The events are the same for everyone: the first MAX_EVENTS of
- * the backlog in the order they happened, until 07-06 picks them for each
- * receiver by distance. */
+/* Every client gets a snapshot of its own: last_input_tick is the receiver's,
+ * and so are the events — picked from the backlog of every tick since the
+ * last snapshot for what its player hears, theirs first and nearest next. */
 static void server_send_snapshots(Server *s)
 {
     snapshot_write(&s->snapshot, &s->world, 0);
-    snapshot_set_events(&s->snapshot, s->backlog, s->backlog_count);
     for (NetPeerId peer = 0; peer < NET_MAX_PEERS; peer++) {
         const ServerClient *c = &s->clients[peer];
         if (!c->joined) {
             continue;
         }
+        snapshot_pick_events(&s->snapshot, s->backlog, s->backlog_count,
+                             &s->world.players[c->player_id]);
         s->snapshot.last_input_tick = c->last_input_tick;
         size_t size = snapshot_encode(&s->snapshot, s->wire);
         if (size > 0) {

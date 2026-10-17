@@ -255,7 +255,9 @@ static void test_several_pickups_in_reach_are_all_taken(void)
     TEST_ASSERT_EQUAL_FLOAT(70.0f, P0->hp);
     TEST_ASSERT_EQUAL_FLOAT(30.0f, P0->armor);
     TEST_ASSERT_EQUAL_INT(5, P0->weapons.weapons[WEAPON_SHOTGUN].ammo);
-    TEST_ASSERT_EQUAL_INT(3, pickup_count());
+    /* one player's pickups in one tick are one sound: the event says who
+     * took something, not what, and event_push() keeps it once a tick */
+    TEST_ASSERT_EQUAL_INT(1, pickup_count());
 }
 
 /* --- Several players --- */

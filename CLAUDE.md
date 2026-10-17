@@ -59,7 +59,8 @@ executable links only its own sources and stubs the rest — that is how
 `test_enemy.c` avoids `sprite.c` and, through it, the renderer.
 
 Only what runs without a framebuffer is tested: not the renderer, and
-`audio.c` only as far as chunk lengths (`test_audio.c` uses the `dummy`
+`audio.c` only as far as chunk lengths, which sound an event makes and how
+loud, and the channel it plays on (`test_audio.c` uses the `dummy`
 driver); `docs/closed_tasks/test-001-unit-test-harness.md` says why.
 The transport is tested over real sockets on 127.0.0.1, server and clients
 in one process (`test_net_transport.c`), and its timeouts by moving ENet's
@@ -138,10 +139,13 @@ the multiplayer work has been; do not add a new one.
   and reads neither the camera nor `zBuffer`.
 - **Pickups carry their own position**; which sprite draws one is decided
   at render time from `ItemType`.
-- **Sound is events, not calls.** The simulation never calls `audio_play()`:
-  it appends `GameEvent`s to an `EventQueue` (`event.h`), and the client
-  drains it after each tick, scaling volume by the distance to *its own*
-  player.
+- **Sound is events, not calls.** The simulation never calls into
+  `audio.c`: it appends `GameEvent`s to an `EventQueue` (`event.h`), one
+  of a kind and actor a tick, and the client plays them with
+  `audio_play_events()` after each tick — a network client after each
+  poll — scaling volume by the distance to *its own* player. Who hears
+  what, and how far each kind carries, is `event_gain()`, which the server
+  picks each client's events by as well.
 
 `world.c`, `enemy.c`, `weapon.c`, `item.c`, `door.c`, `player.c`, `map.c`
 and `raycast_world.c` therefore compile with no SDL headers on the include

@@ -8,7 +8,6 @@
 #include "weapon.h"
 #include "hud.h"
 #include "audio.h"
-#include "event.h"
 #include "game.h"
 #include "world.h"
 #include "config.h"
@@ -20,7 +19,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
 /* What the command line asks for. With no server to join the game is the
  * single-player one and opens no socket. */
@@ -94,37 +92,6 @@ static void join(Client *c, const Options *o)
 static PlayerState *local_player(World *w)
 {
     return w ? &w->players[w->local_player] : NULL;
-}
-
-/* Drain the queue the last tick filled. Distance is measured from `me` — the
- * player this client looks through — so the same loop keeps working once the
- * simulation moves to a server and the queue arrives in a snapshot. */
-static void world_play_events(Audio *au, const EventQueue *q, const PlayerState *players,
-                              int player_count, const PlayerState *me)
-{
-    for (int i = 0; i < q->count; i++) {
-        const GameEvent *e = &q->items[i];
-        float dx = e->x - me->x, dy = e->y - me->y;
-        float dist = sqrtf(dx * dx + dy * dy);
-        switch (e->kind) {
-            case EV_SHOT: {
-                /* which weapon it was is the shooter's state, not the event's */
-                int type = WEAPON_PISTOL;
-                if (e->actor < player_count) {
-                    type = players[e->actor].weapons.current;
-                }
-                audio_play_volume(au, type == WEAPON_PISTOL ? SND_PISTOL : SND_SHOTGUN, 0.5f);
-                break;
-            }
-            case EV_NO_AMMO: audio_play_volume(au, SND_NO_AMMO, 0.5f); break;
-            case EV_PICKUP: audio_play_volume(au, SND_PICKUP, 0.8f); break;
-            case EV_PLAYER_HURT: audio_play(au, SND_PLAYER_HURT, dist, 12.0f); break;
-            case EV_ENEMY_HURT: audio_play(au, SND_ENEMY_HURT, dist, 16.0f); break;
-            case EV_ENEMY_DEATH: audio_play(au, SND_ENEMY_DEATH, dist, 16.0f); break;
-            case EV_DOOR: audio_play(au, SND_DOOR, dist, 16.0f); break;
-            default: break;
-        }
-    }
 }
 
 int main(int argc, char **argv)
@@ -303,14 +270,14 @@ int main(int argc, char **argv)
                 accumulator -= FIXED_DT;
 #ifdef ENABLE_MULTIPLAYER
                 /* The server runs the tick; the client numbers the input. Its
-                 * events come with the snapshots and are 07-06's to play. */
+                 * events come with the snapshots, and play after the poll. */
                 if (client) {
                     client_send_input(client, &pi);
                     continue;
                 }
 #endif
                 world_step(world, &pi, 1, FIXED_DT);
-                world_play_events(&audio, &world->events, world->players, world->player_count, me);
+                audio_play_events(&audio, world);
             }
 
             /* Win/Lose transitions */
@@ -337,6 +304,9 @@ int main(int argc, char **argv)
             ClientState is = client_state(client);
             world = client_world(client);
             me = local_player(world);
+            if (world) {
+                audio_play_events(&audio, world);
+            }
             if (is != was && is == CL_CONNECTED) {
                 input.angle = me->angle;
                 sprite_anim_init(&anim, &assets);

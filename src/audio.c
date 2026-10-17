@@ -1,4 +1,5 @@
 #include "audio.h"
+#include "world.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,6 +8,10 @@
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+/* Sounds playing at once. Ten players firing keep a steady stream of shots,
+ * pain and doors coming, and every one of them holds a channel to its end. */
+#define AUDIO_CHANNELS 32
 
 /* ---- Procedural WAV chunk synthesis ----
  * We build a 16-bit mono 22050 Hz WAV in memory, then load it with
@@ -151,7 +156,7 @@ int audio_init(Audio *a)
         fprintf(stderr, "audio: Mix_OpenAudio failed: %s\n", Mix_GetError());
         return -1;
     }
-    Mix_AllocateChannels(16);
+    Mix_AllocateChannels(AUDIO_CHANNELS);
     a->available = 1;
 
     /* Synthesize each sound. */
@@ -224,34 +229,6 @@ void audio_shutdown(Audio *a)
     a->available = 0;
 }
 
-void audio_play(Audio *a, SoundId id, float dist, float maxdist)
-{
-    if (!a->available || a->muted) {
-        return;
-    }
-    if (id < 0 || id >= SND_COUNT) {
-        return;
-    }
-    Mix_Chunk *c = a->chunks[id];
-    if (!c) {
-        return;
-    }
-    float vol = 1.0f;
-    if (maxdist > 0.0f) {
-        vol = 1.0f - (dist / maxdist);
-        if (vol < 0.0f) {
-            vol = 0.0f;
-        }
-        if (vol > 1.0f) {
-            vol = 1.0f;
-        }
-    }
-    int mix_vol = (int)(vol * 128.0f);
-    Mix_VolumeChunk(c, mix_vol);
-    /* stereo pan by sign of dist? We don't carry direction here; keep center. */
-    Mix_PlayChannel(-1, c, 0);
-}
-
 void audio_play_volume(Audio *a, SoundId id, float vol)
 {
     if (!a->available || a->muted) {
@@ -270,14 +247,78 @@ void audio_play_volume(Audio *a, SoundId id, float vol)
     if (vol > 1.0f) {
         vol = 1.0f;
     }
-    Mix_VolumeChunk(c, (int)(vol * 128.0f));
-    Mix_PlayChannel(-1, c, 0);
+    /* The volume goes on the channel, before it starts. A chunk's own volume
+     * is read as it is mixed, so a far shot would quieten a near one of the
+     * same chunk still playing. */
+    int ch = Mix_GroupAvailable(-1);
+    if (ch < 0) {
+        return;
+    }
+    Mix_Volume(ch, (int)(vol * MIX_MAX_VOLUME));
+    Mix_PlayChannel(ch, c, 0);
+}
+
+float audio_event_sound(const World *w, const GameEvent *e, SoundId *id)
+{
+    if (w->local_player < 0) {
+        return 0.0f;
+    }
+    /* level is how loud each kind plays where it happens */
+    SoundId snd;
+    float level = 1.0f;
+    switch (e->kind) {
+        case EV_SHOT: {
+            /* which weapon it was is the shooter's state, not the event's */
+            int type = WEAPON_PISTOL;
+            if (e->actor < w->player_count) {
+                type = w->players[e->actor].weapons.current;
+            }
+            snd = type == WEAPON_PISTOL ? SND_PISTOL : SND_SHOTGUN;
+            level = 0.5f;
+            break;
+        }
+        case EV_NO_AMMO:
+            snd = SND_NO_AMMO;
+            level = 0.5f;
+            break;
+        case EV_PICKUP:
+            snd = SND_PICKUP;
+            level = 0.8f;
+            break;
+        case EV_PLAYER_HURT: snd = SND_PLAYER_HURT; break;
+        case EV_ENEMY_HURT: snd = SND_ENEMY_HURT; break;
+        case EV_ENEMY_DEATH: snd = SND_ENEMY_DEATH; break;
+        case EV_DOOR: snd = SND_DOOR; break;
+        default: return 0.0f;
+    }
+    /* mixed centred: nothing pans a sound by where it happened yet */
+    const PlayerState *me = &w->players[w->local_player];
+    float gain = event_gain(e, w->local_player, me->x, me->y);
+    if (gain <= 0.0f) {
+        return 0.0f;
+    }
+    *id = snd;
+    return level * gain;
+}
+
+void audio_play_events(Audio *a, const World *w)
+{
+    for (int i = 0; i < w->events.count; i++) {
+        SoundId id;
+        float vol = audio_event_sound(w, &w->events.items[i], &id);
+        if (vol > 0.0f) {
+            audio_play_volume(a, id, vol);
+        }
+    }
 }
 
 void audio_toggle_mute(Audio *a)
 {
     a->muted = !a->muted;
-    if (a->available) {
-        Mix_Volume(-1, a->muted ? 0 : MIX_MAX_VOLUME);
+    /* Every sound sets the volume of its channel as it starts, so unmuting
+     * has nothing to restore: muting cuts off what is playing, and nothing
+     * new starts until it is undone. */
+    if (a->available && a->muted) {
+        Mix_HaltChannel(-1);
     }
 }

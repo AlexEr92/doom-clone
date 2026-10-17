@@ -21,6 +21,7 @@
 #include <stdint.h>
 
 struct World;
+struct PlayerState;
 
 /* Raised with every change to anything in this file a peer reads. */
 #define PROTO_VERSION 1
@@ -144,6 +145,15 @@ void snapshot_write(MsgSnapshot *s, const struct World *w, uint32_t last_input_t
 /* Make the first `count` of `events` the snapshot's events, as many as
  * MAX_EVENTS holds; the rest are dropped. */
 void snapshot_set_events(MsgSnapshot *s, const GameEvent *events, int count);
+
+/* Make the snapshot's events those of `events` that `listener` hears
+ * (event_gain() in event.h): their own first, as they happened, then the rest
+ * nearest first, as many as MAX_EVENTS holds. Events at one distance keep the
+ * order they happened in. With ten players firing, the events of the ticks
+ * between two snapshots outnumber what one carries, and what a player has to
+ * hear is the fight next to them, not whichever came first. */
+void snapshot_pick_events(MsgSnapshot *s, const GameEvent *events, int count,
+                          const struct PlayerState *listener);
 
 /* Put the state in `s` into `w`, which must have been loaded with the map the
  * server runs: items and doors are matched by index, and their count comes

@@ -262,6 +262,59 @@ static void test_a_shot_damages_an_enemy_in_the_open(void)
     TEST_ASSERT_TRUE(players[SHOOTER].weapons.weapons[WEAPON_PISTOL].cooldown > 0.0f);
 }
 
+static int count_events(GameEventKind kind)
+{
+    int n = 0;
+    for (int i = 0; i < events.count; i++) {
+        if (events.items[i].kind == kind) {
+            n++;
+        }
+    }
+    return n;
+}
+
+/* Every pellet of a blast at point-blank hurts the enemy, and the tick still
+ * has one shot and one pain for the client to play, not seven pains. */
+static void test_a_point_blank_blast_is_one_shot_and_one_pain(void)
+{
+    aim(&players[SHOOTER], 2.5f, 2.5f, 0.0f);
+    weapon_switch(&players[SHOOTER], WEAPON_SHOTGUN);
+    const Weapon *w = &players[SHOOTER].weapons.weapons[WEAPON_SHOTGUN];
+    int e = add_enemy(3.5f, 2.5f);
+    enemies.items[e].hp = 1000.0f; /* survives the blast: hurt, not killed */
+
+    fire();
+
+    TEST_ASSERT_FLOAT_WITHIN(1e-3f, 1000.0f - w->damage * (float)w->pellets, enemies.items[e].hp);
+    TEST_ASSERT_EQUAL_INT(2, events.count);
+    TEST_ASSERT_EQUAL_INT(1, count_events(EV_SHOT));
+    TEST_ASSERT_EQUAL_INT(1, count_events(EV_ENEMY_HURT));
+}
+
+/* Ten players fire their shotguns in one tick, each into an enemy of its
+ * own: seventy pellets hit, and the tick's queue still holds every shot. */
+static void test_ten_blasts_in_one_tick_fit_the_queue(void)
+{
+    static PlayerState shooters[MAX_PLAYERS];
+    for (int i = 0; i < MAX_PLAYERS; i++) {
+        PlayerState *p = &shooters[i];
+        player_init(p, 2, 1 + i);
+        p->id = (uint8_t)i;
+        p->angle = 0.0f;
+        weapon_switch(p, WEAPON_SHOTGUN);
+        int e = add_enemy(3.5f, p->y);
+        enemies.items[e].hp = 1000.0f;
+    }
+
+    for (int i = 0; i < MAX_PLAYERS; i++) {
+        weapon_try_fire(&shooters[i], &map, &doors, shooters, MAX_PLAYERS, &enemies, &events);
+    }
+
+    TEST_ASSERT_EQUAL_INT(MAX_PLAYERS, count_events(EV_SHOT));
+    TEST_ASSERT_EQUAL_INT(MAX_PLAYERS, count_events(EV_ENEMY_HURT));
+    TEST_ASSERT_EQUAL_INT(2 * MAX_PLAYERS, events.count);
+}
+
 static void test_a_shot_does_not_go_through_a_wall(void)
 {
     aim(&players[SHOOTER], 2.5f, WALL_ROW + 0.5f, 0.0f);
@@ -412,6 +465,8 @@ int main(void)
     RUN_TEST(test_shot_animation_is_the_same_for_every_weapon);
     RUN_TEST(test_two_players_keep_separate_weapon_state);
     RUN_TEST(test_a_shot_damages_an_enemy_in_the_open);
+    RUN_TEST(test_a_point_blank_blast_is_one_shot_and_one_pain);
+    RUN_TEST(test_ten_blasts_in_one_tick_fit_the_queue);
     RUN_TEST(test_a_shot_does_not_go_through_a_wall);
     RUN_TEST(test_a_shot_does_not_go_through_a_closed_door);
     RUN_TEST(test_a_shot_stops_at_the_nearest_enemy);

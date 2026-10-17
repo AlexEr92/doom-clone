@@ -18,7 +18,7 @@
 #define MAX_DOORS 64    /* */
 #define MAX_SPRITES 192 /* enemies + items + barrels + 9 other players */
 #define MAX_SPAWNS 24   /* twice as many as there are players */
-#define MAX_EVENTS 32   /* per tick; on overflow the farthest are dropped */
+#define MAX_EVENTS 32   /* per tick and per snapshot, which keeps the nearest */
 
 /* ---- Simulation ---- */
 

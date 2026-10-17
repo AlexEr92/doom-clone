@@ -134,7 +134,7 @@ code and report whether it still holds:
   `weapon.c`, `item.c`, `door.c`, `player.c`, `map.c`, `raycast_world.c` and
   any new simulation module include no client header (`camera.h`,
   `sprite.h`, `raycast.h`, `engine.h`, `hud.h`, `audio.h`, `assets.h`,
-  `game.h`) and call no `audio_play()` — sound goes out as `GameEvent`s. No entity stores a
+  `game.h`) and call nothing in `audio.c` — sound goes out as `GameEvent`s. No entity stores a
   sprite id; `sprite.h` is reached from `main.c` and `sprite.c` only
   (`grep -ln '#include "sprite.h"' src/`). A new simulation module is added
   to `SIM=` in `.claude/skills/lint/lint.sh`, or the SDL check never sees it;

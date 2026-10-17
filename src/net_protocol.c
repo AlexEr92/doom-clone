@@ -96,6 +96,49 @@ void snapshot_set_events(MsgSnapshot *s, const GameEvent *events, int count)
     s->event_count = (uint8_t)n;
 }
 
+void snapshot_pick_events(MsgSnapshot *s, const GameEvent *events, int count,
+                          const PlayerState *listener)
+{
+    GameEvent picked[MAX_EVENTS];
+    float dist[MAX_EVENTS];
+    int n = 0;
+    for (int i = 0; i < count && n < MAX_EVENTS; i++) {
+        if (event_is_own(&events[i], listener->id)) {
+            picked[n++] = events[i];
+        }
+    }
+    int own = n;
+    /* The others are kept sorted by distance as they come in: each goes in
+     * after every one as near as it, and once the list is full the farthest
+     * falls off the end. */
+    for (int i = 0; i < count; i++) {
+        const GameEvent *e = &events[i];
+        if (event_is_own(e, listener->id) ||
+            event_gain(e, listener->id, listener->x, listener->y) <= 0.0f) {
+            continue;
+        }
+        float d = event_distance(e, listener->x, listener->y);
+        int at = n;
+        while (at > own && dist[at - 1] > d) {
+            at--;
+        }
+        if (at >= MAX_EVENTS) {
+            continue;
+        }
+        int last = n < MAX_EVENTS ? n : MAX_EVENTS - 1;
+        for (int j = last; j > at; j--) {
+            picked[j] = picked[j - 1];
+            dist[j] = dist[j - 1];
+        }
+        picked[at] = *e;
+        dist[at] = d;
+        if (n < MAX_EVENTS) {
+            n++;
+        }
+    }
+    snapshot_set_events(s, picked, n);
+}
+
 /* What a door is doing, judged by where its openness went: the snapshot
  * carries how far open it is, not which way it moves. */
 static DoorState door_state_from(const Door *d, float openness)

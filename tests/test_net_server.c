@@ -247,6 +247,17 @@ static int count_events(const MsgSnapshot *snap, GameEventKind kind, int actor)
     return n;
 }
 
+/* Events of `kind` by `actor` in the snapshots `b` got since the *seen-th,
+ * which then moves past them. */
+static int events_since(const Bot *b, int *seen, GameEventKind kind, int actor)
+{
+    int n = 0;
+    for (; *seen < b->snapshots; (*seen)++) {
+        n += count_events(&b->recent[*seen % RECENT], kind, actor);
+    }
+    return n;
+}
+
 static double now_seconds(void)
 {
     struct timespec ts;
@@ -556,6 +567,61 @@ static void test_press_is_not_repeated_while_input_is_late(void)
 
 /* ---- snapshots ---- */
 
+/* The events of a tick go to each client as its own player hears them. Both
+ * players here pull the trigger on an empty pistol: the local player every
+ * tick, the bot once. The bot hears its own click, and never the local
+ * player's — each of the snapshots it gets has its own pick of one backlog. */
+static void test_each_client_hears_its_own_empty_click_alone(void)
+{
+    int local = server_add_local_player(server);
+    Bot *b = bot_joined();
+    World *w = server_world(server);
+    int id = b->accept.your_id;
+    w->players[local].weapons.weapons[WEAPON_PISTOL].ammo = 0;
+    w->players[id].weapons.weapons[WEAPON_PISTOL].ammo = 0;
+
+    bot_send_input(b, 1, BTN_FIRE, 0.0f);
+    int own = 0;
+    int seen = b->snapshots;
+    uint32_t start = enet_time_get();
+    while (own == 0 && enet_time_get() - start < TEST_WAIT_MS) {
+        PlayerInput in = {w->tick, BTN_FIRE, w->players[local].angle};
+        int from = seen;
+        tick(&in);
+        own += events_since(b, &from, EV_NO_AMMO, id);
+        TEST_ASSERT_EQUAL_INT(0, events_since(b, &seen, EV_NO_AMMO, local));
+    }
+    TEST_ASSERT_TRUE_MESSAGE(own > 0, "the bot's own click within TEST_WAIT_MS");
+}
+
+/* An enemy's death is heard by every player near it, not only by whoever
+ * killed it: the local player shoots one, and both bots get the death. */
+static void test_an_enemy_death_reaches_every_client_near_it(void)
+{
+    int local = server_add_local_player(server);
+    Bot *a = bot_joined();
+    Bot *b = bot_joined();
+    World *w = server_world(server);
+    const PlayerState *me = &w->players[local];
+    int e = enemy_spawn(&w->enemies, me->x, me->y + 2.0f, ENEMY_IMP);
+    w->enemies.items[e].hp = 1.0f;
+    int seen_a = a->snapshots, seen_b = b->snapshots;
+
+    PlayerInput in = {w->tick, BTN_FIRE, MATH_PI / 2.0f}; /* facing it, down the map */
+    tick(&in);
+    TEST_ASSERT_EQUAL_INT(ESTATE_DEAD, w->enemies.items[e].state);
+
+    int heard_a = 0, heard_b = 0;
+    uint32_t start = enet_time_get();
+    while (!(heard_a && heard_b) && enet_time_get() - start < TEST_WAIT_MS) {
+        tick(NULL);
+        heard_a += events_since(a, &seen_a, EV_ENEMY_DEATH, e);
+        heard_b += events_since(b, &seen_b, EV_ENEMY_DEATH, e);
+    }
+    TEST_ASSERT_EQUAL_INT(1, heard_a);
+    TEST_ASSERT_EQUAL_INT(1, heard_b);
+}
+
 /* At SNAPSHOT_RATE a snapshot follows every third tick. The local player
  * fires in tick `nth` (1 or 2) of three: the shot happens between snapshots,
  * and world_step() has cleared it from World.events by the time the snapshot
@@ -708,6 +774,8 @@ int main(void)
     RUN_TEST(test_silent_client_stands_still_after_the_timeout);
     RUN_TEST(test_press_is_not_lost_under_a_newer_input);
     RUN_TEST(test_press_is_not_repeated_while_input_is_late);
+    RUN_TEST(test_each_client_hears_its_own_empty_click_alone);
+    RUN_TEST(test_an_enemy_death_reaches_every_client_near_it);
     RUN_TEST(test_shot_in_the_second_tick_reaches_the_snapshot);
     RUN_TEST(test_shot_in_the_first_tick_reaches_the_snapshot);
     RUN_TEST(test_snapshot_rate_is_held_between_min_and_tick_rate);

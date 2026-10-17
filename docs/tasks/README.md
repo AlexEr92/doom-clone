@@ -72,7 +72,6 @@
 
 | # | Задача | Зависит от |
 |---|---|---|
-| [07-06](07-06-audio-events.md) | Звук через сетевые события | 07-05 |
 | [07-07](07-07-launch-modes.md) | Режимы запуска + headless-сборка | 07-05 |
 
 ## Этап 8 — Качество netcode
@@ -196,3 +195,4 @@
 | [chore-016](../closed_tasks/chore-016-stale-coverage-docs.md) | Устаревшие числа и примеры в `SKILL.md` про покрытие и `check.sh` | Сделано |
 | [bug-020](../closed_tasks/bug-020-coverage-stale-gcno-masks-failure.md) | `coverage.sh`: устаревшие `.gcno` ломают замер, сбой gcovr выдаётся за «НИЖЕ ПОРОГА» | Сделано |
 | [10-04](../closed_tasks/10-04-player-skins.md) | Десять скинов игроков | Сделано: скин игрока — его `id` |
+| [07-06](../closed_tasks/07-06-audio-events.md) | Звук через сетевые события | Сделано |

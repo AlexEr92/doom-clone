@@ -41,9 +41,22 @@ static EnemyList enemies;
 static PlayerState players[MAX_PLAYERS];
 static int player_count;
 static PlayerState *player = &players[0];
-/* Filled by the module under test; never cleared inside a test, so a whole
- * scenario's events can be counted at the end of it. */
+/* Filled by the module under test. It holds one tick, as World.events does —
+ * event_push() merges the same event within it — so step() starts every tick
+ * with it empty, and what it held moves to `seen` before each tick and before
+ * anything is counted: a whole scenario's events are counted at its end. */
 static EventQueue events;
+#define MAX_SEEN 256
+static GameEvent seen[MAX_SEEN];
+static int seen_count;
+
+static void collect(void)
+{
+    for (int i = 0; i < events.count && seen_count < MAX_SEEN; i++) {
+        seen[seen_count++] = events.items[i];
+    }
+    event_queue_clear(&events);
+}
 
 /* ---- fixture ---- */
 
@@ -89,6 +102,7 @@ static PlayerState *add_player(int id, float x, float y)
 static void step(int ticks)
 {
     for (int i = 0; i < ticks; i++) {
+        collect();
         enemy_update_all(&enemies, &map, NULL, players, player_count, &events, TEST_STEP);
     }
 }
@@ -107,9 +121,10 @@ static void step_until_state(EnemyState want, int limit)
 
 static int count_events(GameEventKind kind)
 {
+    collect();
     int n = 0;
-    for (int i = 0; i < events.count; i++) {
-        if (events.items[i].kind == kind) {
+    for (int i = 0; i < seen_count; i++) {
+        if (seen[i].kind == kind) {
             n++;
         }
     }
@@ -119,9 +134,10 @@ static int count_events(GameEventKind kind)
 /* The first event of `kind`, or NULL. */
 static const GameEvent *find_event(GameEventKind kind)
 {
-    for (int i = 0; i < events.count; i++) {
-        if (events.items[i].kind == kind) {
-            return &events.items[i];
+    collect();
+    for (int i = 0; i < seen_count; i++) {
+        if (seen[i].kind == kind) {
+            return &seen[i];
         }
     }
     return NULL;
@@ -142,6 +158,7 @@ void setUp(void)
     player_count = 0;
     add_player(0, 0.0f, 0.0f);
     event_queue_clear(&events);
+    seen_count = 0;
     TEST_ASSERT_EQUAL_INT(0, enemy_spawn(&enemies, ENEMY_START_X, ENEMY_START_Y, ENEMY_IMP));
 }
 
