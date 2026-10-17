@@ -288,8 +288,10 @@ void sprites_build_from_world(SpriteList *sl, const World *w, int local_player,
         if (idx < 0) {
             break;
         }
-        /* The skin is the id until 10-04 hands skins out. The facing lets a
-         * deathmatch tell whether it has been noticed. */
+        /* The skin is the id: the server hands out ids, unique in the match
+         * and kept through death, and every client reads the same one out of
+         * the snapshot (config.h). The facing lets a deathmatch tell whether
+         * it has been noticed. */
         set_character(&sl->items[idx], a, p->id, &sa->players[i]);
         sl->items[idx].view = me ? player_view(p, me->x, me->y) : 0;
     }

@@ -184,6 +184,26 @@ static void test_nine_players_draw_apart_and_animate_apart(void)
     }
 }
 
+/* Every client of a match draws one player as one character, whoever the
+ * client itself plays: the skin goes by the player's id, not by where the
+ * player stands in the list of the ones this client draws. */
+static void test_a_player_wears_one_skin_on_every_client(void)
+{
+    for (int id = 1; id < MAX_PLAYERS; id++) {
+        add_player(id, 2.0f + (float)id, 8.0f);
+    }
+    for (int local = 0; local < MAX_PLAYERS; local++) {
+        w.local_player = local;
+        frame(FRAME_DT);
+        TEST_ASSERT_EQUAL_INT(MAX_PLAYERS - 1, sl.count);
+        for (int id = 0; id < MAX_PLAYERS; id++) {
+            if (id != local) {
+                TEST_ASSERT_EQUAL_INT(id, player_sprite(id)->skin);
+            }
+        }
+    }
+}
+
 /* ---- Choosing the animation ---- */
 
 static void test_standing_character_idles(void)
@@ -440,16 +460,19 @@ static void test_death_ends_the_flash(void)
     TEST_ASSERT_EQUAL_INT(ANIM_IDLE, player_sprite(1)->anim);
 }
 
-/* A dead player stays on the screen, lying where they fell. */
+/* A dead player stays on the screen, lying where they fell, as the character
+ * they were. */
 static void test_dead_player_is_drawn_dying(void)
 {
-    PlayerState *p = add_player(1, 2.0f, 8.0f);
+    PlayerState *p = add_player(3, 2.0f, 8.0f);
+    frame(FRAME_DT);
     p->alive = 0;
     p->hp = 0.0f;
     frames(60, FRAME_DT);
     TEST_ASSERT_EQUAL_INT(1, sl.count);
-    TEST_ASSERT_EQUAL_INT(ANIM_DEATH, player_sprite(1)->anim);
-    TEST_ASSERT_EQUAL_INT(SHEET_COLS[ANIM_DEATH] - 1, player_sprite(1)->frame);
+    TEST_ASSERT_EQUAL_INT(ANIM_DEATH, player_sprite(3)->anim);
+    TEST_ASSERT_EQUAL_INT(SHEET_COLS[ANIM_DEATH] - 1, player_sprite(3)->frame);
+    TEST_ASSERT_EQUAL_INT(3, player_sprite(3)->skin);
 }
 
 /* Someone who joins a slot another player left starts afresh: the distance
@@ -482,6 +505,7 @@ int main(void)
     RUN_TEST(test_imp_and_sergeant_draw_with_their_own_skins);
     RUN_TEST(test_enemy_with_no_listed_skin_gets_none);
     RUN_TEST(test_nine_players_draw_apart_and_animate_apart);
+    RUN_TEST(test_a_player_wears_one_skin_on_every_client);
     RUN_TEST(test_standing_character_idles);
     RUN_TEST(test_longer_idle_sheet_loops);
     RUN_TEST(test_running_character_cycles_the_run);

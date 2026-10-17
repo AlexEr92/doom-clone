@@ -420,6 +420,43 @@ static void test_door_opened_by_one_opens_for_the_other(void)
     TEST_ASSERT_EQUAL_INT(DOOR_OPEN, client_world(b)->doors.doors[0].state);
 }
 
+static int every_client_sees_everyone(void)
+{
+    for (int i = 0; i < client_count; i++) {
+        for (int id = 0; id < MAX_PLAYERS; id++) {
+            if (!seen_player(clients[i], id)->active) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
+/* A full match: every client sees all ten players, and each of them under the
+ * id the server gave them. The id is the player's skin (config.h), so that
+ * makes ten characters, each one the same on every client. Players spawn on
+ * cells of their own, which is what tells them apart here. */
+static void test_ten_clients_see_each_player_under_one_id(void)
+{
+    for (int i = 0; i < MAX_PLAYERS; i++) {
+        TEST_ASSERT_EQUAL_INT(i, client_local_player(client_joined()));
+    }
+    TICK_UNTIL(every_client_sees_everyone());
+    for (int a = 0; a < MAX_PLAYERS; a++) {
+        for (int b = a + 1; b < MAX_PLAYERS; b++) {
+            TEST_ASSERT_FALSE(server_player(a)->x == server_player(b)->x &&
+                              server_player(a)->y == server_player(b)->y);
+        }
+    }
+    for (int i = 0; i < MAX_PLAYERS; i++) {
+        for (int id = 0; id < MAX_PLAYERS; id++) {
+            TEST_ASSERT_EQUAL_INT(id, seen_player(clients[i], id)->id);
+            TEST_ASSERT_EQUAL_FLOAT(server_player(id)->x, seen_player(clients[i], id)->x);
+            TEST_ASSERT_EQUAL_FLOAT(server_player(id)->y, seen_player(clients[i], id)->y);
+        }
+    }
+}
+
 static void test_eleventh_client_is_rejected_as_full(void)
 {
     for (int i = 0; i < MAX_PLAYERS; i++) {
@@ -839,6 +876,7 @@ int main(void)
     RUN_TEST(test_shot_enemy_dies_for_the_other_client);
     RUN_TEST(test_pickup_is_gone_for_both);
     RUN_TEST(test_door_opened_by_one_opens_for_the_other);
+    RUN_TEST(test_ten_clients_see_each_player_under_one_id);
     RUN_TEST(test_eleventh_client_is_rejected_as_full);
     RUN_TEST(test_server_that_quits_ends_the_game);
     RUN_TEST(test_killed_server_is_noticed_within_the_timeout);

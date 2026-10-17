@@ -101,7 +101,6 @@
 
 | # | Задача | Зависит от |
 |---|---|---|
-| [10-04](10-04-player-skins.md) | Десять скинов игроков | 10-03, 07-03 |
 | [10-05](10-05-five-weapons.md) | Пять стволов и патроны к каждому | 10-01 |
 | [10-06](10-06-world-weapons-pickups.md) | Оружие на земле и маркеры карты | 10-05, 09-07 |
 | [10-07](10-07-grenade-launcher.md) | Гранатомёт: снаряд, полёт, взрыв | 10-05, 07-03 |
@@ -196,3 +195,4 @@
 | [chore-014](../closed_tasks/chore-014-raise-coverage-thresholds.md) | Поднять пороги покрытия до измеренной базы | Сделано |
 | [chore-016](../closed_tasks/chore-016-stale-coverage-docs.md) | Устаревшие числа и примеры в `SKILL.md` про покрытие и `check.sh` | Сделано |
 | [bug-020](../closed_tasks/bug-020-coverage-stale-gcno-masks-failure.md) | `coverage.sh`: устаревшие `.gcno` ломают замер, сбой gcovr выдаётся за «НИЖЕ ПОРОГА» | Сделано |
+| [10-04](../closed_tasks/10-04-player-skins.md) | Десять скинов игроков | Сделано: скин игрока — его `id` |

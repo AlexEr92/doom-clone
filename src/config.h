@@ -62,6 +62,11 @@
 _Static_assert(MAX_SPRITES >= MAX_ENEMIES + MAX_ITEMS + MAX_PLAYERS - 1,
                "MAX_SPRITES cannot hold one frame's worth of entities");
 
+/* A player's skin is their id. Ids are unique among the players in a match and
+ * the same on every client, so no two players share a character and each one
+ * looks the same everywhere — while there is a skin for every slot. */
+_Static_assert(MAX_SKINS >= MAX_PLAYERS, "a player's skin is their id: every slot needs a skin");
+
 /* A snapshot goes out after a tick, so no rate above the tick rate is reached,
  * and the server sizes the events it keeps between snapshots by the lowest. */
 _Static_assert(SNAPSHOT_RATE_MIN > 0 && SNAPSHOT_RATE_MIN <= SNAPSHOT_RATE &&
