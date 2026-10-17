@@ -18,9 +18,9 @@ All paths are relative to the project root.
 .claude/skills/check/check.sh master    # everything since the branch point
 ```
 
-About 15 seconds, most of it smoke and cppcheck. It owns `build/`, `build-cov/`,
-`.run/` and the X display `:99` while it runs: do not start it while the
-reviewer or tester is working.
+About 10 seconds, and about 18 when smoke runs, which alone takes about 8.
+It owns `build/`, `build-cov/`, `.run/` and the X display `:99` while it
+runs: do not start it while the reviewer or tester is working.
 
 | Step | What counts as a failure |
 |---|---|
@@ -39,25 +39,42 @@ Verified output on a clean tree:
 ```
 проверяю: рабочее дерево против HEAD
 сборка:    ок, предупреждений вне vendor/ нет
-ctest:     12/12
+ctest:     19/19
 lint:      чисто (cppcheck, симуляция без SDL)
-smoke:     ок (6 PASS)
-покрытие:  строки 68.1%, decisions 56.3% — пороги выдержаны
+smoke:     не нужен — изменения не доходят до src/, assets/, CMakeLists.txt
+покрытие:  строки 81.6%, decisions 71.4% — пороги выдержаны
   исполняемых изменённых строк нет
 итог: ок
 ```
 
-and on a copy with a warning, a broken test, SDL in `world.c` and the map
-removed:
+on a copy with a comment added to `src/world.c`, which brings smoke in:
 
 ```
-сборка:    ПРЕДУПРЕЖДЕНИЯ: 1
-  src/item.c:11:9: warning: unused variable ‘unused_probe’ [-Wunused-variable]
+проверяю: рабочее дерево против HEAD
+сборка:    ок, предупреждений вне vendor/ нет
+ctest:     19/19
+lint:      чисто (cppcheck, симуляция без SDL)
+smoke:     ок (6 PASS)
+покрытие:  строки 81.6%, decisions 71.4% — пороги выдержаны
+  исполняемых изменённых строк нет
+итог: ок
+```
+
+and on a copy with an unused variable in `src/item.c`, an array overrun in
+`src/door.c`, a wrong expected value in `tests/test_utils.c` and
+`assets/maps/level1.txt` removed:
+
+```
+проверяю: рабочее дерево против HEAD
+сборка:    ПРЕДУПРЕЖДЕНИЯ: 2
+  src/door.c:13:9: warning: variable ‘probe’ set but not used [-Wunused-but-set-variable]
+  src/item.c:12:9: warning: unused variable ‘unused_probe’ [-Wunused-variable]
 ctest:     ПРОВАЛ — .run/check/ctest.log
   1 - utils (Failed)
 lint:      НАХОДКИ — .run/check/lint.log
-  src/world.c:1:10: fatal error: SDL.h: Нет такого файла или каталога
-  ...
+  src/door.c:14:10: error: Array 'probe[2]' accessed at index 2, which is out of bounds. [arrayIndexOutOfBounds]
+      probe[2] = 1;
+           ^
 smoke:     ПРОВАЛ — .run/check/smoke.log
   ERROR: window never appeared
 покрытие:  не считалось — юнит-тесты не прошли

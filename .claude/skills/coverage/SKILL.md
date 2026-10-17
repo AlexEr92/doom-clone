@@ -29,7 +29,7 @@ Verified against gcovr 7.0 and gcc 13.3.
 .claude/skills/coverage/coverage.sh report          # summary only, no rebuild
 ```
 
-A full run takes about a second once `build-cov/` exists. Counters are
+A full run takes about two seconds once `build-cov/` exists. Counters are
 reset before every `ctest`, so a test deleted since the last run is not
 credited with its lines. `report` rebuilds nothing and reads what the last
 run left: when `src/` or `tests/` changed after it, it warns on stderr
@@ -50,15 +50,20 @@ decisions: 71.4% (858 out of 1201)
 покрытие: пороги выдержаны (строки 78 %, decisions 68 %)
 ```
 
-and the tail of `changed` against a base that touched `assets.c` and
-`sprite.c`:
+and the tail of `changed HEAD~9` on a clean tree at `chore: raise coverage
+thresholds to 78/68`, whose nine commits reached `main.c`, `config.h` and
+the network modules:
 
 ```
-изменённые строки src/ против HEAD~8:
-  src/assets.c: 624, 637-639, 669
-  src/sprite.c: не линкуется ни в один тест — не измеряется
-  src/sprite.h: исполняемого кода под тестами нет
-  не исполнено тестами: 5 из 7 исполняемых изменённых строк
+изменённые строки src/ против HEAD~9:
+  src/config.h: исполняемого кода под тестами нет
+  src/main.c: не линкуется ни в один тест — не измеряется
+  src/net_client.h: исполняемого кода под тестами нет
+  src/net_protocol.h: исполняемого кода под тестами нет
+  src/net_server.c: 79
+  src/net_server.h: исполняемого кода под тестами нет
+  src/net_transport.h: исполняемого кода под тестами нет
+  не исполнено тестами: 1 из 315 исполняемых изменённых строк
 ```
 
 ## Thresholds
@@ -71,18 +76,28 @@ see below.
 ## Reading the numbers
 
 - **Only modules linked into some test are in the denominator.** `engine.c`,
-  `hud.c`, `main.c`, `raycast.c`, `sprite.c` and `utils.c` are out of scope
-  by design (`docs/closed_tasks/test-001-unit-test-harness.md`) and produce
-  no data at all; `changed` says so rather than counting them as zero.
-- **`assets.c` (20 %) and `game.c` (32 %) are not badly tested.** Each
-  holds testable code next to render code: the procedural texture
-  generators and the bitmap font are never run by a test. A low number
-  there says nothing about the sheet loader or the menu state machine.
+  `main.c`, `raycast.c` and `utils.c` are out of scope by design
+  (`docs/closed_tasks/test-001-unit-test-harness.md`) and produce no data
+  at all; `changed` says so rather than counting them as zero.
+  `test_utils.c` tests the inline helpers in `utils.h`, which is in the
+  report, and links no `utils.c`.
+- **`hud.c` (3 %) and `game.c` (32 %) are not badly tested.** Each holds
+  testable code next to render code. `test_hud.c` checks
+  `hud_weapon_frame()`, which frame of the weapon sheet a shot shows, and
+  never draws the status bar, the digits, the face or the weapon;
+  `test_game.c` drives the menu state machine and never runs the bitmap
+  font or the overlays. A low number there says nothing about the weapon
+  animation or the state machine.
 - **Executed is not checked.** `tests/replay_test.c` runs 600 ticks of the
   whole simulation and asserts only that two runs agree, so it lifts
   `world.c`, `enemy.c`, `item.c` and `door.c` without asserting anything
-  about them. A covered line means some test reached it; whether a test
-  would fail if that line were wrong takes reading the test.
+  about them; `test_net_protocol.c`, `test_net_server.c` and
+  `test_net_client.c` link the whole simulation too, so the total barely
+  moves when a module's own test goes. `assets.c` (92 %) is high because
+  `test_assets.c` calls `assets_init()`, which runs the procedural texture
+  generators, though nothing checks their pixels. A covered line means
+  some test reached it; whether a test would fail if that line were wrong
+  takes reading the test.
 - **What the metric is good at** is the branches no test ever enters:
-  `map_load()` failures, `item_add`/`enemy_spawn` overflows, a sheet
-  `assets_load_sheet()` refuses. Use `changed` to ask that of a diff.
+  `item_add`/`enemy_spawn` overflows, a frame size `assets_load_sheet()`
+  refuses. Use `changed` to ask that of a diff.

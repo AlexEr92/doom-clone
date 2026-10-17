@@ -142,7 +142,6 @@
 | [chore-009](chore-009-net-smoke-lag-loss.md) | `net-stress`: 4 клиента под `--netlag`/`--netloss` | `netdriver.sh` |
 | [chore-010](chore-010-sanitizers-in-review-harness.md) | Санитайзеры в `check.sh` и у тестера | `check.sh`, `tester.md`, `CLAUDE.md` |
 | [chore-013](chore-013-lint-net-client-no-sdl.md) | `lint.sh sim` не проверяет, что `net_client.c` собирается без SDL | `lint.sh`, `SKILL.md`, `harness.md` |
-| [chore-016](chore-016-stale-coverage-docs.md) | Устаревшие числа и примеры в `SKILL.md` про покрытие и `check.sh` | `coverage/SKILL.md`, `check/SKILL.md` |
 | [feat-003](feat-003-remote-shot-animation.md) | Выстрел чужого игрока и врага в снапшоте: `ANIM_SHOOT` по сети | `net_protocol.c/.h` |
 | [test-002](test-002-fps-with-network.md) | Замер FPS клиента с работающей сетью | `SKILL.md`, `netdriver.sh` |
 | [test-003](test-003-text-module-layout-test.md) | Общий модуль шрифта 3×5 и тест раскладки глифов | `text.c`, `hud.c`, `game.c` |
@@ -195,3 +194,4 @@
 | [07-05](../closed_tasks/07-05-net-client.md) | Клиент: отправка ввода, приём снапшотов | Сделано |
 | [chore-015](../closed_tasks/chore-015-net-bot.md) | `tests/manual/net_bot` (look, run, swarm) и папка `tests/manual/` | Сделано |
 | [chore-014](../closed_tasks/chore-014-raise-coverage-thresholds.md) | Поднять пороги покрытия до измеренной базы | Сделано |
+| [chore-016](../closed_tasks/chore-016-stale-coverage-docs.md) | Устаревшие числа и примеры в `SKILL.md` про покрытие и `check.sh` | Сделано |
