@@ -131,7 +131,6 @@
 
 | # | Задача | Где |
 |---|---|---|
-| [bug-006](bug-006-hud-draw-int-digit-order.md) | `draw_int()` рисует цифры HUD в обратном порядке | `hud.c` |
 | [bug-008](bug-008-load-png-leaks-replaced-pixels.md) | `assets_load_png()` теряет пиксели замещаемого слота | `assets.c` |
 | [bug-014](bug-014-player-hit-by-player-is-silent.md) | Попадание игрока по игроку не порождает `EV_PLAYER_HURT` | `player.c`, `weapon.c`, `enemy.c` |
 | [bug-015](bug-015-door-closes-silently.md) | Дверь, закрывающаяся сама, и дверь, передумавшая закрываться, беззвучны | `door.c`, `world.c`, `main.c` |
@@ -185,3 +184,4 @@
 | [07-01](../closed_tasks/07-01-enet-build.md) | Подключить ENet к сборке | Сделано |
 | [07-02](../closed_tasks/07-02-net-transport.md) | `net_transport` — обёртка над ENet | Сделано |
 | [bug-005](../closed_tasks/bug-005-strafe-speed-fov-scaled.md) | Стрейф медленнее ходьбы в `FOV_PLANE` раз | Сделано |
+| [bug-006](../closed_tasks/bug-006-hud-draw-int-digit-order.md) | `draw_int()` рисует цифры HUD в обратном порядке | Сделано |

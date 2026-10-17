@@ -59,10 +59,12 @@ static void draw_int(Framebuffer *fb, int x0, int y0, int value, uint32_t color,
         buf[n++] = (char)('0' + tmp % 10);
         tmp /= 10;
     }
-    int x = x0 + (n - 1) * 4 * scale;
+    /* buf holds the least significant digit first: walk it backwards so the
+     * most significant digit lands at x0. */
+    int x = x0;
     for (int i = n - 1; i >= 0; i--) {
         draw_glyph(fb, x, y0, buf[i] - '0', color, scale);
-        x -= 4 * scale;
+        x += 4 * scale;
     }
 }
 
