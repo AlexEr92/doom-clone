@@ -34,6 +34,10 @@
   - `NET_EV_CONNECT` → ждём `MSG_JOIN`
   - `MSG_JOIN` → проверка `proto == PROTO_VERSION` и наличия слота →
     `world_add_player()` → `MSG_ACCEPT{your_id, seed, map}`; иначе `MSG_REJECT`
+    и `net_disconnect()`: уже отправленный `MSG_REJECT` он доставит до
+    разрыва, а `NET_EV_DISCONNECT` по этому пиру больше не придёт. Хост
+    создаётся `net_host_server(port, NET_MAX_PEERS)` — место сверх
+    `MAX_PLAYERS` нужно, чтобы отклоняемый клиент успел подключиться
   - `MSG_INPUT` → сохранить, если `tick` новее сохранённого (пакеты UDP
     приходят с перестановками — старые отбрасывать)
   - `NET_EV_DISCONNECT` → `world_remove_player()`

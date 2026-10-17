@@ -33,6 +33,14 @@
 #define SNAPSHOT_RATE 20 /* Hz, overridable by a launch flag */
 #define NET_PORT_DEFAULT 27015
 
+/* Connections one host holds at once: every player, plus one so that a full
+ * server can still let a client in long enough to tell it so (MSG_REJECT). */
+#define NET_MAX_PEERS (MAX_PLAYERS + 1)
+
+/* A connected peer that has acknowledged nothing for this long is gone. ENet
+ * pings an idle peer every 0.5 s, so a live one never comes near it. */
+#define NET_PEER_TIMEOUT_MS 5000 /* R1, R2: a lost peer is noticed within 5 s */
+
 /* One frame can show every enemy, every item and every player but the one
  * holding the camera. Barrels come on top of that and are already counted in
  * the value above. */

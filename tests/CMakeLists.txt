@@ -88,8 +88,19 @@ doom_test(audio SRC audio.c LINK ${TEST_MIXER_LIBS})
 # симуляцию; графики в ней нет — спрайты строит клиент.
 doom_test(replay FILE replay_test.c
     SRC world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)
-# Сам ENet из vendor/enet/: игра его пока не вызывает, и без этого теста
-# ошибка в его сборке или линковке ничем бы не проявилась.
 if(ENABLE_MULTIPLAYER)
+    # Сам ENet из vendor/enet/: заголовки и библиотека — один и тот же ENet.
+    # Системный enet.h, найденный раньше vendor/enet/include, собрался бы и
+    # слинковался, а разошёлся бы с библиотекой только во время работы.
     doom_test(enet LINK doom_enet)
+    # Транспорт по настоящим сокетам на 127.0.0.1, сервер и клиенты в одном
+    # процессе. Таймауты тест проверяет сдвигом часов ENet, а не ожиданием.
+    doom_test(net_transport SRC net_transport.c LINK doom_enet)
+
+    # Ручная проверка транспорта между двумя процессами — эхо, kill -9
+    # клиента, частота цикла с net_poll(). Сама не завершается, поэтому в
+    # ctest не входит.
+    add_executable(net_echo net_echo.c ${CMAKE_SOURCE_DIR}/src/net_transport.c)
+    target_include_directories(net_echo PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(net_echo PRIVATE doom_enet)
 endif()

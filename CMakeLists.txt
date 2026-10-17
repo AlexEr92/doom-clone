@@ -116,6 +116,9 @@ endif()
 
 # ENet и сетевые исходники — только в сетевой сборке
 if(ENABLE_MULTIPLAYER)
+    target_sources(doom-clone PRIVATE
+        src/net_transport.c
+    )
     target_link_libraries(doom-clone PRIVATE doom_enet)
 endif()
 

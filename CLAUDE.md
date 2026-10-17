@@ -61,6 +61,11 @@ executable links only its own sources and stubs the rest — that is how
 Only what runs without a framebuffer is tested: not the renderer, and
 `audio.c` only as far as chunk lengths (`test_audio.c` uses the `dummy`
 driver); `docs/closed_tasks/test-001-unit-test-harness.md` says why.
+The transport is tested over real sockets on 127.0.0.1, server and clients
+in one process (`test_net_transport.c`), and its timeouts by moving ENet's
+clock with `enet_time_set()` rather than by waiting. Between two processes
+— an echo, a `kill -9` of either side — `build/tests/net_echo
+server|client` checks it by hand; it never exits, so CTest does not run it.
 Coverage is measured in `build-cov/` by `.claude/skills/coverage/coverage.sh`,
 whose thresholds (lines 65 %, decisions 55 %) are a ratchet that only goes
 up; its `SKILL.md` explains how to read the numbers.
