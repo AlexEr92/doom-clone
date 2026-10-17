@@ -1,23 +1,28 @@
 ---
 name: lint
-description: Run static analysis over src/ — cppcheck for array overruns, null dereferences, leaks and uninitialised reads, plus the check that the simulation compiles without SDL. Use when asked to lint, to run static analysis, to check C code for defects, or as part of reviewing a change before it lands.
+description: Run static analysis over src/ — cppcheck for array overruns, null dereferences, leaks and uninitialised reads, plus the check that the simulation and the network protocol compile without SDL. Use when asked to lint, to run static analysis, to check C code for defects, or as part of reviewing a change before it lands.
 ---
 
 Static analysis of `src/`, wrapped so the non-obvious flags are not
 retyped each time. Two checks make up the gate:
 
 - **cppcheck** over `src/*.c`;
-- **the simulation compiles without SDL** — `world.c`, `enemy.c`,
-  `weapon.c`, `item.c`, `door.c`, `player.c`, `map.c` and
-  `raycast_world.c` pass `cc -fsyntax-only -Isrc` with no SDL headers on
-  the include path. This is the mechanical form of "Simulation and
-  rendering are kept apart" in `CLAUDE.md`; the list of files lives in
-  `SIM=` at the top of `lint.sh`, and a new simulation module is added
-  there.
+- **no SDL where the server needs none** — the simulation (`world.c`,
+  `enemy.c`, `weapon.c`, `item.c`, `door.c`, `player.c`, `map.c`,
+  `raycast_world.c`) and `net_protocol.c` pass `cc -fsyntax-only -Isrc`
+  with no SDL headers on the include path, and none of them reaches a
+  header on an SDL path (`cc -M`). For the simulation this is the
+  mechanical form of "Simulation and rendering are kept apart" in
+  `CLAUDE.md`. The files live in two arrays at the top of `lint.sh`:
+  `SIM=`, the simulation modules — a new one is added there — and
+  `NOSDL=`, files outside the simulation that the dedicated server links
+  all the same, such as the network protocol. Such a file goes into
+  `NOSDL=`, not `SIM=`: that list is where the simulation boundary is
+  drawn.
 
 It is **not** a commit hook: nothing here blocks a commit. The SDL check
 alone also runs after every edit Claude makes in `src/` (the `PostToolUse`
-hook in `.claude/settings.json`), because it takes 0.1s.
+hook in `.claude/settings.json`), because it takes 0.2s.
 
 All paths are relative to the project root.
 
@@ -34,6 +39,7 @@ Verified against cppcheck 2.13.0.
 ```bash
 .claude/skills/lint/lint.sh            # whole project, gate level
 .claude/skills/lint/lint.sh changed    # only .c files differing from HEAD
+                                       # or new and untracked
 .claude/skills/lint/lint.sh strict     # adds style checks, advisory
 .claude/skills/lint/lint.sh sim        # the SDL check alone
 ```
@@ -42,11 +48,11 @@ Verified output on the current tree:
 
 ```
 cppcheck: чисто (all)
-симуляция без SDL: чисто
+без SDL: чисто (симуляция и src/net_protocol.c)
 ```
 
-Timings measured here: whole project 4.3s, a single file 0.03s, `sim`
-0.13s.
+Timings measured here: whole project 3.3s, a single file 0.03s, `sim`
+0.24s.
 
 `all`, `changed` and `sim` exit non-zero when anything is reported. `strict`
 always exits 0 and skips the SDL check — its findings are advice, not
@@ -91,14 +97,27 @@ something untrue.
   regardless.
 - **A `style` run that reports nothing new does not mean the code is clean**,
   and one that reports something does not mean the code is wrong.
-- **`changed` compares against `HEAD`**, staged and unstaged together, so it
-  covers work in progress. It gives up the cross-file analysis the whole
-  project run does — use it for speed, not as the final word. With no
-  changed `.c` it still runs the SDL check, since a header alone can break
-  it.
+- **`changed` compares against `HEAD`**, staged and unstaged together, and
+  adds the `.c` files never added to the index (`git ls-files --others
+  --exclude-standard`, so ignored ones stay out). It covers work in
+  progress, a new translation unit included. It gives up the cross-file
+  analysis the whole project run does — use it for speed, not as the final
+  word. With no changed `.c` it still runs the SDL check, since a header
+  alone can break it.
 - **The SDL check fails on any compile error**, not only on an SDL include:
   `-fsyntax-only` stops at the first file that does not parse. Read the
   compiler output it prints before concluding SDL crept in.
+- **A clean compile alone would not prove the SDL check.** `<SDL.h>`, the
+  form this project uses, is not found without `-I/usr/include/SDL2`, but
+  `<SDL2/SDL.h>` resolves through `/usr/include` with no `-I` at all. So
+  the check also lists every header each file reaches (`cc -M`) and fails
+  on any path with a component starting `SDL`, naming the file and the
+  first such header:
+
+  ```
+  src/net_protocol.c: /usr/include/SDL2/SDL.h
+  видят SDL: src/net_protocol.c
+  ```
 - **Findings inside `vendor/` are suppressed**, including a `[internalError]`
   cppcheck raises on `stb_image.h` about its own analysis. That file is not
   this project's code and is not being fixed.

@@ -141,8 +141,6 @@
 | [chore-008](chore-008-net-smoke-driver.md) | `netdriver.sh`: сервер и два клиента без экрана, `net-smoke` | `.claude/skills/run-doom-clone/`, `check.sh` |
 | [chore-009](chore-009-net-smoke-lag-loss.md) | `net-stress`: 4 клиента под `--netlag`/`--netloss` | `netdriver.sh` |
 | [chore-010](chore-010-sanitizers-in-review-harness.md) | Санитайзеры в `check.sh` и у тестера | `check.sh`, `tester.md`, `CLAUDE.md` |
-| [chore-011](chore-011-lint-changed-untracked.md) | `lint.sh changed` не видит неотслеживаемые `src/*.c` | `lint.sh`, `SKILL.md` |
-| [chore-012](chore-012-lint-net-protocol-no-sdl.md) | `lint.sh sim` не проверяет, что `net_protocol.c` собирается без SDL | `lint.sh`, `SKILL.md` |
 | [test-002](test-002-fps-with-network.md) | Замер FPS клиента с работающей сетью | `SKILL.md`, `netdriver.sh` |
 | [test-003](test-003-text-module-layout-test.md) | Общий модуль шрифта 3×5 и тест раскладки глифов | `text.c`, `hud.c`, `game.c` |
 
@@ -187,3 +185,5 @@
 | [bug-005](../closed_tasks/bug-005-strafe-speed-fov-scaled.md) | Стрейф медленнее ходьбы в `FOV_PLANE` раз | Сделано |
 | [bug-006](../closed_tasks/bug-006-hud-draw-int-digit-order.md) | `draw_int()` рисует цифры HUD в обратном порядке | Сделано |
 | [07-03](../closed_tasks/07-03-net-protocol.md) | `net_protocol.h` — структуры пакетов | Сделано |
+| [chore-011](../closed_tasks/chore-011-lint-changed-untracked.md) | `lint.sh changed` не видит неотслеживаемые `src/*.c` | Сделано |
+| [chore-012](../closed_tasks/chore-012-lint-net-protocol-no-sdl.md) | `lint.sh sim` не проверяет, что `net_protocol.c` собирается без SDL | Сделано |

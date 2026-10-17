@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Static analysis of src/: cppcheck, plus the check that the simulation
-# compiles with no SDL headers on the include path.
+# Static analysis of src/: cppcheck, plus the check that the simulation and
+# the server-side files beside it compile without SDL and reach no SDL header.
 #
 #   lint.sh            whole project, gate level (must stay clean)
 #   lint.sh strict     adds the style checks (advisory, not all worth taking)
-#   lint.sh changed    only files that differ from HEAD, gate level
-#   lint.sh sim        the SDL check alone, no cppcheck (~0.1s)
+#   lint.sh changed    only .c files that differ from HEAD or are new and
+#                      untracked, gate level
+#   lint.sh sim        the SDL check alone, no cppcheck (~0.2s)
 #
 # Exits 0 when nothing is reported at the chosen level.
 
@@ -21,14 +22,41 @@ cd "$root" || exit 2
 SIM=(src/world.c src/enemy.c src/weapon.c src/item.c src/door.c
      src/player.c src/map.c src/raycast_world.c)
 
+# Not simulation, but linked into the dedicated server all the same, which has
+# no client headers: these must not see SDL either. Kept out of SIM= because
+# that list is where CLAUDE.md draws the simulation boundary. The check only
+# reads the source, so a file built under ENABLE_MULTIPLAYER alone fits here.
+NOSDL=(src/net_protocol.c)
+
 check_sim() {
-    local out
-    if ! out="$("${CC:-cc}" -std=c11 -fsyntax-only -Isrc "${SIM[@]}" 2>&1)"; then
+    local cc="${CC:-cc}" out sdl
+    if ! out="$("$cc" -std=c11 -fsyntax-only -Isrc "${SIM[@]}" "${NOSDL[@]}" 2>&1)"; then
         printf '%s\n' "$out"
-        echo "симуляция не компилируется без SDL: ${SIM[*]}"
+        echo "не компилируется без SDL: ${SIM[*]} ${NOSDL[*]}"
         return 1
     fi
-    echo "симуляция без SDL: чисто"
+    # A clean compile is not proof: <SDL2/SDL.h> resolves through /usr/include
+    # with no -I at all. List every header each file reaches and refuse any on
+    # an SDL path. An -M rule opens with "<target>:" and then the source.
+    if ! sdl="$("$cc" -std=c11 -M -Isrc "${SIM[@]}" "${NOSDL[@]}" | awk '
+        $1 ~ /:$/ { src = $2 }
+        {
+            for (i = 1; i <= NF; i++) {
+                if ($i ~ /(^|\/)SDL/ && !(src in seen)) {
+                    seen[src] = 1
+                    print src ": " $i
+                }
+            }
+        }')"; then
+        echo "не удалось перечислить заголовки (cc -M): ${SIM[*]} ${NOSDL[*]}"
+        return 1
+    fi
+    if [ -n "$sdl" ]; then
+        printf '%s\n' "$sdl"
+        echo "видят SDL: $(printf '%s\n' "$sdl" | cut -d: -f1 | paste -sd' ')"
+        return 1
+    fi
+    echo "без SDL: чисто (симуляция и ${NOSDL[*]})"
 }
 
 mode="${1:-all}"
@@ -70,7 +98,12 @@ case "$mode" in
         set -- "${COMMON[@]}" "${STRICT[@]}" src/*.c
         ;;
     changed)
-        mapfile -t files < <(git diff --name-only HEAD -- 'src/*.c'; git diff --cached --name-only -- 'src/*.c')
+        # A new file never added to the index is in neither diff.
+        mapfile -t files < <(
+            git diff --name-only HEAD -- 'src/*.c'
+            git diff --cached --name-only -- 'src/*.c'
+            git ls-files --others --exclude-standard -- 'src/*.c'
+        )
         mapfile -t files < <(printf '%s\n' "${files[@]}" | sort -u | grep -v '^$')
         if [ "${#files[@]}" -eq 0 ]; then
             echo "нет изменённых .c в src/"

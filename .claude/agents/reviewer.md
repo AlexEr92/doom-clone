@@ -41,8 +41,10 @@ of the "Критерий готовности" checklist you check against, and 
 сделать" and "Затрагиваемые файлы" sections you compare the shape of the diff
 to. Resolve a bare name with `ls docs/tasks docs/closed_tasks`.
 
-**The diff range** — optional. The default is the uncommitted work, staged and
-unstaged together against `HEAD` — the same scope `lint.sh changed` covers:
+**The diff range** — optional. The default is the uncommitted work against
+`HEAD`: staged and unstaged changes together, plus the new files `git status`
+marks `??` — the same scope `lint.sh changed` covers. `git diff HEAD` does not
+show those new files; read them whole:
 
 ```bash
 git status --short && git diff HEAD --stat && git diff HEAD
@@ -109,9 +111,10 @@ what matters:
 .claude/skills/lint/lint.sh all        # committed ranges
 ```
 
-The gate is cppcheck plus the check that the simulation compiles without
-SDL. `changed` looks at `src/*.c` that differ from `HEAD`; for a range that
-is already committed it finds nothing, and you must run `all`. `src/`
+The gate is cppcheck plus the check that the simulation and the files in
+`NOSDL=` see no SDL. `changed` looks at `src/*.c` that differ from `HEAD` or
+are new and untracked; for a range that is already committed it finds
+nothing, and you must run `all`. `src/`
 reports nothing at gate level today, so **anything printed is a defect
 introduced by the change under review**: report it with file, line and
 check name.
@@ -134,7 +137,9 @@ code and report whether it still holds:
   `game.h`) and call no `audio_play()` — sound goes out as `GameEvent`s. No entity stores a
   sprite id; `sprite.h` is reached from `main.c` and `sprite.c` only
   (`grep -ln '#include "sprite.h"' src/`). A new simulation module is added
-  to `SIM=` in `.claude/skills/lint/lint.sh`, or the SDL check never sees it.
+  to `SIM=` in `.claude/skills/lint/lint.sh`, or the SDL check never sees it;
+  a file outside the simulation that the dedicated server links too, such as
+  the network protocol, goes into `NOSDL=` beside it instead.
 - **The tick is deterministic.** Nothing reached from `world_step()` reads
   the wall clock or `rand()`:
   `grep -nE '\b(rand|srand|time|clock|SDL_GetTicks)\s*\(' <simulation files>`.

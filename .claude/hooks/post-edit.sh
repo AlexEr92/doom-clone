@@ -3,8 +3,8 @@
 # CLAUDE.md asks for, so neither step depends on remembering it.
 #
 #   - a .c/.h file under src/, tests/ or tools/ is run through clang-format;
-#   - an edit under src/ re-runs `lint.sh sim`, and a simulation that no
-#     longer compiles without SDL is reported back to Claude (exit 2).
+#   - an edit under src/ re-runs `lint.sh sim`, and a simulation or server-side
+#     file that sees SDL is reported back to Claude (exit 2).
 #
 # Formatting is applied, not suggested: unlike .githooks/pre-commit, which
 # never rewrites a human's staged work, this only ever touches the file the
@@ -35,7 +35,7 @@ case "$rel" in
         if ! out="$("$root/.claude/skills/lint/lint.sh" sim 2>&1)"; then
             {
                 printf '%s\n' "$out"
-                echo "После правки $rel симуляция не компилируется без SDL"
+                echo "После правки $rel файл из SIM= или NOSDL= (lint.sh) видит SDL"
                 echo "(CLAUDE.md, «Simulation and rendering are kept apart»)."
             } >&2
             exit 2
