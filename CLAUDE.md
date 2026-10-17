@@ -239,6 +239,14 @@ follow-up work.
   checks the existing tasks for overlap first, and keep going; do not fix it
   inside the diff of whatever you were doing — unless the current task
   cannot be verified without the fix, and then say so.
+- **Something missing from the system is a question for the user, not a
+  puzzle to solve.** When a build, test or check needs a package or tool
+  that is not installed, stop and tell the user what is missing and the
+  command that installs it (`! sudo apt install …` runs it in the session);
+  the user installs it. Do not work around it on your own — no vendoring
+  instead, no substitute tool, no skipped check, no reordering the work to
+  dodge it. Whether the project should depend on that package at all is a
+  design decision, and it is the user's too.
 - **Never reference a commit hash** — not in documentation, not in a commit
   message; hashes do not survive rebase or squash-merge. Name the change and
   the place ("the texture format in `engine_init()`"); `git log -S` finds
