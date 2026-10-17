@@ -17,10 +17,10 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$root" || exit 2
 
 BUILD=build-cov
-# A ratchet from the measured base (lines 68.1 %, decisions 56.3 %): raise
+# A ratchet from the measured base (lines 81.6 %, decisions 71.4 %): raise
 # them as tests are added, never lower them to let a change through.
-LINE_MIN=65
-DECISION_MIN=55
+LINE_MIN=78
+DECISION_MIN=68
 
 command -v gcovr >/dev/null 2>&1 || {
     echo "gcovr не найден:  sudo apt-get install -y gcovr" >&2

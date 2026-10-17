@@ -124,8 +124,8 @@
       тесте не вызывается: форм глифов и цветов HUD в нём нет
 - [ ] `ctest` целиком и `driver.sh smoke` проходят; `check.sh` без новых
       предупреждений
-- [ ] `.claude/skills/coverage/coverage.sh` держит пороги (строки 65 %,
-      решения 55 %); `src/text.c` в отчёте покрыт тестом
+- [ ] `.claude/skills/coverage/coverage.sh` держит пороги; `src/text.c`
+      в отчёте покрыт тестом
 - [ ] `lint.sh sim` проходит; `text.c` в `SIM=` не добавлен — это
       клиентский модуль, а не симуляция
 - [ ] Сборка с `-DENABLE_MULTIPLAYER=OFF` проходит (модуль от сети не

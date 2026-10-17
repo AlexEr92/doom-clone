@@ -72,7 +72,7 @@ under CTest; `tests/manual/` holds what is run by hand — `net_echo`,
 change breaks it rather than leaving it stale. `tests/README.md` describes
 the layout, how to add a test, and the question each manual tool answers.
 Coverage is measured in `build-cov/` by `.claude/skills/coverage/coverage.sh`,
-whose thresholds (lines 65 %, decisions 55 %) are a ratchet that only goes
+whose thresholds (lines 78 %, decisions 68 %) are a ratchet that only goes
 up; its `SKILL.md` explains how to read the numbers.
 
 ### Asset tools

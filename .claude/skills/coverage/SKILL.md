@@ -43,11 +43,11 @@ Verified summary on the current tree (the per-file table above it is
 gcovr's, sorted by uncovered share):
 
 ```
-lines: 68.1% (1090 out of 1600)
-functions: 71.8% (79 out of 110)
-branches: 50.7% (570 out of 1125)
-decisions: 56.3% (436 out of 775)
-покрытие: пороги выдержаны (строки 65 %, decisions 55 %)
+lines: 81.6% (2118 out of 2597)
+functions: 90.8% (178 out of 196)
+branches: 74.4% (1259 out of 1692)
+decisions: 71.4% (858 out of 1201)
+покрытие: пороги выдержаны (строки 78 %, decisions 68 %)
 ```
 
 and the tail of `changed` against a base that touched `assets.c` and
@@ -63,7 +63,7 @@ and the tail of `changed` against a base that touched `assets.c` and
 
 ## Thresholds
 
-`--fail-under-line 65 --fail-under-decision 55`, just under the measured
+`--fail-under-line 78 --fail-under-decision 68`, just under the measured
 base. They are a ratchet: raise them when tests are added, never lower them
 to let a change through. There are no per-file thresholds, on purpose —
 see below.
