@@ -66,4 +66,15 @@ struct World *client_world(Client *c);
 /* The id of the player this client plays as, from MSG_ACCEPT; -1 before it. */
 int client_local_player(const Client *c);
 
+/* What the network carried for the client since client_connect(): payload
+ * only — the IP, UDP and ENet headers around it, some 40 bytes a datagram,
+ * are not counted. A rate is the difference of two readings. */
+typedef struct {
+    uint32_t snapshots; /* MSG_SNAPSHOT packets received, stale and broken ones too */
+    uint64_t bytes_in;  /* every packet from the server */
+    uint64_t bytes_out; /* every packet to it: the join and the inputs */
+} ClientStats;
+
+ClientStats client_stats(const Client *c);
+
 #endif

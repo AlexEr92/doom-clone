@@ -101,6 +101,16 @@ change cannot be reached from the spawn point by keyboard in reasonable
 time, say so and why; that is "нельзя проверить", not a pass. End with
 `driver.sh stop`, whatever happened before it.
 
+**A change to the network game** — `src/net_*`, the client branches of
+`main.c` — needs a server and clients instead of `driver.sh`: the
+`run-doom-clone` skill, section "Network game", has the commands. Read
+what the server has with `net_bot look` rather than judging it from
+screenshots; act through `net_bot run` when a criterion is "after a player
+does X, the other sees Y", or when enemies would kill a window-driven
+player before it gets there — the network game never pauses; load the
+server with `net_bot swarm`. A screenshot is for "the other client draws
+it". Stop every server, client and Xvfb you started.
+
 ## 2. The changed lines no test reaches
 
 `check.sh` prints them under its coverage line; the full report is in

@@ -66,11 +66,15 @@ in one process (`test_net_transport.c`), and its timeouts by moving ENet's
 clock with `enet_time_set()` rather than by waiting; the server likewise,
 against bots that speak the protocol by hand (`test_net_server.c`); the
 client against both the server and a stand-in that sends what the server
-never does (`test_net_client.c`). Between two processes — an echo, a
-`kill -9` of either side — `build/tests/net_echo server|client` checks the
-transport by hand, and `build/tests/net_serve`, run from the project root,
-is the server two `doom-clone --connect 127.0.0.1` play on; neither exits,
-so CTest runs neither.
+never does (`test_net_client.c`). Everything at the top of `tests/` runs
+under CTest; `tests/manual/` holds what is run by hand, built into
+`build/tests/` with the game so an API change breaks it rather than
+leaving it stale. Between two processes — an echo, a `kill -9` of either
+side — `net_echo server|client` checks the transport; `net_serve`, run
+from the project root, is the server two `doom-clone --connect 127.0.0.1`
+play on; `net_bot` joins with no window to print the world as the server
+has it, play steps by script or load the server with a swarm — the
+`run-doom-clone` skill says when to use which.
 Coverage is measured in `build-cov/` by `.claude/skills/coverage/coverage.sh`,
 whose thresholds (lines 65 %, decisions 55 %) are a ratchet that only goes
 up; its `SKILL.md` explains how to read the numbers.

@@ -173,8 +173,8 @@ static void fake_send_reject(uint8_t reason)
 }
 
 /* A snapshot of player `id` standing at (x, 1.5), with one MARK event per
- * entry of `marks`, its actor that entry. */
-static void fake_send_snapshot(uint32_t tick, uint8_t id, float x, const uint8_t *marks, int n)
+ * entry of `marks`, its actor that entry. Returns its size on the wire. */
+static size_t fake_send_snapshot(uint32_t tick, uint8_t id, float x, const uint8_t *marks, int n)
 {
     MsgSnapshot s;
     memset(&s, 0, sizeof(s));
@@ -195,6 +195,7 @@ static void fake_send_snapshot(uint32_t tick, uint8_t id, float x, const uint8_t
     size_t size = snapshot_encode(&s, wire);
     TEST_ASSERT_NOT_EQUAL(0, size);
     fake_send(wire, size);
+    return size;
 }
 
 /* ---- polling ---- */
@@ -731,6 +732,8 @@ static void test_stale_snapshot_is_ignored(void)
     TEST_ASSERT_EQUAL_INT(0, marks_seen[again]);
     TEST_ASSERT_EQUAL_UINT32(11, client_world(c)->tick);
     TEST_ASSERT_EQUAL_FLOAT(8.0f, seen_player(c, 0)->x);
+    /* Counted as they come, dropped or not: the first one and these three. */
+    TEST_ASSERT_EQUAL_UINT32(4, client_stats(c).snapshots);
 }
 
 static void test_snapshot_that_does_not_decode_is_dropped(void)
@@ -755,6 +758,7 @@ static void test_snapshot_that_does_not_decode_is_dropped(void)
     TICK_UNTIL(marks_seen[newer] > 0);
     TEST_ASSERT_EQUAL_INT(0, marks_seen[20]);
     TEST_ASSERT_EQUAL_UINT32(11, client_world(c)->tick);
+    TEST_ASSERT_EQUAL_UINT32(3, client_stats(c).snapshots);
 }
 
 /* Two snapshots read in one poll leave the events of both, the earlier
@@ -790,6 +794,40 @@ static void test_events_of_one_poll_add_up(void)
     TEST_ASSERT_EQUAL_INT(0, client_world(c)->events.count);
 }
 
+/* ---- traffic ---- */
+
+/* Payload both ways since client_connect(), as it was sent: an input the
+ * client ignores before it is in the game is not counted, and a new
+ * connection starts from nothing. */
+static void test_stats_count_the_payload(void)
+{
+    Client *c = fake_client_joining();
+    send_input(c, BTN_FIRE, 0.0f);
+    fake_send_accept(0, MAP_NAME);
+    size_t first = fake_send_snapshot(1, 0, 1.5f, NULL, 0);
+    const uint8_t marks[2] = {1, 2};
+    size_t second = fake_send_snapshot(2, 0, 1.5f, marks, 2);
+    TICK_UNTIL(client_world(c) && client_world(c)->tick == 2);
+    send_input(c, 0, 0.0f);
+    send_input(c, BTN_FORWARD, 0.0f);
+
+    ClientStats st = client_stats(c);
+    TEST_ASSERT_EQUAL_UINT32(2, st.snapshots);
+    TEST_ASSERT_EQUAL_UINT64(sizeof(MsgAccept) + first + second, st.bytes_in);
+    TEST_ASSERT_EQUAL_UINT64(sizeof(MsgJoin) + 2 * sizeof(MsgInput), st.bytes_out);
+
+    const MsgHeader bye = {MSG_DISCONNECT, {0}};
+    fake_send(&bye, sizeof(bye));
+    TICK_UNTIL(client_state(c) == CL_DISCONNECTED);
+    TEST_ASSERT_EQUAL_UINT64(sizeof(MsgAccept) + first + second + sizeof(bye),
+                             client_stats(c).bytes_in);
+    TEST_ASSERT_EQUAL_INT(0, client_connect(c, "127.0.0.1", FAKE_PORT));
+    st = client_stats(c);
+    TEST_ASSERT_EQUAL_UINT32(0, st.snapshots);
+    TEST_ASSERT_EQUAL_UINT64(0, st.bytes_in);
+    TEST_ASSERT_EQUAL_UINT64(0, st.bytes_out);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -823,5 +861,6 @@ int main(void)
     RUN_TEST(test_stale_snapshot_is_ignored);
     RUN_TEST(test_snapshot_that_does_not_decode_is_dropped);
     RUN_TEST(test_events_of_one_poll_add_up);
+    RUN_TEST(test_stats_count_the_payload);
     return UNITY_END();
 }

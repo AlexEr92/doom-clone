@@ -21,6 +21,7 @@ struct Client {
     int accepted;          /* MSG_ACCEPT came: the map is loaded, local_player set */
     int has_world;         /* ... and a snapshot has been put into it */
     uint32_t input_tick;   /* the number the next input goes out with */
+    ClientStats stats;
     World world;
     MsgSnapshot snapshot;
 };
@@ -74,6 +75,7 @@ int client_connect(Client *c, const char *addr, uint16_t port)
     c->accepted = 0;
     c->has_world = 0;
     c->input_tick = 0;
+    memset(&c->stats, 0, sizeof(c->stats));
     c->world.local_player = -1;
     if (c->server == NET_PEER_NONE) {
         client_end(c, c->net ? "the address does not resolve" : "the network does not start");
@@ -90,6 +92,7 @@ static void client_send_join(Client *c)
     msg.h.type = MSG_JOIN;
     msg.proto = PROTO_VERSION;
     net_send(c->net, c->server, NET_CH_RELIABLE, &msg, sizeof(msg), 1);
+    c->stats.bytes_out += sizeof(msg);
 }
 
 /* A file name, as MSG_ACCEPT promises, and not a path that would lead out of
@@ -169,7 +172,10 @@ static void client_on_data(Client *c, const void *data, size_t size)
     switch (h.type) {
         case MSG_ACCEPT: client_on_accept(c, data, size); break;
         case MSG_REJECT: client_on_reject(c, data, size); break;
-        case MSG_SNAPSHOT: client_on_snapshot(c, data, size); break;
+        case MSG_SNAPSHOT:
+            c->stats.snapshots++;
+            client_on_snapshot(c, data, size);
+            break;
         case MSG_DISCONNECT: client_end(c, "the server closed the game"); break;
         default: break;
     }
@@ -195,6 +201,7 @@ void client_poll(Client *c)
                           : c->linked              ? "the server closed the connection"
                                                    : "the server did not answer");
         } else if (ev.type == NET_EV_DATA) {
+            c->stats.bytes_in += ev.size;
             client_on_data(c, ev.data, ev.size);
         }
     }
@@ -216,6 +223,7 @@ void client_send_input(Client *c, const PlayerInput *in)
     msg.buttons = in->buttons;
     msg.angle = in->angle;
     net_send(c->net, c->server, NET_CH_UNRELIABLE, &msg, sizeof(msg), 0);
+    c->stats.bytes_out += sizeof(msg);
 }
 
 ClientState client_state(const Client *c)
@@ -236,4 +244,9 @@ World *client_world(Client *c)
 int client_local_player(const Client *c)
 {
     return c->accepted ? c->world.local_player : -1;
+}
+
+ClientStats client_stats(const Client *c)
+{
+    return c->stats;
 }

@@ -123,31 +123,37 @@ if(ENABLE_MULTIPLAYER)
         LINK doom_enet)
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/assets/maps)
 
-    # Ручная проверка транспорта между двумя процессами — эхо, kill -9
-    # клиента, частота цикла с net_poll(). Сама не завершается, поэтому в
-    # ctest не входит.
-    add_executable(net_echo net_echo.c ${CMAKE_SOURCE_DIR}/src/net_transport.c)
-    target_include_directories(net_echo PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(net_echo PRIVATE doom_enet)
+    # ---- Ручные инструменты: tests/manual/ ----
+    # Их запускают руками, и сами они не завершаются, поэтому в ctest их нет.
+    # Граница проведена папкой: всё, что лежит в tests/ напрямую, гоняет
+    # ctest, а в tests/manual/ — то, что нет. Собираются они вместе с игрой,
+    # чтобы правка API, на котором они стоят, ломала сборку, а не оставляла их
+    # устаревшими молча.
+    # doom_manual(<имя> SRC <файлы из src/>...) собирает tests/manual/<имя>.c в
+    # build/tests/<имя>.
+    function(doom_manual name)
+        cmake_parse_arguments(T "" "" "SRC" ${ARGN})
+        set(sources "")
+        foreach(s IN LISTS T_SRC)
+            list(APPEND sources ${CMAKE_SOURCE_DIR}/src/${s})
+        endforeach()
+        add_executable(${name} manual/${name}.c ${sources})
+        target_include_directories(${name} PRIVATE ${CMAKE_SOURCE_DIR}/src)
+        target_link_libraries(${name} PRIVATE doom_enet)
+        if(NOT WIN32)
+            target_link_libraries(${name} PRIVATE m)
+        endif()
+    endfunction()
 
+    # Транспорт между двумя процессами — эхо, kill -9 клиента, частота цикла
+    # с net_poll().
+    doom_manual(net_echo SRC net_transport.c)
     # Сервер отдельным процессом, для ручной игры двумя клиентами
-    # (doom-clone --connect), пока игра сама не умеет быть сервером. Тоже не
-    # завершается сама и в ctest не входит.
-    add_executable(net_serve net_serve.c
-        ${CMAKE_SOURCE_DIR}/src/net_server.c
-        ${CMAKE_SOURCE_DIR}/src/net_transport.c
-        ${CMAKE_SOURCE_DIR}/src/net_protocol.c
-        ${CMAKE_SOURCE_DIR}/src/world.c
-        ${CMAKE_SOURCE_DIR}/src/player.c
-        ${CMAKE_SOURCE_DIR}/src/map.c
-        ${CMAKE_SOURCE_DIR}/src/door.c
-        ${CMAKE_SOURCE_DIR}/src/enemy.c
-        ${CMAKE_SOURCE_DIR}/src/item.c
-        ${CMAKE_SOURCE_DIR}/src/weapon.c
-        ${CMAKE_SOURCE_DIR}/src/raycast_world.c)
-    target_include_directories(net_serve PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(net_serve PRIVATE doom_enet)
-    if(NOT WIN32)
-        target_link_libraries(net_serve PRIVATE m)
-    endif()
+    # (doom-clone --connect), пока игра сама не умеет быть сервером.
+    doom_manual(net_serve SRC net_server.c net_transport.c net_protocol.c
+        world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)
+    # Игроки без окна, через net_client.h: мир глазами клиента, игрок по
+    # сценарию, нагрузка из нескольких игроков.
+    doom_manual(net_bot SRC net_client.c net_transport.c net_protocol.c
+        world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)
 endif()

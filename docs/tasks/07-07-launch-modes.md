@@ -55,16 +55,19 @@
       `SDL_Init(SDL_INIT_TIMER)` вместо `SDL_INIT_VIDEO`
 - [ ] Корректное завершение: `Ctrl+C` на сервере → рассылка
       `MSG_DISCONNECT` клиентам перед выходом
-- [ ] Удалить ручной сервер `tests/net_serve.c` (или `tests/manual/net_serve.c`,
-      если chore-015 его уже перенесла) и его цель в
-      `tests/CMakeLists.txt`: его заменяет `--host --dedicated`. В CLAUDE.md
-      («Tests») и architecture.md («Сервер») вместо него назвать флаги
+- [ ] Удалить ручной сервер `tests/manual/net_serve.c` и его цель
+      (`doom_manual(net_serve …)` в `tests/CMakeLists.txt`): его заменяет
+      `--host --dedicated`. Его строку `--stats` — раз в секунду число тиков,
+      игроков, среднее и худшее время `server_tick()`, худшее опоздание тика
+      (P4) — `--dedicated` печатает в своих логах. В CLAUDE.md («Tests»),
+      architecture.md («Сервер») и `SKILL.md` скилла `run-doom-clone`
+      («Network game») вместо `net_serve` назвать флаги
 
 ## Затрагиваемые файлы
 
 `main.c`, `options.c`/`options.h` (новые), `tests/test_options.c` (новый),
-`session.h` (новый), `engine.c`, `CMakeLists.txt`, `tests/net_serve.c` или `tests/manual/net_serve.c`
-(удаляется), `tests/CMakeLists.txt`
+`session.h` (новый), `engine.c`, `CMakeLists.txt`, `tests/manual/net_serve.c`
+(удаляется), `tests/CMakeLists.txt`, `.claude/skills/run-doom-clone/SKILL.md`
 
 ## Критерий готовности
 

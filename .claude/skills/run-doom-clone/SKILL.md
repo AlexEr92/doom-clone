@@ -105,6 +105,55 @@ cmake --build build --target run   # opens a 1280x800 window; Ctrl-C to stop
 
 Useless headless — it needs a real display. Must run from the project root.
 
+## Network game
+
+`driver.sh` drives one single-player window. A network game needs a server
+and clients, and the tools for it live in `tests/manual/` (built into
+`build/tests/` with `ENABLE_MULTIPLAYER`, not run by CTest). Run every one
+of them from the project root — the client opens the map `MSG_ACCEPT`
+names under `assets/maps/`.
+
+```bash
+build/tests/net_serve [--stats] [map] [port]   # the server; --stats: ticks, tick cost, lateness a second
+build/doom-clone --connect 127.0.0.1           # a client with a window
+build/tests/net_bot look [--rate 3]            # the world as the server has it; --rate: ticks, snapshots, KB/s
+build/tests/net_bot run go 3.5 12.5 kill 1 kill 2 go 10.5 12.5 face 10.5 11 use
+build/tests/net_bot swarm 9 60                 # nine players walking and firing for 60 s
+```
+
+`run` steps: `go X Y`, `face X Y`, `kill N`, `use`, `fire`, `wait S`; each
+prints `done …`, a step that times out (20 s) or that the bot dies in ends
+the run with status 1 and names it, and the world is printed at the end.
+`look` prints one line an entity (`player`, `enemy`, `door`, `item`, and
+`me` — the bot's own id), so `grep`/`awk` assert on it. `swarm` prints a
+line a second: how many are in, what one player receives and sends.
+
+Two clients with windows go on **two Xvfb displays**, not on `:99`: input
+goes to the focused window and there is one focus a display, and
+`driver.sh` finds its game by process name, which two clients share. `:99`
+stays for `smoke`; for each client:
+
+```bash
+Xvfb :100 -screen 0 1280x800x24 -nolisten tcp &
+DISPLAY=:100 SDL_AUDIODRIVER=dummy build/doom-clone --connect 127.0.0.1 &
+W=$(DISPLAY=:100 xdotool search --name doom-clone | head -1)
+DISPLAY=:100 xdotool windowfocus $W; DISPLAY=:100 xdotool keydown Return; sleep 0.15; DISPLAY=:100 xdotool keyup Return
+DISPLAY=:100 import -window root shot.png
+```
+
+- **Read the state with `net_bot look`, not from screenshots.** A frame
+  says "something is drawn there"; `look` says where everyone is, what
+  died, which door is open.
+- **The network game never pauses.** The world goes on between two tool
+  calls, so enemies kill players while one reads screenshots. Do a
+  sequence of actions in one call, or clear the enemies first with
+  `net_bot run … kill N …`.
+- **A bot is a real player.** It takes a slot — `look` included — and
+  enemies go for it; there is no spectator. Count it in when asserting the
+  number of players (`me` names it).
+- **Kill the server by name**: `pkill -INT -x net_serve` lets the clients go
+  at once, `pkill -9 -x net_serve` leaves them to notice by the 5 s timeout.
+
 ## Test
 
 Unit tests run under CTest — `ctest --test-dir build --output-on-failure` —
