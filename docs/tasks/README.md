@@ -143,6 +143,7 @@
 | [chore-009](chore-009-net-smoke-lag-loss.md) | `net-stress`: 4 клиента под `--netlag`/`--netloss` | `netdriver.sh` |
 | [chore-010](chore-010-sanitizers-in-review-harness.md) | Санитайзеры в `check.sh` и у тестера | `check.sh`, `tester.md`, `CLAUDE.md` |
 | [chore-011](chore-011-lint-changed-untracked.md) | `lint.sh changed` не видит неотслеживаемые `src/*.c` | `lint.sh`, `SKILL.md` |
+| [chore-012](chore-012-lint-net-protocol-no-sdl.md) | `lint.sh sim` не проверяет, что `net_protocol.c` собирается без SDL | `lint.sh`, `SKILL.md` |
 | [test-002](test-002-fps-with-network.md) | Замер FPS клиента с работающей сетью | `SKILL.md`, `netdriver.sh` |
 | [test-003](test-003-text-module-layout-test.md) | Общий модуль шрифта 3×5 и тест раскладки глифов | `text.c`, `hud.c`, `game.c` |
 
