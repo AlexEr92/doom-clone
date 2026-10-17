@@ -3,7 +3,7 @@
 Демо-клон Doom на Си — raycasting-движок (DDA) поверх SDL2. Одна карта,
 несколько врагов, 2 оружия, HUD, звук, FSM состояний игры.
 
-Технологии: **C11**, **SDL2**, **SDL2_mixer**, **stb_image** (vendor/).
+Технологии: **C11**, **SDL2**, **SDL2_mixer**, **ENet** и **stb_image** (vendor/).
 Сборка — **CMake** (кросс-платформенная: macOS / Linux / Windows).
 
 ## Возможности
@@ -26,9 +26,14 @@
 |---|---|
 | macOS (Homebrew) | `brew install sdl2 sdl2_mixer cmake` |
 | Linux (Debian/Ubuntu) | `sudo apt install libsdl2-dev libsdl2-mixer-dev cmake build-essential` |
-| Linux (Fedora) | `sudo dnf install SDL2-devel SDL2-mixer-devel cmake gcc` |
+| Linux (Fedora) | `sudo dnf install SDL2-devel SDL2-mixer-devel cmake gcc gcc-c++` |
 | Windows (MSYS2/MinGW) | `pacman -S mingw-w64-x86_64-SDL2 mingw-w64-x86_64-SDL2_mixer mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc` |
 | Windows (vcpkg/MSVC) | `vcpkg install sdl2 sdl2-mixer` |
+
+ENet ставить не нужно: он лежит submodule'ом в `vendor/enet/` и собирается
+вместе с игрой. Клонировать репозиторий с `--recurse-submodules` или после
+клона выполнить `git submodule update --init`. Сборка ENet требует ещё и
+компилятора C++ — в наборах из таблицы он есть.
 
 ### Команды
 
@@ -40,6 +45,7 @@ cmake --build build --target clean  # очистка
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug   # отладочная сборка
 ctest --test-dir build --output-on-failure      # юнит-тесты
 cmake -S . -B build -DBUILD_TESTS=OFF           # собрать только игру, без тестов
+cmake -S . -B build -DENABLE_MULTIPLAYER=OFF    # одиночная игра без ENet
 ```
 
 Запускать нужно из корня проекта — ассеты грузятся по относительным путям.
@@ -90,7 +96,7 @@ doom-clone/
 │   ├── harness.md        # харнесс Claude Code: что есть и как вызывать
 │   ├── tasks/            # открытые задачи с критериями приёмки
 │   └── closed_tasks/     # закрытые задачи
-├── vendor/               # stb_image.h, unity/ (юнит-тесты)
+├── vendor/               # stb_image.h, unity/ (юнит-тесты), enet/ (submodule)
 ├── src/                  # исходники (.c/.h)
 ├── tests/                # юнит-тесты на Unity, по файлу на модуль
 └── assets/

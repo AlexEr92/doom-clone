@@ -36,6 +36,43 @@ endif()
 find_package(SDL2 REQUIRED)
 find_package(SDL2_mixer REQUIRED)
 
+# ---- Зависимости: ENet ----
+# Сетевая игра идёт по UDP через ENet, и ENet один на все платформы: он
+# собирается из submodule vendor/enet/ и линкуется статически, системный пакет
+# не ищется. С -DENABLE_MULTIPLAYER=OFF ENet не нужен вовсе и собирается
+# одиночная игра — requirements.md, раздел 1, требует такой сборки на всех
+# платформах.
+option(ENABLE_MULTIPLAYER "Build the network game with ENet from vendor/enet" ON)
+
+if(ENABLE_MULTIPLAYER)
+    if(NOT EXISTS ${CMAKE_SOURCE_DIR}/vendor/enet/CMakeLists.txt)
+        message(FATAL_ERROR
+            "vendor/enet/ is empty: run git submodule update --init vendor/enet, "
+            "or configure with -DENABLE_MULTIPLAYER=OFF for a single-player build.")
+    endif()
+    # EXCLUDE_FROM_ALL — чтобы install не ставил статическую библиотеку и
+    # заголовки ENet вместе с игрой. project(enet) в апстриме не указывает
+    # языков и включает ещё и C++: сетевой сборке нужен компилятор C++.
+    add_subdirectory(vendor/enet EXCLUDE_FROM_ALL)
+    # Строгий -std=c11 проекта прячет в glibc getaddrinfo() и прочий POSIX,
+    # на котором стоит unix.c.
+    set_target_properties(enet PROPERTIES C_EXTENSIONS ON)
+    # -Wall -Wextra проекта — для своего кода; предупреждения апстрима здесь
+    # не правятся и только засоряли бы лог сборки.
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(enet PRIVATE -w)
+    endif()
+
+    # Игра и тесты получают ENet через эту цель: свой include-путь цель enet
+    # наружу не отдаёт, а Winsock и winmm на Windows линкует только под MinGW.
+    add_library(doom_enet INTERFACE)
+    target_include_directories(doom_enet SYSTEM INTERFACE ${CMAKE_SOURCE_DIR}/vendor/enet/include)
+    target_link_libraries(doom_enet INTERFACE enet)
+    if(WIN32)
+        target_link_libraries(doom_enet INTERFACE ws2_32 winmm)
+    endif()
+endif()
+
 # ---- Исходники ----
 add_executable(doom-clone
     src/main.c
@@ -75,6 +112,11 @@ if(TARGET SDL2_mixer::SDL2_mixer)
 else()
     target_include_directories(doom-clone PRIVATE ${SDL2_MIXER_INCLUDE_DIRS})
     target_link_libraries(doom-clone PRIVATE ${SDL2_MIXER_LIBRARIES})
+endif()
+
+# ENet и сетевые исходники — только в сетевой сборке
+if(ENABLE_MULTIPLAYER)
+    target_link_libraries(doom-clone PRIVATE doom_enet)
 endif()
 
 # libm есть на Unix-системах; на Windows (MSVC) её нет

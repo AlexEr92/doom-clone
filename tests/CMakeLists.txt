@@ -88,3 +88,8 @@ doom_test(audio SRC audio.c LINK ${TEST_MIXER_LIBS})
 # симуляцию; графики в ней нет — спрайты строит клиент.
 doom_test(replay FILE replay_test.c
     SRC world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)
+# Сам ENet из vendor/enet/: игра его пока не вызывает, и без этого теста
+# ошибка в его сборке или линковке ничем бы не проявилась.
+if(ENABLE_MULTIPLAYER)
+    doom_test(enet LINK doom_enet)
+endif()

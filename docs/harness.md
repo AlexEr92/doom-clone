@@ -239,6 +239,7 @@ git config core.hooksPath .githooks
 sudo apt-get install -y cmake build-essential libsdl2-dev libsdl2-mixer-dev \
     xvfb xdotool imagemagick cppcheck clang-format gcovr jq python3 clangd
 git config core.hooksPath .githooks
+git submodule update --init              # vendor/enet, если клон без --recurse-submodules
 cmake -S . -B build && cmake --build build
 .claude/skills/check/check.sh            # всё должно быть «ок»
 gh auth login                            # если нужен GitHub

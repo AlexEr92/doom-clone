@@ -20,6 +20,14 @@ opened by relative path, and a bare `./build/doom-clone` from elsewhere
 exits with an error. A new `.c` file goes into the source list in
 `CMakeLists.txt` by hand; there is no glob.
 
+ENet comes only from the `vendor/enet` submodule, built and linked
+statically with the game — no system package is looked for. A fresh clone
+needs `git submodule update --init` (configure says so if `vendor/enet/` is
+empty); `-DENABLE_MULTIPLAYER=OFF` builds the single-player game with no
+ENet at all. Network code reaches ENet only through the `doom_enet` target,
+and its sources go into the `if(ENABLE_MULTIPLAYER)` block that links it,
+so the OFF build never compiles them.
+
 Configuring writes `build/compile_commands.json` and links it from the
 project root (only the `build/` tree sets the link). The `clangd-lsp`
 plugin reads it for the `LSP` tool, which the main session, `reviewer` and

@@ -22,7 +22,8 @@
 | Tier-2 | macOS (Intel/ARM), Windows (MinGW, MSVC) | Обязаны собираться; проверяются в конце каждого этапа плана |
 
 - Сборка: CMake ≥ 3.15, компилятор с поддержкой C11 (gcc, clang, MSVC)
-- Обязательные зависимости: SDL2, SDL2_mixer, ENet
+- Обязательные зависимости: SDL2, SDL2_mixer, ENet; ENet собирается из
+  submodule `vendor/enet/` и требует ещё компилятора C++
 - Сборка без предупреждений при `-Wall -Wextra` на tier-1
 - Сборка с `-DENABLE_MULTIPLAYER=OFF` обязана работать на всех платформах
   и не требовать ENet

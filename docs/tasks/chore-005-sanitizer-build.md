@@ -155,7 +155,7 @@ teaches people to pass --no-verify»). Санитайзерная сборка �
   endif()
   ```
   Опция ставится до `add_executable(doom-clone ...)` и до
-  `add_subdirectory(tests)` (`CMakeLists.txt:107`), чтобы автоматически
+  `add_subdirectory(tests)` (`CMakeLists.txt:149`), чтобы автоматически
   распространиться и на игру, и на `tests/` (`add_subdirectory` наследует
   флаги каталога), без отдельной правки на каждую цель. Отдельный каталог
   сборки по тому же образцу уже есть: `build-cov/` с `ENABLE_COVERAGE`.

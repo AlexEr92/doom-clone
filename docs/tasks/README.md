@@ -72,7 +72,6 @@
 
 | # | Задача | Зависит от |
 |---|---|---|
-| [07-01](07-01-enet-build.md) | Подключить ENet к сборке | — |
 | [07-02](07-02-net-transport.md) | `net_transport` — обёртка над ENet | 07-01 |
 | [07-03](07-03-net-protocol.md) | `net_protocol.h` — структуры пакетов | 06-02 |
 | [07-04](07-04-net-server.md) | Сервер: тик, приём ввода, снапшоты | 07-02, 07-03, 06-06 |
@@ -181,3 +180,4 @@
 | [chore-006](../closed_tasks/chore-006-test-coverage.md) | Измерение покрытия тестами (gcovr) | Сделано |
 | [chore-007](../closed_tasks/chore-007-stale-doc-facts.md) | Устаревшие утверждения в SKILL.md и architecture.md | Сделано |
 | [chore-002](../closed_tasks/chore-002-dead-ternary-text-width.md) | Убрать неработающий тернарник в `text_width()` | Сделано |
+| [07-01](../closed_tasks/07-01-enet-build.md) | Подключить ENet к сборке | Сделано |
