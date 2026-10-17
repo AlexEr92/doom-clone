@@ -142,6 +142,7 @@
 | [chore-010](chore-010-sanitizers-in-review-harness.md) | Санитайзеры в `check.sh` и у тестера | `check.sh`, `tester.md`, `CLAUDE.md` |
 | [chore-013](chore-013-lint-net-client-no-sdl.md) | `lint.sh sim` не проверяет, что `net_client.c` собирается без SDL | `lint.sh`, `SKILL.md`, `harness.md` |
 | [feat-003](feat-003-remote-shot-animation.md) | Выстрел чужого игрока и врага в снапшоте: `ANIM_SHOOT` по сети | `net_protocol.c/.h` |
+| [feat-004](feat-004-player-chooses-skin.md) | Игрок сам выбирает персонажа: скин в `MsgJoin` и в снапшоте | `net_protocol.h`, `net_server.c`, `player.h`, `sprite.c` |
 | [test-002](test-002-fps-with-network.md) | Замер FPS клиента с работающей сетью | `SKILL.md`, `netdriver.sh` |
 | [test-003](test-003-text-module-layout-test.md) | Общий модуль шрифта 3×5 и тест раскладки глифов | `text.c`, `hud.c`, `game.c` |
 
