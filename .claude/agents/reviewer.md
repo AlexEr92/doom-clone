@@ -217,7 +217,8 @@ The ones no tool enforces:
 ## 5. Tests and runtime
 
 The tester's report, condensed but with its commands, `PASS`/`FAIL` lines,
-numbers, cold lines and missing tests intact. Do not redo its work. Where
+numbers, cold lines, missing tests and the scratch programs it names as
+worth keeping, with their paths, intact. Do not redo its work. Where
 your reading of the diff disagrees with it, give both and say why.
 
 ## What counts as a finding

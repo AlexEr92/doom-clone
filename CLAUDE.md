@@ -265,6 +265,17 @@ follow-up work.
   checks the existing tasks for overlap first, and keep going; do not fix it
   inside the diff of whatever you were doing — unless the current task
   cannot be verified without the fix, and then say so.
+- **A scratch tool worth keeping goes in with the task that needed it.** A
+  program written in the scratchpad to check the task — one that goes
+  through a project API and answers a question that will come up again —
+  is committed to `tests/manual/` in the task's commit: as a mode of a tool
+  already there when it fits one, else as its own file built by
+  `doom_manual()` in `tests/CMakeLists.txt`, with a header comment on what
+  it answers and how to run it. The "Закрыто" note names it; a one-off
+  experiment stays in the scratchpad. More work to make it serve beyond the
+  task goes to `project-manager` as a task on the committed file — a
+  scratchpad does not outlive its session, so a task must never point at
+  one.
 - **Something missing from the system is a question for the user, not a
   puzzle to solve.** When a build, test or check needs a package or tool
   that is not installed, stop and tell the user what is missing and the

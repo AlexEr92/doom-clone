@@ -178,9 +178,16 @@ affects correctness or a criterion; leave out preferences that are written
 down nowhere. No overall verdict on the task — what blocks is the owner's
 call.
 
+A program you wrote in your scratchpad to check the change, that goes
+through a project API and would answer the same question again — a state
+dump, a scripted player, a load generator — goes under **Игра** with its
+path and the question it answers. You do not keep it yourself: the owner
+decides whether it goes into `tests/manual/` (`CLAUDE.md` → Conventions).
+
 ## What you never do
 
-- Write or edit any file — code, tests, task files, checkboxes.
+- Write or edit any file of the project — code, tests, task files,
+  checkboxes. Your scratchpad is yours.
 - Touch the working tree with `git`, or commit.
 - Run anything in the background, or leave the game or Xvfb running.
 - Lower a coverage threshold, skip or disable a test, or rerun a flaky

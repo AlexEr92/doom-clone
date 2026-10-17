@@ -53,6 +53,12 @@ minutes and two agents; do not spend it on work you already know is
 incomplete. Every criterion either holds, or you can say why it cannot be
 checked here.
 
+Then go through the programs you wrote in the scratchpad along the way.
+Each one that goes through a project API and answers a question that will
+come up again moves into `tests/manual/` now, before the review, so that
+the review sees it (`CLAUDE.md` → Conventions, "A scratch tool worth
+keeping"); the rest stay where they are.
+
 ## 5. Review
 
 Start the `reviewer` agent with:
@@ -71,6 +77,7 @@ the tester it starts own `build/`, `build-cov/` and `:99`. Then act on it:
 | **[критерий]**, **[дефект]**, **[инвариант]**, **[конвенция]**, **[нет теста]** | fix it, then re-run `check.sh` |
 | **[необязательно]** | your call; list the ones you skipped and why in the final report |
 | candidate for a separate task | hand it to `project-manager` verbatim |
+| a scratch program the tester names as worth keeping | weigh it as your own in step 4; taking it into `tests/manual/` needs `check.sh`, not a second review |
 
 Do not run a second review for fixes the first one asked for — `check.sh`
 is enough. Run it again only if the fixes changed the design or touched
@@ -102,4 +109,6 @@ Briefly, in Russian:
 - the last `check.sh` summary;
 - each review finding and what became of it;
 - tasks filed with `project-manager`;
+- the scratch programs written along the way: which went into
+  `tests/manual/`, which stayed in the scratchpad, and why;
 - the commits made.
