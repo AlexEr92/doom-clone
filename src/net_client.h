@@ -1,0 +1,69 @@
+#ifndef NET_CLIENT_H
+#define NET_CLIENT_H
+
+/* The client's end of the network game: it joins a server, sends one input a
+ * tick, and keeps a World that is whatever the newest snapshot says. Nothing is
+ * simulated here — no world_step(), no prediction, no interpolation — so other
+ * players move in 20 Hz steps and the client's own player a round trip late.
+ *
+ * Called from the frame loop: client_send_input() once per fixed step,
+ * client_poll() once a frame after them, so the inputs of the frame leave in
+ * the same frame. */
+
+#include <stdint.h>
+
+struct World;
+struct PlayerInput;
+
+typedef enum {
+    CL_DISCONNECTED, /* not connected yet, or the server went away after the join */
+    CL_CONNECTING,   /* waiting for MSG_ACCEPT and the first snapshot */
+    CL_CONNECTED,    /* in the game: client_world() has a world to draw */
+    CL_REJECTED,     /* the join failed; client_reason() says why */
+} ClientState;
+
+typedef struct Client Client; /* opaque */
+
+/* A client that is not connected. NULL when out of memory. */
+Client *client_create(void);
+
+/* Start joining the server at `addr` (a name or a dotted address) and `port`;
+ * client_poll() carries the handshake on. A client whose connection has ended
+ * may connect again, as a new player. Returns 0; -1 when the client is
+ * connected or connecting already, which it stays, or when the address does not
+ * resolve, which leaves it CL_REJECTED with the reason. */
+int client_connect(Client *c, const char *addr, uint16_t port);
+
+/* Tell the server the client is leaving, and free it. NULL is ignored. */
+void client_destroy(Client *c);
+
+/* Send the input of one tick, unreliably. The client numbers its inputs itself,
+ * one up from the last, and the tick in `in` is not used: the server takes an
+ * input only if its number is newer than the last one's. Ignored unless
+ * CL_CONNECTED. */
+void client_send_input(Client *c, const struct PlayerInput *in);
+
+/* Send what is queued and take what came, once a frame. Every new snapshot is
+ * put into the world in turn and an older one than the world shows is dropped.
+ * After the call World.events holds the events of the snapshots it applied, in
+ * order, as many as MAX_EVENTS holds, and nothing else: each arrives once.
+ *
+ * Here the handshake goes on, and here it fails: no first snapshot within
+ * NET_CONNECT_TIMEOUT_MS of client_connect() is CL_REJECTED. A server that
+ * goes away after it is CL_DISCONNECTED. */
+void client_poll(Client *c);
+
+ClientState client_state(const Client *c);
+
+/* Why the connection ended, for a person to read: the server is full, it runs
+ * another version, it did not answer, it went away. NULL while it has not. */
+const char *client_reason(const Client *c);
+
+/* The world as the newest snapshot left it. NULL until the first one; after
+ * the connection ends, the last one the client saw. */
+struct World *client_world(Client *c);
+
+/* The id of the player this client plays as, from MSG_ACCEPT; -1 before it. */
+int client_local_player(const Client *c);
+
+#endif

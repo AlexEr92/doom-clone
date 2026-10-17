@@ -64,9 +64,13 @@ driver); `docs/closed_tasks/test-001-unit-test-harness.md` says why.
 The transport is tested over real sockets on 127.0.0.1, server and clients
 in one process (`test_net_transport.c`), and its timeouts by moving ENet's
 clock with `enet_time_set()` rather than by waiting; the server likewise,
-against bots that speak the protocol by hand (`test_net_server.c`). Between two processes
-— an echo, a `kill -9` of either side — `build/tests/net_echo
-server|client` checks it by hand; it never exits, so CTest does not run it.
+against bots that speak the protocol by hand (`test_net_server.c`); the
+client against both the server and a stand-in that sends what the server
+never does (`test_net_client.c`). Between two processes — an echo, a
+`kill -9` of either side — `build/tests/net_echo server|client` checks the
+transport by hand, and `build/tests/net_serve`, run from the project root,
+is the server two `doom-clone --connect 127.0.0.1` play on; neither exits,
+so CTest runs neither.
 Coverage is measured in `build-cov/` by `.claude/skills/coverage/coverage.sh`,
 whose thresholds (lines 65 %, decisions 55 %) are a ratchet that only goes
 up; its `SKILL.md` explains how to read the numbers.
@@ -180,6 +184,10 @@ fire, use, weapon switch — are cleared by the sample that carries them, so
 a press reaches exactly one tick however many ticks the frame holds;
 `input_end_frame()` clears only what belongs to the frame. Game states
 (`GSTATE_*`) and the 3×5 bitmap font every overlay uses live in `game.c`.
+Started with `--connect <addr>`, the same loop is a network client
+(`net_client.h`): a tick sends its `PlayerInput` instead of running
+`world_step()`, and `client_poll()`, once a frame in every state, puts the
+newest snapshot into the client's own `World` as it is.
 
 ### Colour packing — easy to break silently
 

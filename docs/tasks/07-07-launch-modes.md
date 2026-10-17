@@ -7,12 +7,14 @@
 
 ## Контекст
 
-`main.c` сейчас жёстко однопользовательский: `engine_init()` → `world_load()`
-→ цикл. Нужно три режима, отличающихся тем, что крутится в фикс-шаге.
+`main.c` умеет одиночную игру и клиента (`--connect`, 07-05): клиент
+разведён с одиночной игрой ветками под `#ifdef ENABLE_MULTIPLAYER` прямо в
+цикле. Нужно три режима, отличающихся тем, что крутится в фикс-шаге.
 
 ## Что сделать
 
-- [ ] Разбор аргументов (`main.c:73` — сейчас `argc/argv` игнорируются):
+- [ ] Разбор аргументов: `parse_options()` в `main.c` знает `--connect` и
+      `--port`, к ним добавить остальные:
   ```
   ./doom-clone                          # solo (как сейчас)
   ./doom-clone --host [--port N]        # listen-server + локальный клиент
@@ -21,7 +23,9 @@
   ./doom-clone --name <nick>
   ./doom-clone --host --snaprate N      # снапшотов в секунду, 15–60 (N10)
   ```
-      `--snaprate` передаётся в `server_set_snapshot_rate()`
+      `--snaprate` передаётся в `server_set_snapshot_rate()`. `--name`
+      доходит до `MsgJoin.name`: `client_connect()` имени не принимает, и
+      клиент шлёт его пустым
 - [ ] Ввести абстракцию над источником мира, чтобы не плодить три цикла:
   ```c
   typedef struct {
@@ -34,7 +38,9 @@
       Три реализации: solo (прямой `world_step()`), host (при старте
       `server_add_local_player()`, затем `server_tick(s, local, dt)`; на
       `--dedicated` локального игрока нет и `local` — `NULL`), client
-      (`client_send_input()` + `client_poll()`)
+      (`client_send_input()` + `client_poll()`). Клиентские ветки цикла
+      `main.c` — `join()`, отправка ввода в тике, `client_poll()` с уходом в
+      меню при разрыве — переезжают в эту реализацию
 - [ ] `--dedicated`: не вызывать `engine_init()`, `assets_init()`,
       `audio_init()`; цикл на `SDL_Delay`/`get_time_seconds()` без рендера.
       Логи в stdout: подключения, отключения, тикрейт
@@ -42,10 +48,14 @@
       `SDL_Init(SDL_INIT_TIMER)` вместо `SDL_INIT_VIDEO`
 - [ ] Корректное завершение: `Ctrl+C` на сервере → рассылка
       `MSG_DISCONNECT` клиентам перед выходом
+- [ ] Удалить ручной сервер `tests/net_serve.c` и его цель в
+      `tests/CMakeLists.txt`: его заменяет `--host --dedicated`. В CLAUDE.md
+      («Tests») и architecture.md («Сервер») вместо него назвать флаги
 
 ## Затрагиваемые файлы
 
-`main.c`, `session.h` (новый), `engine.c`, `CMakeLists.txt`
+`main.c`, `session.h` (новый), `engine.c`, `CMakeLists.txt`,
+`tests/net_serve.c` (удаляется), `tests/CMakeLists.txt`
 
 ## Критерий готовности
 

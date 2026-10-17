@@ -114,10 +114,40 @@ if(ENABLE_MULTIPLAYER)
         world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c
         LINK doom_enet)
 
+    # Клиент против настоящего сервера и против подставного, который говорит
+    # на протоколе вручную, — всё в одном процессе, по 127.0.0.1. Карту из
+    # MSG_ACCEPT клиент ищет в assets/maps/ рабочего каталога; тест пишет её
+    # туда сам, каталог заводится здесь, рядом с тестом.
+    doom_test(net_client SRC net_client.c net_server.c net_transport.c net_protocol.c
+        world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c
+        LINK doom_enet)
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/assets/maps)
+
     # Ручная проверка транспорта между двумя процессами — эхо, kill -9
     # клиента, частота цикла с net_poll(). Сама не завершается, поэтому в
     # ctest не входит.
     add_executable(net_echo net_echo.c ${CMAKE_SOURCE_DIR}/src/net_transport.c)
     target_include_directories(net_echo PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(net_echo PRIVATE doom_enet)
+
+    # Сервер отдельным процессом, для ручной игры двумя клиентами
+    # (doom-clone --connect), пока игра сама не умеет быть сервером. Тоже не
+    # завершается сама и в ctest не входит.
+    add_executable(net_serve net_serve.c
+        ${CMAKE_SOURCE_DIR}/src/net_server.c
+        ${CMAKE_SOURCE_DIR}/src/net_transport.c
+        ${CMAKE_SOURCE_DIR}/src/net_protocol.c
+        ${CMAKE_SOURCE_DIR}/src/world.c
+        ${CMAKE_SOURCE_DIR}/src/player.c
+        ${CMAKE_SOURCE_DIR}/src/map.c
+        ${CMAKE_SOURCE_DIR}/src/door.c
+        ${CMAKE_SOURCE_DIR}/src/enemy.c
+        ${CMAKE_SOURCE_DIR}/src/item.c
+        ${CMAKE_SOURCE_DIR}/src/weapon.c
+        ${CMAKE_SOURCE_DIR}/src/raycast_world.c)
+    target_include_directories(net_serve PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(net_serve PRIVATE doom_enet)
+    if(NOT WIN32)
+        target_link_libraries(net_serve PRIVATE m)
+    endif()
 endif()

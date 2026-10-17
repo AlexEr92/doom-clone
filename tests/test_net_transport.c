@@ -380,6 +380,16 @@ static void test_rtt_and_loss_of_a_connected_peer(void)
     TEST_ASSERT_EQUAL_FLOAT(0.0f, net_peer_loss(s->host, 0));
 }
 
+/* The clock a caller times its own timeouts by is the one a test moves. */
+static void test_net_time_is_enets_clock(void)
+{
+    uint32_t before = net_time();
+    enet_time_set(enet_time_get() + 10000);
+    uint32_t after = net_time();
+    TEST_ASSERT_TRUE(after - before >= 10000 && after - before < 10000 + TEST_WAIT_MS);
+    TEST_ASSERT_UINT32_WITHIN(1, enet_time_get(), after);
+}
+
 static void test_unknown_peers_are_ignored(void)
 {
     Watched *s = server();
@@ -429,6 +439,7 @@ int main(void)
     RUN_TEST(test_connect_to_nobody_gives_up);
     RUN_TEST(test_client_holds_one_connection);
     RUN_TEST(test_rtt_and_loss_of_a_connected_peer);
+    RUN_TEST(test_net_time_is_enets_clock);
     RUN_TEST(test_unknown_peers_are_ignored);
     return UNITY_END();
 }

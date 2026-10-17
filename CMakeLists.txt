@@ -114,14 +114,18 @@ else()
     target_link_libraries(doom-clone PRIVATE ${SDL2_MIXER_LIBRARIES})
 endif()
 
-# ENet и сетевые исходники — только в сетевой сборке
+# ENet и сетевые исходники — только в сетевой сборке. Макрос ENABLE_MULTIPLAYER
+# сообщает main.c, что флаги сетевой игры есть: без него --connect отвечает,
+# что сборка одиночная.
 if(ENABLE_MULTIPLAYER)
     target_sources(doom-clone PRIVATE
         src/net_transport.c
         src/net_protocol.c
         src/net_server.c
+        src/net_client.c
     )
     target_link_libraries(doom-clone PRIVATE doom_enet)
+    target_compile_definitions(doom-clone PRIVATE ENABLE_MULTIPLAYER)
 endif()
 
 # libm есть на Unix-системах; на Windows (MSVC) её нет

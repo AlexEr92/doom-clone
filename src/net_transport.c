@@ -295,3 +295,8 @@ float net_peer_loss(const NetHost *h, NetPeerId id)
     const ENetPeer *peer = peer_at(h, id);
     return peer ? (float)peer->packetLoss / (float)ENET_PEER_PACKET_LOSS_SCALE : 0.0f;
 }
+
+uint32_t net_time(void)
+{
+    return enet_time_get();
+}

@@ -84,4 +84,9 @@ float net_peer_rtt(const NetHost *h, NetPeerId peer);
  * unknown peer. */
 float net_peer_loss(const NetHost *h, NetPeerId peer);
 
+/* Milliseconds on the clock peers are timed out by, ENet's: a timeout of the
+ * caller's own measured here moves with them when a test sets that clock. It
+ * wraps, so two readings are compared by their difference. */
+uint32_t net_time(void);
+
 #endif

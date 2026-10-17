@@ -52,6 +52,10 @@
  * pings an idle peer every 0.5 s, so a live one never comes near it. */
 #define NET_PEER_TIMEOUT_MS 5000 /* R1, R2: a lost peer is noticed within 5 s */
 
+/* How long a client waits from connecting to its first snapshot. A server that
+ * answers at all answers within a round trip; one that does not is not there. */
+#define NET_CONNECT_TIMEOUT_MS 5000
+
 /* One frame can show every enemy, every item and every player but the one
  * holding the camera. Barrels come on top of that and are already counted in
  * the value above. */
