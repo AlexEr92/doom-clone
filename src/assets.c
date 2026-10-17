@@ -150,183 +150,6 @@ static void gen_barrel(Texture *t)
     }
 }
 
-static void gen_enemy(Texture *t)
-{
-    if (texture_alloc(t, TEX_SIZE, TEX_SIZE) != 0) {
-        return;
-    }
-    for (int y = 0; y < TEX_SIZE; y++) {
-        for (int x = 0; x < TEX_SIZE; x++) {
-            int dx = x - TEX_SIZE / 2;
-            int dy = y - TEX_SIZE / 2;
-            uint32_t c;
-            /* head */
-            if (dx * dx + (dy + 14) * (dy + 14) <= 64) {
-                c = col(120, 200, 120);
-            }
-            /* body */
-            else if (y > 20 && y < 52 && abs(dx) < 14) {
-                c = col(60, 160, 60);
-            }
-            /* legs */
-            else if (y >= 52 && y < 60 && abs(dx) < (y < 56 ? 10 : 8)) {
-                c = col(40, 100, 40);
-            } else {
-                c = 0;
-            }
-            t->pixels[y * TEX_SIZE + x] = c;
-        }
-    }
-}
-
-static void gen_enemy_serg(Texture *t)
-{
-    if (texture_alloc(t, TEX_SIZE, TEX_SIZE) != 0) {
-        return;
-    }
-    for (int y = 0; y < TEX_SIZE; y++) {
-        for (int x = 0; x < TEX_SIZE; x++) {
-            int dx = x - TEX_SIZE / 2;
-            int dy = y - TEX_SIZE / 2;
-            uint32_t c;
-            /* head (human) */
-            if (dx * dx + (dy + 14) * (dy + 14) <= 60) {
-                c = col(200, 170, 140);
-            }
-            /* body armor brown */
-            else if (y > 20 && y < 52 && abs(dx) < 15) {
-                c = col(110, 80, 50);
-            }
-            /* legs */
-            else if (y >= 52 && y < 60 && abs(dx) < (y < 56 ? 11 : 9)) {
-                c = col(70, 50, 30);
-            } else {
-                c = 0;
-            }
-            t->pixels[y * TEX_SIZE + x] = c;
-        }
-    }
-}
-
-static void gen_enemy_dead(Texture *t)
-{
-    if (texture_alloc(t, TEX_SIZE, TEX_SIZE) != 0) {
-        return;
-    }
-    for (int y = 0; y < TEX_SIZE; y++) {
-        for (int x = 0; x < TEX_SIZE; x++) {
-            int dx = x - TEX_SIZE / 2;
-            int dy = y - (TEX_SIZE - 12);
-            uint32_t c;
-            /* flat corpse blob near bottom */
-            if (dx * dx * 1 + dy * dy * 4 <= 360 && y > 36) {
-                int band = (x / 8) % 2;
-                c = band ? col(70, 30, 30) : col(110, 50, 50);
-            } else {
-                c = 0;
-            }
-            t->pixels[y * TEX_SIZE + x] = c;
-        }
-    }
-}
-
-/* Four facings in four rows, one frame each, the way a file-backed character
- * sheet carries them (docs/assets-spec.md). */
-#define PLAYER_VIEWS 4
-
-/* One colour per player id, all of them away from the green of the imp and the
- * brown of the sergeant. Ten people in a room are told apart by colour and
- * nothing else until 10-04 gives each of them a character of their own. */
-static const uint8_t PLAYER_COLORS[MAX_PLAYERS][3] = {
-        {70, 120, 230},  /* blue */
-        {225, 65, 60},   /* red */
-        {70, 205, 205},  /* cyan */
-        {235, 145, 40},  /* orange */
-        {200, 80, 205},  /* magenta */
-        {225, 210, 70},  /* yellow */
-        {215, 215, 220}, /* white */
-        {130, 90, 225},  /* violet */
-        {240, 145, 175}, /* pink */
-        {150, 225, 150}, /* pale green */
-};
-
-static uint32_t shade_rgb(const uint8_t rgb[3], float f)
-{
-    return col((uint8_t)clampf((float)rgb[0] * f, 0.0f, 255.0f),
-               (uint8_t)clampf((float)rgb[1] * f, 0.0f, 255.0f),
-               (uint8_t)clampf((float)rgb[2] * f, 0.0f, 255.0f));
-}
-
-/* One facing of the figure, into row `view` of the sheet. The two profiles are
- * the same drawing mirrored, so the side the player faces is all that tells
- * them apart. */
-static void gen_player_view(Texture *t, int view, const uint8_t rgb[3])
-{
-    const uint32_t body = shade_rgb(rgb, 1.0f);
-    const uint32_t dark = shade_rgb(rgb, 0.55f);
-    const uint32_t helmet = shade_rgb(rgb, 1.25f);
-    const uint32_t skin = col(205, 165, 130);
-    const uint32_t gun = col(60, 60, 70);
-    const uint32_t eye = col(25, 20, 20);
-    int side = (view == 1) ? 1 : (view == 3 ? -1 : 0);
-    uint32_t *px = t->pixels + (size_t)view * t->fh * t->w;
-
-    for (int y = 0; y < TEX_SIZE; y++) {
-        for (int x = 0; x < TEX_SIZE; x++) {
-            int dx = x - TEX_SIZE / 2;
-            int dy = y - TEX_SIZE / 2;
-            /* On a profile this grows the way the player looks, so one drawing
-             * serves both of them. */
-            int sx = side ? side * dx : dx;
-            int half = side ? 10 : 14;
-            uint32_t c;
-            /* head */
-            if (dx * dx + (dy + 14) * (dy + 14) <= 64) {
-                c = helmet;
-                /* A face only where it can be seen: all of it looking at the
-                 * camera, a cheek in profile, none of it from behind. */
-                if (dy > -16 && (view == 0 ? abs(dx) < 6 : (side && sx > 0 && sx < 7))) {
-                    c = skin;
-                }
-                if (dy > -17 && dy < -13 &&
-                    (view == 0 ? (abs(dx) > 1 && abs(dx) < 5) : (side && sx > 2 && sx < 6))) {
-                    c = eye;
-                }
-            }
-            /* body */
-            else if (y > 20 && y < 52 && abs(dx) < half) {
-                c = body;
-                if (view == 2 && abs(dx) < 6) {
-                    c = dark; /* the pack on their back */
-                }
-            }
-            /* weapon, held out the way they face */
-            else if (side && y > 30 && y < 38 && sx >= half && sx < half + 14) {
-                c = gun;
-            }
-            /* legs */
-            else if (y >= 52 && y < 60 && abs(dx) < (y < 56 ? half - 4 : half - 6)) {
-                c = dark;
-            } else {
-                c = 0;
-            }
-            px[y * TEX_SIZE + x] = c;
-        }
-    }
-}
-
-static void gen_player(Texture *t, const uint8_t rgb[3])
-{
-    if (texture_alloc(t, TEX_SIZE, TEX_SIZE * PLAYER_VIEWS) != 0) {
-        return;
-    }
-    t->fh = TEX_SIZE;
-    t->rows = PLAYER_VIEWS;
-    for (int v = 0; v < PLAYER_VIEWS; v++) {
-        gen_player_view(t, v, rgb);
-    }
-}
-
 static void gen_medkit(Texture *t)
 {
     if (texture_alloc(t, TEX_SIZE, TEX_SIZE) != 0) {
@@ -586,28 +409,116 @@ typedef struct {
 static const SheetSlot SHEETS[] = {
         {"assets/weapons/pistol_fp_128x128", 128, 128, offsetof(Assets, weapon_pistol)},
         {"assets/weapons/shotgun_fp_128x128", 128, 128, offsetof(Assets, weapon_shotgun)},
-        {"assets/players/marine/idle_64x64", 64, 64, offsetof(Assets, sprite_enemy)},
-        {"assets/players/swat/idle_64x64", 64, 64, offsetof(Assets, sprite_enemy_serg)},
-        {"assets/players/marine/death_64x64", 64, 64, offsetof(Assets, sprite_enemy_dead)},
-        {"assets/players/swat/death_64x64", 64, 64, offsetof(Assets, sprite_enemy_serg_dead)},
         {"assets/items/medkit_64x64", 64, 64, offsetof(Assets, sprite_medkit)},
         {"assets/items/armor_64x64", 64, 64, offsetof(Assets, sprite_armor)},
         {"assets/items/ammo_pistol_64x64", 64, 64, offsetof(Assets, sprite_ammo)},
 };
+
+static int file_exists(const char *path)
+{
+    FILE *f = fopen(path, "rb");
+    if (!f) {
+        return 0;
+    }
+    fclose(f);
+    return 1;
+}
 
 static void load_sheets(Assets *a)
 {
     for (size_t i = 0; i < sizeof(SHEETS) / sizeof(SHEETS[0]); i++) {
         char path[256];
         snprintf(path, sizeof(path), "%s.png", SHEETS[i].path);
-        FILE *f = fopen(path, "rb");
-        if (!f) {
+        if (!file_exists(path)) {
             continue;
         }
-        fclose(f);
         assets_load_sheet((Texture *)((char *)a + SHEETS[i].field), path, SHEETS[i].fw,
                           SHEETS[i].fh);
     }
+}
+
+/* ---- Characters ---- */
+
+/* The file each animation of a character is loaded from, in AnimId order. */
+static const char *const ANIM_FILES[ANIM_COUNT] = {
+        [ANIM_IDLE] = "idle", [ANIM_RUN] = "run",     [ANIM_SHOOT] = "shoot",
+        [ANIM_PAIN] = "pain", [ANIM_DEATH] = "death",
+};
+
+#define SKIN_FRAME 64
+
+/* Next non-blank line of `f` with the line end and trailing blanks cut off,
+ * into buf. A line longer than buf is read to its end and comes back cut
+ * short. Returns 0 at the end of the file. */
+static int read_name(FILE *f, char *buf, size_t size)
+{
+    while (fgets(buf, (int)size, f)) {
+        size_t len = strlen(buf);
+        if (len && buf[len - 1] != '\n') {
+            int c;
+            while ((c = fgetc(f)) != EOF && c != '\n') {
+            }
+        }
+        while (len && (buf[len - 1] == '\n' || buf[len - 1] == '\r' || buf[len - 1] == ' ' ||
+                       buf[len - 1] == '\t')) {
+            buf[--len] = '\0';
+        }
+        if (len) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void assets_load_skins(Assets *a, const char *dir)
+{
+    memset(a->skin_names, 0, sizeof(a->skin_names));
+    a->skin_count = 0;
+
+    char path[512];
+    snprintf(path, sizeof(path), "%s/skins.txt", dir);
+    FILE *list = fopen(path, "r");
+    if (!list) {
+        return;
+    }
+
+    char name[128];
+    while (read_name(list, name, sizeof(name))) {
+        if (a->skin_count == MAX_SKINS) {
+            fprintf(stderr, "assets: %s: only the first %d skins are used\n", path, MAX_SKINS);
+            break;
+        }
+        /* A name that does not fit still takes its line's number: the ones
+         * after it are numbers on the wire and must not shift. It just never
+         * resolves, and draws as the checker. */
+        int skin = a->skin_count++;
+        if (strlen(name) >= SKIN_NAME_MAX) {
+            fprintf(stderr, "assets: %s: skin name '%s' is longer than %d characters\n", path, name,
+                    SKIN_NAME_MAX - 1);
+            continue;
+        }
+        strcpy(a->skin_names[skin], name);
+        for (int k = 0; k < ANIM_COUNT; k++) {
+            char sheet[512];
+            snprintf(sheet, sizeof(sheet), "%s/%s/%s_%dx%d.png", dir, name, ANIM_FILES[k],
+                     SKIN_FRAME, SKIN_FRAME);
+            if (!file_exists(sheet)) {
+                continue;
+            }
+            assets_load_sheet(&a->skin_anim[skin][k], sheet, SKIN_FRAME, SKIN_FRAME);
+        }
+    }
+    fclose(list);
+}
+
+int assets_skin_index(const Assets *a, const char *name)
+{
+    for (int i = 0; i < a->skin_count; i++) {
+        if (a->skin_names[i][0] && strcmp(a->skin_names[i], name) == 0) {
+            return i;
+        }
+    }
+    return -1;
 }
 
 int assets_init(Assets *a)
@@ -618,41 +529,45 @@ int assets_init(Assets *a)
     gen_floor(&a->floor_tex);
     gen_ceiling(&a->ceiling_tex);
     gen_barrel(&a->sprite_barrel);
-    gen_enemy(&a->sprite_enemy);
-    gen_enemy_serg(&a->sprite_enemy_serg);
-    gen_enemy_dead(&a->sprite_enemy_dead);
-    gen_enemy_dead(&a->sprite_enemy_serg_dead);
-    for (int i = 0; i < MAX_PLAYERS; i++) {
-        gen_player(&a->sprite_player[i], PLAYER_COLORS[i]);
-    }
     gen_medkit(&a->sprite_medkit);
     gen_ammo(&a->sprite_ammo);
     gen_armor(&a->sprite_armor);
     gen_weapon(&a->weapon_pistol);
     gen_weapon_shotgun(&a->weapon_shotgun);
+    /* A character has no procedural variant: a stand-in that looks like a
+     * character, or like somebody else's, would hide a missing file, and the
+     * checker cannot be mistaken for anything. */
+    assets_gen_missing(&a->missing);
+    for (int s = 0; s < MAX_SKINS; s++) {
+        for (int k = 0; k < ANIM_COUNT; k++) {
+            assets_gen_missing(&a->skin_anim[s][k]);
+        }
+    }
 
     /* Verify all sprite/wall textures allocated */
-    Texture *all[] = {&a->wall_brick,        &a->wall_door,         &a->floor_tex,
-                      &a->ceiling_tex,       &a->sprite_barrel,     &a->sprite_enemy,
-                      &a->sprite_enemy_serg, &a->sprite_enemy_dead, &a->sprite_enemy_serg_dead,
-                      &a->sprite_medkit,     &a->sprite_ammo,       &a->sprite_armor,
-                      &a->weapon_pistol,     &a->weapon_shotgun};
+    Texture *all[] = {&a->wall_brick,    &a->wall_door,      &a->floor_tex,   &a->ceiling_tex,
+                      &a->sprite_barrel, &a->sprite_medkit,  &a->sprite_ammo, &a->sprite_armor,
+                      &a->weapon_pistol, &a->weapon_shotgun, &a->missing};
     for (size_t i = 0; i < sizeof(all) / sizeof(all[0]); i++) {
         if (!all[i]->pixels) {
             fprintf(stderr, "assets: procedural texture %zu failed\n", i);
             return -1;
         }
     }
-    for (int i = 0; i < MAX_PLAYERS; i++) {
-        if (!a->sprite_player[i].pixels) {
-            fprintf(stderr, "assets: procedural player texture %d failed\n", i);
-            return -1;
+    for (int s = 0; s < MAX_SKINS; s++) {
+        for (int k = 0; k < ANIM_COUNT; k++) {
+            if (!a->skin_anim[s][k].pixels) {
+                fprintf(stderr, "assets: placeholder for skin %d failed\n", s);
+                return -1;
+            }
         }
     }
 
     /* Files win over the generators where they exist; a rejected file leaves
-     * the procedural texture in place, so this cannot fail the init. */
+     * the procedural texture or the checker in place, so this cannot fail the
+     * init. */
     load_sheets(a);
+    assets_load_skins(a, "assets/players");
     return 0;
 }
 
@@ -663,13 +578,12 @@ void assets_shutdown(Assets *a)
     texture_free(&a->floor_tex);
     texture_free(&a->ceiling_tex);
     texture_free(&a->sprite_barrel);
-    texture_free(&a->sprite_enemy);
-    texture_free(&a->sprite_enemy_serg);
-    texture_free(&a->sprite_enemy_dead);
-    texture_free(&a->sprite_enemy_serg_dead);
-    for (int i = 0; i < MAX_PLAYERS; i++) {
-        texture_free(&a->sprite_player[i]);
+    for (int s = 0; s < MAX_SKINS; s++) {
+        for (int k = 0; k < ANIM_COUNT; k++) {
+            texture_free(&a->skin_anim[s][k]);
+        }
     }
+    texture_free(&a->missing);
     texture_free(&a->sprite_medkit);
     texture_free(&a->sprite_ammo);
     texture_free(&a->sprite_armor);

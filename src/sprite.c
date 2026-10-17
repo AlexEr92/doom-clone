@@ -18,8 +18,6 @@ int sprite_add(SpriteList *sl, float x, float y, int type)
     switch (type) {
         case SPRITE_ENEMY: scale = 0.72f; break;
         case SPRITE_ENEMY_SERG: scale = 0.78f; break;
-        case SPRITE_ENEMY_DEAD:
-        case SPRITE_ENEMY_SERG_DEAD: scale = 0.55f; break;
         case SPRITE_PLAYER: scale = 0.78f; break;
         case SPRITE_BARREL: scale = 0.55f; break;
         /* One scale for every pickup: their sheets are cut out of one
@@ -45,6 +43,8 @@ int sprite_add_full(SpriteList *sl, float x, float y, int type, float scale, int
     sl->items[sl->count].scale = scale;
     sl->items[sl->count].vmove = vmove;
     sl->items[sl->count].skin = 0;
+    sl->items[sl->count].anim = 0;
+    sl->items[sl->count].frame = 0;
     sl->items[sl->count].view = 0;
     return sl->count++;
 }
@@ -66,14 +66,6 @@ static int player_view(const PlayerState *p, float cam_x, float cam_y)
     return ((q % 4) + 4) % 4;
 }
 
-static int enemy_sprite_type(const Enemy *e)
-{
-    if (e->type == ENEMY_SERG) {
-        return (e->state == ESTATE_DEAD) ? SPRITE_ENEMY_SERG_DEAD : SPRITE_ENEMY_SERG;
-    }
-    return (e->state == ESTATE_DEAD) ? SPRITE_ENEMY_DEAD : SPRITE_ENEMY;
-}
-
 /* -1 for a pickup nothing draws. */
 static int item_sprite_type(int type)
 {
@@ -85,13 +77,166 @@ static int item_sprite_type(int type)
     }
 }
 
-void sprites_build_from_world(SpriteList *sl, const World *w, int local_player)
+/* ---- Animation ---- */
+
+/* Animation speeds, in frames of the sheet a second: how many frames there
+ * are is the file's business, how fast they go is the code's. The shot is not
+ * among them — it lasts as long as the weapon's fire_cd or the enemy's
+ * attack_cd, whatever the length of the sheet. */
+#define ANIM_IDLE_FPS 4.0f
+#define ANIM_RUN_FPS 8.0f
+#define ANIM_DEATH_FPS 10.0f
+
+/* How long a drop in hp shows as pain; the whole pain sheet plays across it. */
+#define ANIM_PAIN_TIME 0.3f
+
+/* How long a character keeps running after it last moved. A position does not
+ * change every frame: above the tick rate a frame with no tick in it moves
+ * nobody, and another player moves only when a snapshot arrives. A hold
+ * shorter than a snapshot interval would blink into idle between two of them;
+ * two intervals also cover one that comes late. */
+#define ANIM_RUN_HOLD (2.0f / (float)SNAPSHOT_RATE)
+
+/* Which character draws each enemy type: enemies are drawn by the same
+ * characters players are. The names are resolved into skin numbers once, in
+ * sprite_anim_init(); the simulation knows nothing of skins. */
+static const char *const ENEMY_SKINS[ENEMY_COUNT] = {
+        [ENEMY_IMP] = "marine",
+        [ENEMY_SERG] = "swat",
+};
+
+void sprite_anim_init(SpriteAnim *sa, const Assets *a)
+{
+    memset(sa, 0, sizeof(*sa));
+    for (int t = 0; t < ENEMY_COUNT; t++) {
+        sa->enemy_skin[t] = assets_skin_index(a, ENEMY_SKINS[t]);
+    }
+}
+
+/* One frame of one character's clock. The rules are the same for a player
+ * and an enemy and are checked in order, the first that holds winning: dead,
+ * hurt, shooting, moving, standing. Hurt and moving are told by comparing the
+ * character with what the last frame saw of it. */
+static void clock_step(AnimClock *c, float x, float y, float hp, int dead, int shooting, float dt)
+{
+    int moved = c->seen && (x != c->x || y != c->y);
+    int hurt = c->seen && hp < c->hp;
+    c->x = x;
+    c->y = y;
+    c->hp = hp;
+    c->seen = 1;
+
+    if (dead) {
+        c->pain_left = 0.0f;
+        c->run_left = 0.0f;
+    } else {
+        if (hurt) {
+            c->pain_left = ANIM_PAIN_TIME;
+        }
+        if (moved) {
+            c->run_left = ANIM_RUN_HOLD;
+        }
+    }
+
+    int anim = ANIM_IDLE;
+    if (dead) {
+        anim = ANIM_DEATH;
+    } else if (c->pain_left > 0.0f) {
+        anim = ANIM_PAIN;
+    } else if (shooting) {
+        anim = ANIM_SHOOT;
+    } else if (c->run_left > 0.0f) {
+        anim = ANIM_RUN;
+    }
+
+    /* Another animation starts from its first frame, and so does pain when a
+     * fresh hit lands while the last one still shows. A hit on a corpse
+     * changes nothing: death is already playing. */
+    if (anim != c->anim || (hurt && anim == ANIM_PAIN)) {
+        c->anim = anim;
+        c->phase = 0.0f;
+    } else {
+        c->phase += dt;
+    }
+    c->pain_left = fmaxf(c->pain_left - dt, 0.0f);
+    c->run_left = fmaxf(c->run_left - dt, 0.0f);
+}
+
+void sprite_anim_update(SpriteAnim *sa, const World *w, float dt)
+{
+    for (int i = 0; i < MAX_PLAYERS; i++) {
+        const PlayerState *p = &w->players[i];
+        AnimClock *c = &sa->players[i];
+        if (i >= w->player_count || !p->active) {
+            /* Whoever takes the slot next starts from nothing, not from
+             * where the last one stood. */
+            memset(c, 0, sizeof(*c));
+            continue;
+        }
+        const Weapon *wp = &p->weapons.weapons[p->weapons.current];
+        clock_step(c, p->x, p->y, p->hp, !p->alive, wp->anim > 0.0f, dt);
+    }
+    for (int i = 0; i < w->enemies.count; i++) {
+        const Enemy *e = &w->enemies.items[i];
+        clock_step(&sa->enemies[i], e->x, e->y, e->hp, e->state == ESTATE_DEAD,
+                   e->state == ESTATE_ATTACK, dt);
+    }
+}
+
+/* The sheet of `anim` of skin `skin`, or the checker for a skin out of range:
+ * an enemy whose character skins.txt does not name. */
+static const Texture *character_sheet(const Assets *a, int skin, int anim)
+{
+    if (skin < 0 || skin >= MAX_SKINS || anim < 0 || anim >= ANIM_COUNT) {
+        return &a->missing;
+    }
+    return &a->skin_anim[skin][anim];
+}
+
+/* Column of a sheet `cols` frames long that clock c has reached. `shot` is
+ * how far into shooting the character is, counted in shots: it runs from 0 to
+ * 1 over one, and on past 1 for an enemy that keeps attacking. Run and idle
+ * loop; pain and death stop on their last frame. */
+static int clock_frame(const AnimClock *c, int cols, float shot)
+{
+    if (cols <= 1) {
+        return 0;
+    }
+    int f;
+    switch (c->anim) {
+        case ANIM_RUN: return (int)(c->phase * ANIM_RUN_FPS) % cols;
+        case ANIM_SHOOT: return (int)(shot * (float)cols) % cols;
+        case ANIM_PAIN: f = (int)(c->phase / ANIM_PAIN_TIME * (float)cols); break;
+        case ANIM_DEATH: f = (int)(c->phase * ANIM_DEATH_FPS); break;
+        default: return (int)(c->phase * ANIM_IDLE_FPS) % cols;
+    }
+    return f < cols - 1 ? f : cols - 1;
+}
+
+static void set_character(Sprite *sp, const Assets *a, int skin, const AnimClock *c, float shot)
+{
+    sp->skin = skin;
+    sp->anim = c->anim;
+    sp->frame = clock_frame(c, character_sheet(a, skin, c->anim)->cols, shot);
+}
+
+void sprites_build_from_world(SpriteList *sl, const World *w, int local_player,
+                              const SpriteAnim *sa, const Assets *a)
 {
     sprite_clear(sl);
 
     for (int i = 0; i < w->enemies.count; i++) {
         const Enemy *e = &w->enemies.items[i];
-        sprite_add(sl, e->x, e->y, enemy_sprite_type(e));
+        int idx = sprite_add(sl, e->x, e->y,
+                             e->type == ENEMY_SERG ? SPRITE_ENEMY_SERG : SPRITE_ENEMY);
+        if (idx < 0) {
+            break;
+        }
+        int skin = (e->type >= 0 && e->type < ENEMY_COUNT) ? sa->enemy_skin[e->type] : -1;
+        /* An enemy has no weapon: it attacks once every attack_cd for as long
+         * as it stays in ESTATE_ATTACK, and the shot loops in step. */
+        const AnimClock *c = &sa->enemies[i];
+        set_character(&sl->items[idx], a, skin, c, c->phase / enemy_def(e->type)->attack_cd);
     }
 
     for (int i = 0; i < w->items.count; i++) {
@@ -112,21 +257,24 @@ void sprites_build_from_world(SpriteList *sl, const World *w, int local_player)
     }
 
     /* Everyone but the player the camera looks through: their own body is
-     * always at the camera and would fill the screen with itself. */
+     * always at the camera and would fill the screen with itself. The dead
+     * stay, lying in the last frame of their death. */
     const PlayerState *me =
             (local_player >= 0 && local_player < MAX_PLAYERS) ? &w->players[local_player] : NULL;
     for (int i = 0; i < w->player_count; i++) {
         const PlayerState *p = &w->players[i];
-        if (i == local_player || !p->active || !p->alive) {
+        if (i == local_player || !p->active) {
             continue;
         }
         int idx = sprite_add(sl, p->x, p->y, SPRITE_PLAYER);
         if (idx < 0) {
             break;
         }
-        /* Colour by id until 10-04 hands out real skins, and the facing so a
-         * deathmatch can tell whether it has been noticed. */
-        sl->items[idx].skin = p->id;
+        /* The skin is the id until 10-04 hands skins out, and the shot runs
+         * down with Weapon.anim, which lasts the weapon's fire_cd. The facing
+         * lets a deathmatch tell whether it has been noticed. */
+        const Weapon *wp = &p->weapons.weapons[p->weapons.current];
+        set_character(&sl->items[idx], a, p->id, &sa->players[i], 1.0f - wp->anim);
         sl->items[idx].view = me ? player_view(p, me->x, me->y) : 0;
     }
 }
@@ -135,14 +283,12 @@ static const Texture *sprite_texture(const Assets *a, const Sprite *sp)
 {
     switch (sp->type) {
         case SPRITE_BARREL: return &a->sprite_barrel;
-        case SPRITE_ENEMY: return &a->sprite_enemy;
-        case SPRITE_ENEMY_SERG: return &a->sprite_enemy_serg;
-        case SPRITE_ENEMY_DEAD: return &a->sprite_enemy_dead;
-        case SPRITE_ENEMY_SERG_DEAD: return &a->sprite_enemy_serg_dead;
+        case SPRITE_ENEMY:
+        case SPRITE_ENEMY_SERG:
+        case SPRITE_PLAYER: return character_sheet(a, sp->skin, sp->anim);
         case SPRITE_MEDKIT: return &a->sprite_medkit;
         case SPRITE_AMMO: return &a->sprite_ammo;
         case SPRITE_ARMOR: return &a->sprite_armor;
-        case SPRITE_PLAYER: return &a->sprite_player[clampi(sp->skin, 0, MAX_PLAYERS - 1)];
         default: return &a->sprite_barrel;
     }
 }
@@ -215,13 +361,9 @@ void sprite_render(Framebuffer *fb, const SpriteList *sl, const PlayerState *p, 
         }
 
         const Texture *tex = sprite_texture(a, sp);
-        /* Rows are the facings the sprite carries; the column stays 0 until
-         * 10-03 puts an animation frame in Sprite. A corpse has nothing to
-         * play and lies in the last frame of its death sheet. Frames sit side
-         * by side in one image, so the row stride stays tex->w. */
-        int corpse = sp->type == SPRITE_ENEMY_DEAD || sp->type == SPRITE_ENEMY_SERG_DEAD;
-        int col = corpse ? tex->cols - 1 : 0;
-        const uint32_t *frame = texture_frame(tex, col, sp->view);
+        /* Columns are the frames of the animation, rows the facings. Frames
+         * sit side by side in one image, so the row stride stays tex->w. */
+        const uint32_t *frame = texture_frame(tex, sp->frame, sp->view);
         int texW = tex->fw;
         int texH = tex->fh;
 

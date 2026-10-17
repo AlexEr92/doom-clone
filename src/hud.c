@@ -68,12 +68,21 @@ static void draw_int(Framebuffer *fb, int x0, int y0, int value, uint32_t color,
     }
 }
 
-void hud_draw_weapon(Framebuffer *fb, const Texture *base, int frame, float anim)
+int hud_weapon_frame(int cols, float anim)
+{
+    if (anim <= 0.0f || cols <= 1) {
+        return 0;
+    }
+    int f = 1 + (int)((1.0f - anim) * (float)(cols - 1));
+    return f < cols - 1 ? f : cols - 1;
+}
+
+void hud_draw_weapon(Framebuffer *fb, const Texture *base, float anim)
 {
     if (!base || !base->pixels) {
         return;
     }
-    const uint32_t *src = texture_frame(base, frame, 0);
+    const uint32_t *src = texture_frame(base, hud_weapon_frame(base->cols, anim), 0);
     int tw = base->fw;
     int th = base->fh;
     int target_h = (int)(SCREEN_H * 0.40f);

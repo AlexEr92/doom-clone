@@ -12,6 +12,7 @@
 /* ---- Capacity ---- */
 
 #define MAX_PLAYERS 10  /* snapshot size and map density */
+#define MAX_SKINS 10    /* characters in assets/players/skins.txt; one per player */
 #define MAX_ENEMIES 32  /* co-op only */
 #define MAX_ITEMS 64    /* bounded by the uint64_t pickup mask in a snapshot */
 #define MAX_DOORS 64    /* */

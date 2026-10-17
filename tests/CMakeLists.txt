@@ -77,6 +77,12 @@ doom_test(item   SRC item.c)
 doom_test(weapon SRC weapon.c raycast_world.c enemy.c player.c map.c door.c)
 doom_test(input  SRC input.c)
 doom_test(game   SRC game.c)
+# Кадр оружия в HUD. Рисование не проверяется; weapon.c линкуется, чтобы
+# Weapon.anim затухал так же, как в тике, — с хитсканом и его зависимостями.
+doom_test(hud    SRC hud.c weapon.c raycast_world.c enemy.c player.c map.c door.c)
+# Скины, выбор анимации и кадра персонажей. Сам рендер спрайтов не
+# проверяется: zBuffer тест определяет сам, raycast.c не линкуется.
+doom_test(sprite SRC sprite.c assets.c enemy.c raycast_world.c map.c door.c)
 # Загрузчик листов: assets.c тянет stb_image по относительному пути, а сами
 # PNG тест пишет сам — фикстур в tests/ нет.
 doom_test(assets SRC assets.c)

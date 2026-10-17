@@ -103,7 +103,6 @@
 
 | # | Задача | Зависит от |
 |---|---|---|
-| [10-03](10-03-animation-playback.md) | Проигрывание анимаций на клиенте | 10-01, 06-05 |
 | [10-04](10-04-player-skins.md) | Десять скинов игроков | 10-03, 07-03 |
 | [10-05](10-05-five-weapons.md) | Пять стволов и патроны к каждому | 10-01 |
 | [10-06](10-06-world-weapons-pickups.md) | Оружие на земле и маркеры карты | 10-05, 09-07 |
@@ -188,3 +187,4 @@
 | [07-03](../closed_tasks/07-03-net-protocol.md) | `net_protocol.h` — структуры пакетов | Сделано |
 | [chore-011](../closed_tasks/chore-011-lint-changed-untracked.md) | `lint.sh changed` не видит неотслеживаемые `src/*.c` | Сделано |
 | [chore-012](../closed_tasks/chore-012-lint-net-protocol-no-sdl.md) | `lint.sh sim` не проверяет, что `net_protocol.c` собирается без SDL | Сделано |
+| [10-03](../closed_tasks/10-03-animation-playback.md) | Проигрывание анимаций на клиенте | Сделано |

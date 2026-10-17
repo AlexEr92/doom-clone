@@ -125,6 +125,10 @@ the multiplayer work has been; do not add a new one.
 - **`SpriteList` is a render list only.** `sprites_build_from_world()`
   rebuilds it from the world every frame. No entity holds a sprite id, and
   `sprite.h` is included from `main.c` and `sprite.c` only.
+- **Animation is the client's.** `SpriteAnim` (`sprite.h`) keeps a clock
+  per player and enemy id and tells running and getting hurt by comparing
+  each frame with the last; nothing in the world carries a velocity, a
+  damage flag or a skin for the sake of a picture.
 - **Hitscan is world-space.** `weapon_try_fire()` traces `world_raycast()`
   and reads neither the camera nor `zBuffer`.
 - **Pickups carry their own position**; which sprite draws one is decided
@@ -186,10 +190,13 @@ greys, which are symmetric.
 
 ### Assets are generated, then overridden by files
 
-`assets.c` generates every wall texture, sprite and weapon graphic, and
-`audio.c` synthesises every sound. `assets_init()` then replaces the slots
-it finds sheets for under `assets/`: a missing file is normal and silent, a
-broken one is a warning and the procedural texture. A `Texture` is a sheet
+`assets.c` generates every wall texture, item sprite and weapon graphic,
+and `audio.c` synthesises every sound. `assets_init()` then replaces the
+slots it finds sheets for under `assets/`: a missing file is normal and
+silent, a broken one is a warning and the procedural texture. Characters —
+players and enemies alike — have no procedural variant: they are loaded
+from `assets/players/` in the order of `skins.txt`, one sheet per `AnimId`,
+and a sheet with no file is the checker. A `Texture` is a sheet
 of frames (`fw`/`fh`, `cols`/`rows`, row stride the width of the whole
 image), addressed through `texture_frame()` (`assets.h`).
 `docs/assets-spec.md` says what the files must contain.

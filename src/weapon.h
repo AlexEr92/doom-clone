@@ -20,7 +20,7 @@ typedef struct {
     float spread;   /* radians of random spread (per pellet) */
     float fire_cd;  /* seconds between shots */
     float cooldown; /* current cooldown remaining */
-    float anim;     /* animation timer (0..1; 1 = just fired, decays to 0) */
+    float anim;     /* shot animation: 1 = just fired, down to 0 over fire_cd */
 } Weapon;
 
 typedef struct {

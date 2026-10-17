@@ -2,7 +2,8 @@
  *
  * The generators need no test — a framebuffer is what would show them wrong.
  * What is checked here is the contract between a file name and the code that
- * asks for it, and the four ways a file can be refused.
+ * asks for it, the four ways a file can be refused, and how the list of skins
+ * turns into skin numbers.
  *
  * PNGs are written by the test itself rather than kept as fixtures: the
  * suffix is part of the name, so a case needs a file named for it, and CTest
@@ -14,6 +15,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+#include <direct.h>
+#define make_dir(p) _mkdir(p)
+#define remove_dir(p) _rmdir(p)
+#else
+#include <sys/stat.h>
+#include <unistd.h>
+#define make_dir(p) mkdir((p), 0777)
+#define remove_dir(p) rmdir(p)
+#endif
 
 /* ---- Minimal PNG writer ---- */
 /* stb_image reads PNG but nothing here writes one, and pulling in a writer
@@ -267,6 +279,103 @@ static void test_rejected_sheet_leaves_the_slot_alone(void)
     remove(SHEET_JUNK);
 }
 
+/* ---- Characters ---- */
+
+#define SKIN_DIR "test_players"
+
+static Assets assets;
+
+static void write_list(const char *text)
+{
+    FILE *f = fopen(SKIN_DIR "/skins.txt", "w");
+    TEST_ASSERT_NOT_NULL(f);
+    fputs(text, f);
+    fclose(f);
+}
+
+static void assert_checker(const Texture *t)
+{
+    TEST_ASSERT_EQUAL_INT(TEX_SIZE, t->fw);
+    TEST_ASSERT_EQUAL_INT(1, t->cols);
+    TEST_ASSERT_EQUAL_MEMORY(assets.missing.pixels, t->pixels,
+                             (size_t)TEX_SIZE * TEX_SIZE * sizeof(uint32_t));
+}
+
+/* CTest runs this from the build directory, where there is no assets/: the
+ * client starts all the same, with every character drawn as the checker. */
+static void test_without_the_skin_list_every_character_is_the_checker(void)
+{
+    TEST_ASSERT_EQUAL_INT(0, assets_init(&assets));
+    TEST_ASSERT_EQUAL_INT(0, assets.skin_count);
+    TEST_ASSERT_EQUAL_INT(-1, assets_skin_index(&assets, "marine"));
+    for (int s = 0; s < MAX_SKINS; s++) {
+        for (int k = 0; k < ANIM_COUNT; k++) {
+            assert_checker(&assets.skin_anim[s][k]);
+        }
+    }
+    assets_shutdown(&assets);
+}
+
+/* The line a name is on is its skin number — blank lines and line ends do not
+ * count, and a name too long to keep still takes its number, so the ones
+ * after it keep theirs. A sheet with no file is the checker, not a stand-in. */
+static void test_skins_are_numbered_by_their_line(void)
+{
+    /* Longer than the line the loader reads at once, too. */
+    char longname[200];
+    memset(longname, 'x', sizeof(longname) - 1);
+    longname[sizeof(longname) - 1] = '\0';
+    char list[256];
+    snprintf(list, sizeof(list), "alpha\r\n\n%s\nbeta  \n", longname);
+
+    make_dir(SKIN_DIR);
+    make_dir(SKIN_DIR "/beta");
+    write_list(list);
+    TEST_ASSERT_EQUAL_INT(0, write_sheet(SKIN_DIR "/beta/run_64x64.png", 256, 64));
+
+    TEST_ASSERT_EQUAL_INT(0, assets_init(&assets));
+    assets_load_skins(&assets, SKIN_DIR);
+    TEST_ASSERT_EQUAL_INT(3, assets.skin_count);
+    TEST_ASSERT_EQUAL_INT(0, assets_skin_index(&assets, "alpha"));
+    TEST_ASSERT_EQUAL_INT(2, assets_skin_index(&assets, "beta"));
+    TEST_ASSERT_EQUAL_INT(-1, assets_skin_index(&assets, longname));
+    TEST_ASSERT_EQUAL_INT(-1, assets_skin_index(&assets, ""));
+    TEST_ASSERT_EQUAL_INT(-1, assets_skin_index(&assets, "gamma"));
+
+    TEST_ASSERT_EQUAL_INT(4, assets.skin_anim[2][ANIM_RUN].cols);
+    assert_checker(&assets.skin_anim[2][ANIM_IDLE]);
+    assert_checker(&assets.skin_anim[0][ANIM_RUN]);
+    assets_shutdown(&assets);
+
+    remove(SKIN_DIR "/beta/run_64x64.png");
+    remove(SKIN_DIR "/skins.txt");
+    remove_dir(SKIN_DIR "/beta");
+    remove_dir(SKIN_DIR);
+}
+
+/* Past MAX_SKINS the list is cut off rather than overrunning the table. */
+static void test_skin_list_stops_at_max_skins(void)
+{
+    char list[256] = "";
+    for (int i = 0; i < MAX_SKINS + 2; i++) {
+        char line[16];
+        snprintf(line, sizeof(line), "s%d\n", i);
+        strcat(list, line);
+    }
+    make_dir(SKIN_DIR);
+    write_list(list);
+
+    TEST_ASSERT_EQUAL_INT(0, assets_init(&assets));
+    assets_load_skins(&assets, SKIN_DIR);
+    TEST_ASSERT_EQUAL_INT(MAX_SKINS, assets.skin_count);
+    TEST_ASSERT_EQUAL_INT(MAX_SKINS - 1, assets_skin_index(&assets, "s9"));
+    TEST_ASSERT_EQUAL_INT(-1, assets_skin_index(&assets, "s10"));
+    assets_shutdown(&assets);
+
+    remove(SKIN_DIR "/skins.txt");
+    remove_dir(SKIN_DIR);
+}
+
 /* ---- Single-frame textures ---- */
 
 static void test_texture_alloc_declares_one_frame(void)
@@ -292,6 +401,9 @@ int main(void)
     RUN_TEST(test_sheet_rejects_size_that_is_not_whole_frames);
     RUN_TEST(test_sheet_rejects_suffix_the_code_did_not_ask_for);
     RUN_TEST(test_rejected_sheet_leaves_the_slot_alone);
+    RUN_TEST(test_without_the_skin_list_every_character_is_the_checker);
+    RUN_TEST(test_skins_are_numbered_by_their_line);
+    RUN_TEST(test_skin_list_stops_at_max_skins);
     RUN_TEST(test_texture_alloc_declares_one_frame);
     return UNITY_END();
 }

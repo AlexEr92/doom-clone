@@ -107,6 +107,8 @@ int main(int argc, char **argv)
      * a frame; the world itself keeps no sprites. */
     SpriteList sprites;
     sprite_init(&sprites);
+    SpriteAnim anim;
+    sprite_anim_init(&anim, &assets);
 
     double prev = get_time_seconds();
     double accumulator = 0.0;
@@ -155,6 +157,7 @@ int main(int argc, char **argv)
             game.restart = 0;
             input_init(&input);
             input.angle = me->angle;
+            sprite_anim_init(&anim, &assets);
         }
 
         /* Global edge keys handled regardless of state (except menu). */
@@ -201,13 +204,18 @@ int main(int argc, char **argv)
             Camera cam;
             player_camera(me, &cam);
             raycast_render(&eng.fb, me, &cam, &world.map, &assets, &world.doors);
-            sprites_build_from_world(&sprites, &world, world.local_player);
+            /* A pause stops the animations with the world. Death and victory
+             * stop only the world: the last enemy shot still falls, and
+             * whoever killed the player keeps at it. */
+            sprite_anim_update(&anim, &world,
+                               game.state == GSTATE_PAUSED ? 0.0f : (float)frame_time);
+            sprites_build_from_world(&sprites, &world, world.local_player, &anim, &assets);
             sprite_render(&eng.fb, &sprites, me, &cam, &assets);
             const WeaponSystem *ws = &me->weapons;
             hud_draw_weapon(&eng.fb,
                             ws->current == WEAPON_PISTOL ? &assets.weapon_pistol
                                                          : &assets.weapon_shotgun,
-                            0, ws->weapons[ws->current].anim);
+                            ws->weapons[ws->current].anim);
             hud_draw(&eng.fb, me);
         } else {
             fb_clear(&eng.fb, make_color(15, 10, 20));
