@@ -55,14 +55,15 @@
       `SDL_Init(SDL_INIT_TIMER)` вместо `SDL_INIT_VIDEO`
 - [ ] Корректное завершение: `Ctrl+C` на сервере → рассылка
       `MSG_DISCONNECT` клиентам перед выходом
-- [ ] Удалить ручной сервер `tests/net_serve.c` и его цель в
+- [ ] Удалить ручной сервер `tests/net_serve.c` (или `tests/manual/net_serve.c`,
+      если chore-015 его уже перенесла) и его цель в
       `tests/CMakeLists.txt`: его заменяет `--host --dedicated`. В CLAUDE.md
       («Tests») и architecture.md («Сервер») вместо него назвать флаги
 
 ## Затрагиваемые файлы
 
 `main.c`, `options.c`/`options.h` (новые), `tests/test_options.c` (новый),
-`session.h` (новый), `engine.c`, `CMakeLists.txt`, `tests/net_serve.c`
+`session.h` (новый), `engine.c`, `CMakeLists.txt`, `tests/net_serve.c` или `tests/manual/net_serve.c`
 (удаляется), `tests/CMakeLists.txt`
 
 ## Критерий готовности
