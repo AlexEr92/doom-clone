@@ -26,7 +26,7 @@ SIM=(src/world.c src/enemy.c src/weapon.c src/item.c src/door.c
 # no client headers: these must not see SDL either. Kept out of SIM= because
 # that list is where CLAUDE.md draws the simulation boundary. The check only
 # reads the source, so a file built under ENABLE_MULTIPLAYER alone fits here.
-NOSDL=(src/net_protocol.c)
+NOSDL=(src/net_protocol.c src/net_server.c)
 
 check_sim() {
     local cc="${CC:-cc}" out sdl

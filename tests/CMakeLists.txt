@@ -107,6 +107,12 @@ if(ENABLE_MULTIPLAYER)
     # симуляцию: snapshot_apply() заводит игроков и врагов её же функциями.
     doom_test(net_protocol SRC net_protocol.c
         world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)
+    # Сервер по настоящим сокетам на 127.0.0.1: он и клиенты-боты, которые
+    # говорят на протоколе вручную, в одном процессе. Таймауты — сдвигом часов
+    # ENet, как в test_net_transport.
+    doom_test(net_server SRC net_server.c net_transport.c net_protocol.c
+        world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c
+        LINK doom_enet)
 
     # Ручная проверка транспорта между двумя процессами — эхо, kill -9
     # клиента, частота цикла с net_poll(). Сама не завершается, поэтому в

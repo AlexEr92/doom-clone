@@ -31,8 +31,13 @@
 
 /* ---- Network ---- */
 
-#define SNAPSHOT_RATE 20 /* Hz, overridable by a launch flag */
+#define SNAPSHOT_RATE 20     /* Hz, overridable by a launch flag */
+#define SNAPSHOT_RATE_MIN 15 /* the lowest that flag may go: room for a home uplink */
 #define NET_PORT_DEFAULT 27015
+
+/* A client whose input has not come for this long, in seconds, stands still:
+ * the server stops repeating its last buttons and keeps only its facing. */
+#define NET_INPUT_TIMEOUT 0.2f
 
 /* N9: the largest snapshot that fits in a 1500-byte MTU with room left for the
  * IP, UDP and ENet headers. One byte over and ENet fragments it, and an
@@ -52,6 +57,12 @@
  * the value above. */
 _Static_assert(MAX_SPRITES >= MAX_ENEMIES + MAX_ITEMS + MAX_PLAYERS - 1,
                "MAX_SPRITES cannot hold one frame's worth of entities");
+
+/* A snapshot goes out after a tick, so no rate above the tick rate is reached,
+ * and the server sizes the events it keeps between snapshots by the lowest. */
+_Static_assert(SNAPSHOT_RATE_MIN > 0 && SNAPSHOT_RATE_MIN <= SNAPSHOT_RATE &&
+                       SNAPSHOT_RATE <= TICK_RATE,
+               "the snapshot rate must lie in SNAPSHOT_RATE_MIN .. TICK_RATE");
 
 /* Which items are gone travels in a snapshot as a single bitmask. */
 _Static_assert(MAX_ITEMS <= 64, "the pickup mask in a snapshot is 64 bits wide");

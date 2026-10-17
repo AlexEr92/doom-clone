@@ -438,6 +438,32 @@ static void test_events_replace_the_client_queue(void)
     }
 }
 
+/* A server that collects the events of several ticks hands in more than a
+ * snapshot holds: the first MAX_EVENTS go, the rest stay behind. */
+static void test_set_events_keeps_the_first_that_fit(void)
+{
+    GameEvent many[MAX_EVENTS + 5];
+    for (int i = 0; i < MAX_EVENTS + 5; i++) {
+        many[i].kind = EV_DOOR;
+        many[i].actor = (uint8_t)i;
+        many[i].x = (float)i;
+        many[i].y = 0.5f;
+    }
+    event_push(&server.events, EV_SHOT, 0, 1.5f, 1.5f);
+    snapshot_write(&snap, &server, 0);
+
+    snapshot_set_events(&snap, many, MAX_EVENTS + 5);
+    TEST_ASSERT_EQUAL_UINT8(MAX_EVENTS, snap.event_count);
+    TEST_ASSERT_EQUAL_UINT8(EV_DOOR, snap.events[0].kind);
+    TEST_ASSERT_EQUAL_UINT8(MAX_EVENTS - 1, snap.events[MAX_EVENTS - 1].actor);
+    TEST_ASSERT_EQUAL_FLOAT(MAX_EVENTS - 1, snap.events[MAX_EVENTS - 1].x);
+
+    snapshot_set_events(&snap, many, 1);
+    TEST_ASSERT_EQUAL_UINT8(1, snap.event_count);
+    TEST_ASSERT_EQUAL_UINT8(0, snap.events[1].kind); /* what the longer list left is cleared */
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, snap.events[1].x);
+}
+
 static void test_the_ticks_travel_with_the_snapshot(void)
 {
     server.tick = 1234;
@@ -595,6 +621,7 @@ int main(void)
     RUN_TEST(test_doors_arrive_as_open_as_on_the_server);
     RUN_TEST(test_a_door_that_has_not_moved_keeps_its_direction);
     RUN_TEST(test_events_replace_the_client_queue);
+    RUN_TEST(test_set_events_keeps_the_first_that_fit);
     RUN_TEST(test_the_ticks_travel_with_the_snapshot);
     RUN_TEST(test_decode_gives_back_what_encode_was_given);
     RUN_TEST(test_decode_rejects_bytes_too_short_for_the_head);

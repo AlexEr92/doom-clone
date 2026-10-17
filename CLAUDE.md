@@ -63,7 +63,8 @@ Only what runs without a framebuffer is tested: not the renderer, and
 driver); `docs/closed_tasks/test-001-unit-test-harness.md` says why.
 The transport is tested over real sockets on 127.0.0.1, server and clients
 in one process (`test_net_transport.c`), and its timeouts by moving ENet's
-clock with `enet_time_set()` rather than by waiting. Between two processes
+clock with `enet_time_set()` rather than by waiting; the server likewise,
+against bots that speak the protocol by hand (`test_net_server.c`). Between two processes
 — an echo, a `kill -9` of either side — `build/tests/net_echo
 server|client` checks it by hand; it never exits, so CTest does not run it.
 Coverage is measured in `build-cov/` by `.claude/skills/coverage/coverage.sh`,
@@ -151,9 +152,10 @@ it again to predict, so the order inside — players, doors, enemies, items,
 weapons — is fixed, and nothing in it may read the wall clock or `rand()`.
 `tests/replay_test.c` holds the line: two runs of one input sequence from
 one `world_load()` must come out bit-identical. The one `rand()` left is
-shotgun spread in `weapon_try_fire()`, which stage 7 seeds from
-`MSG_ACCEPT` (`docs/roadmap.md`, key decision 9); until then the replay
-never switches to the shotgun. Do not add a second one.
+shotgun spread in `weapon_try_fire()`, rolled on the server alone:
+`server_create()` seeds it with the seed `MSG_ACCEPT` carries
+(`docs/roadmap.md`, key decision 9), and the replay never switches to the
+shotgun. Do not add a second one.
 
 `src/config.h` is the single source of truth for the limits (`MAX_PLAYERS`,
 `MAX_ENEMIES`, `MAX_SPRITES`, …), the tick rate and the network constants,

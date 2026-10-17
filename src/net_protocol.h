@@ -16,6 +16,7 @@
  * The snapshot is the one message not sent as is: see snapshot_encode(). */
 
 #include "config.h"
+#include "event.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -136,9 +137,13 @@ typedef struct {
  * first, padding and unused slots included.
  *
  * The events are those of the last world_step() only. A server that sends
- * snapshots less often than it ticks puts the ones it collected in between
- * into events[] and event_count itself, after this call. */
+ * snapshots less often than it ticks replaces them with the ones it collected
+ * in between, through snapshot_set_events() after this call. */
 void snapshot_write(MsgSnapshot *s, const struct World *w, uint32_t last_input_tick);
+
+/* Make the first `count` of `events` the snapshot's events, as many as
+ * MAX_EVENTS holds; the rest are dropped. */
+void snapshot_set_events(MsgSnapshot *s, const GameEvent *events, int count);
 
 /* Put the state in `s` into `w`, which must have been loaded with the map the
  * server runs: items and doors are matched by index, and their count comes

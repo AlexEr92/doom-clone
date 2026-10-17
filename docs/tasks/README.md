@@ -72,7 +72,6 @@
 
 | # | Задача | Зависит от |
 |---|---|---|
-| [07-04](07-04-net-server.md) | Сервер: тик, приём ввода, снапшоты | 07-02, 07-03, 06-06 |
 | [07-05](07-05-net-client.md) | Клиент: отправка ввода, приём снапшотов | 07-04 |
 | [07-06](07-06-audio-events.md) | Звук через сетевые события | 07-05 |
 | [07-07](07-07-launch-modes.md) | Режимы запуска + headless-сборка | 07-05 |
@@ -190,3 +189,4 @@
 | [chore-011](../closed_tasks/chore-011-lint-changed-untracked.md) | `lint.sh changed` не видит неотслеживаемые `src/*.c` | Сделано |
 | [chore-012](../closed_tasks/chore-012-lint-net-protocol-no-sdl.md) | `lint.sh sim` не проверяет, что `net_protocol.c` собирается без SDL | Сделано |
 | [10-03](../closed_tasks/10-03-animation-playback.md) | Проигрывание анимаций на клиенте | Сделано |
+| [07-04](../closed_tasks/07-04-net-server.md) | Сервер: тик, приём ввода, снапшоты | Сделано |

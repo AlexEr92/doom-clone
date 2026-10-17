@@ -1,6 +1,6 @@
 ---
 name: lint
-description: Run static analysis over src/ — cppcheck for array overruns, null dereferences, leaks and uninitialised reads, plus the check that the simulation and the network protocol compile without SDL. Use when asked to lint, to run static analysis, to check C code for defects, or as part of reviewing a change before it lands.
+description: Run static analysis over src/ — cppcheck for array overruns, null dereferences, leaks and uninitialised reads, plus the check that the simulation and the server-side network code compile without SDL. Use when asked to lint, to run static analysis, to check C code for defects, or as part of reviewing a change before it lands.
 ---
 
 Static analysis of `src/`, wrapped so the non-obvious flags are not
@@ -9,11 +9,11 @@ retyped each time. Two checks make up the gate:
 - **cppcheck** over `src/*.c`;
 - **no SDL where the server needs none** — the simulation (`world.c`,
   `enemy.c`, `weapon.c`, `item.c`, `door.c`, `player.c`, `map.c`,
-  `raycast_world.c`) and `net_protocol.c` pass `cc -fsyntax-only -Isrc`
-  with no SDL headers on the include path, and none of them reaches a
-  header on an SDL path (`cc -M`). For the simulation this is the
-  mechanical form of "Simulation and rendering are kept apart" in
-  `CLAUDE.md`. The files live in two arrays at the top of `lint.sh`:
+  `raycast_world.c`), `net_protocol.c` and `net_server.c` pass
+  `cc -fsyntax-only -Isrc` with no SDL headers on the include path, and
+  none of them reaches a header on an SDL path (`cc -M`). For the
+  simulation this is the mechanical form of "Simulation and rendering are
+  kept apart" in `CLAUDE.md`. The files live in two arrays at the top of `lint.sh`:
   `SIM=`, the simulation modules — a new one is added there — and
   `NOSDL=`, files outside the simulation that the dedicated server links
   all the same, such as the network protocol. Such a file goes into
@@ -48,7 +48,7 @@ Verified output on the current tree:
 
 ```
 cppcheck: чисто (all)
-без SDL: чисто (симуляция и src/net_protocol.c)
+без SDL: чисто (симуляция и src/net_protocol.c src/net_server.c)
 ```
 
 Timings measured here: whole project 3.3s, a single file 0.03s, `sim`

@@ -119,6 +119,7 @@ if(ENABLE_MULTIPLAYER)
     target_sources(doom-clone PRIVATE
         src/net_transport.c
         src/net_protocol.c
+        src/net_server.c
     )
     target_link_libraries(doom-clone PRIVATE doom_enet)
 endif()

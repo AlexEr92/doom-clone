@@ -78,15 +78,22 @@ void snapshot_write(MsgSnapshot *s, const World *w, uint32_t last_input_tick)
         s->doors[i] = quantize_openness(w->doors.doors[i].openness);
     }
 
-    s->event_count = (uint8_t)w->events.count;
-    for (int i = 0; i < w->events.count; i++) {
-        const GameEvent *ev = &w->events.items[i];
+    snapshot_set_events(s, w->events.items, w->events.count);
+}
+
+void snapshot_set_events(MsgSnapshot *s, const GameEvent *events, int count)
+{
+    int n = count < MAX_EVENTS ? count : MAX_EVENTS;
+    memset(s->events, 0, sizeof(s->events));
+    for (int i = 0; i < n; i++) {
+        const GameEvent *ev = &events[i];
         NetEvent *ne = &s->events[i];
         ne->kind = ev->kind;
         ne->actor = ev->actor;
         ne->x = ev->x;
         ne->y = ev->y;
     }
+    s->event_count = (uint8_t)n;
 }
 
 /* What a door is doing, judged by where its openness went: the snapshot

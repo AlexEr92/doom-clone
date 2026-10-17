@@ -19,7 +19,9 @@
   ./doom-clone --connect <ip> [--port N]# клиент
   ./doom-clone --host --dedicated       # headless-сервер
   ./doom-clone --name <nick>
+  ./doom-clone --host --snaprate N      # снапшотов в секунду, 15–60 (N10)
   ```
+      `--snaprate` передаётся в `server_set_snapshot_rate()`
 - [ ] Ввести абстракцию над источником мира, чтобы не плодить три цикла:
   ```c
   typedef struct {
@@ -29,8 +31,10 @@
       void  *ctx;
   } GameSession;
   ```
-      Три реализации: solo (прямой `world_step()`), host (`server_tick()`),
-      client (`client_send_input()` + `client_poll()`)
+      Три реализации: solo (прямой `world_step()`), host (при старте
+      `server_add_local_player()`, затем `server_tick(s, local, dt)`; на
+      `--dedicated` локального игрока нет и `local` — `NULL`), client
+      (`client_send_input()` + `client_poll()`)
 - [ ] `--dedicated`: не вызывать `engine_init()`, `assets_init()`,
       `audio_init()`; цикл на `SDL_Delay`/`get_time_seconds()` без рендера.
       Логи в stdout: подключения, отключения, тикрейт
