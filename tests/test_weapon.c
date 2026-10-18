@@ -105,7 +105,8 @@ static float pistol_damage(void)
     return players[SHOOTER].weapons.weapons[WEAPON_PISTOL].damage;
 }
 
-/* What picking a weapon up will do (task 10-06): own it, with a full load. */
+/* Own the weapon with a full load — more than picking it up brings, so a test
+ * can fire it at will. */
 static void give(PlayerState *p, int weapon)
 {
     Weapon *w = &p->weapons.weapons[weapon];
@@ -131,6 +132,9 @@ static void test_weapon_system_init_fills_every_weapon(void)
     for (int i = 0; i < WEAPON_COUNT; i++) {
         TEST_ASSERT_EQUAL_INT(i, ws[i].type);
         TEST_ASSERT_TRUE(ws[i].max_ammo > 0);
+        /* a weapon picked up can be fired at once, and is not full yet */
+        TEST_ASSERT_TRUE(ws[i].pickup_ammo > 0);
+        TEST_ASSERT_TRUE(ws[i].pickup_ammo < ws[i].max_ammo);
         TEST_ASSERT_TRUE(ws[i].damage > 0.0f);
         TEST_ASSERT_TRUE(ws[i].pellets >= 1);
         TEST_ASSERT_TRUE(ws[i].fire_cd > 0.0f);
@@ -199,6 +203,70 @@ static void test_weapon_switch_selects_by_index(void)
         weapon_switch(&players[SHOOTER], i);
         TEST_ASSERT_EQUAL_INT(i, players[SHOOTER].weapons.current);
     }
+}
+
+/* A weapon picked up is owned from then on and comes loaded: every one of
+ * them, with its own pickup_ammo. */
+static void test_a_weapon_picked_up_is_owned_and_loaded(void)
+{
+    PlayerState *p = &players[SHOOTER];
+    for (int i = 0; i < WEAPON_COUNT; i++) {
+        if (i == WEAPON_PISTOL) {
+            continue;
+        }
+        const Weapon *w = &p->weapons.weapons[i];
+        TEST_ASSERT_EQUAL_INT(1, weapon_give(p, i));
+        TEST_ASSERT_EQUAL_INT(1, w->owned);
+        TEST_ASSERT_EQUAL_INT(w->pickup_ammo, w->ammo);
+        weapon_switch(p, i);
+        TEST_ASSERT_EQUAL_INT(i, p->weapons.current);
+    }
+}
+
+/* Ammo found before the weapon is kept: the weapon's own rounds go on top of
+ * it, up to the limit. */
+static void test_a_weapon_picked_up_adds_to_the_ammo_found_before_it(void)
+{
+    PlayerState *p = &players[SHOOTER];
+    Weapon *w = &p->weapons.weapons[WEAPON_AK47];
+    w->ammo = 10;
+    weapon_give(p, WEAPON_AK47);
+    TEST_ASSERT_EQUAL_INT(10 + w->pickup_ammo, w->ammo);
+
+    Weapon *r = &p->weapons.weapons[WEAPON_RIFLE];
+    r->ammo = r->max_ammo - 1;
+    weapon_give(p, WEAPON_RIFLE);
+    TEST_ASSERT_EQUAL_INT(r->max_ammo, r->ammo);
+    TEST_ASSERT_EQUAL_INT(1, r->owned);
+}
+
+/* A weapon already owned brings its rounds again; once they are full it has
+ * nothing to give, and says so — the pickup is to stay where it lies. A full
+ * weapon not owned yet is still worth picking up. */
+static void test_a_weapon_already_owned_gives_only_ammo(void)
+{
+    PlayerState *p = &players[SHOOTER];
+    Weapon *pistol = &p->weapons.weapons[WEAPON_PISTOL];
+    TEST_ASSERT_EQUAL_INT(0, weapon_give(p, WEAPON_PISTOL));
+    TEST_ASSERT_EQUAL_INT(pistol->max_ammo, pistol->ammo);
+
+    pistol->ammo = 0;
+    TEST_ASSERT_EQUAL_INT(1, weapon_give(p, WEAPON_PISTOL));
+    TEST_ASSERT_EQUAL_INT(pistol->pickup_ammo, pistol->ammo);
+
+    Weapon *shotgun = &p->weapons.weapons[WEAPON_SHOTGUN];
+    shotgun->ammo = shotgun->max_ammo;
+    TEST_ASSERT_EQUAL_INT(1, weapon_give(p, WEAPON_SHOTGUN));
+    TEST_ASSERT_EQUAL_INT(1, shotgun->owned);
+    TEST_ASSERT_EQUAL_INT(shotgun->max_ammo, shotgun->ammo);
+}
+
+static void test_weapon_give_ignores_an_index_outside_the_table(void)
+{
+    WeaponSystem before = players[SHOOTER].weapons;
+    TEST_ASSERT_EQUAL_INT(0, weapon_give(&players[SHOOTER], -1));
+    TEST_ASSERT_EQUAL_INT(0, weapon_give(&players[SHOOTER], WEAPON_COUNT));
+    TEST_ASSERT_EQUAL_MEMORY(&before, &players[SHOOTER].weapons, sizeof(before));
 }
 
 /* A weapon not picked up is no choice: the one in hand stays. */
@@ -605,6 +673,10 @@ int main(void)
     UNITY_BEGIN();
     RUN_TEST(test_weapon_system_init_fills_every_weapon);
     RUN_TEST(test_weapon_system_init_owns_the_pistol_alone);
+    RUN_TEST(test_a_weapon_picked_up_is_owned_and_loaded);
+    RUN_TEST(test_a_weapon_picked_up_adds_to_the_ammo_found_before_it);
+    RUN_TEST(test_a_weapon_already_owned_gives_only_ammo);
+    RUN_TEST(test_weapon_give_ignores_an_index_outside_the_table);
     RUN_TEST(test_weapon_system_init_starts_ready_with_the_pistol);
     RUN_TEST(test_weapon_switch_selects_by_index);
     RUN_TEST(test_weapon_switch_refuses_a_weapon_not_owned);

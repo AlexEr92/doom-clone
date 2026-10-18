@@ -30,12 +30,13 @@ typedef struct {
     int owned; /* picked up: only an owned weapon can be switched to */
     int ammo;  /* current ammo, kept per weapon whether owned or not */
     int max_ammo;
-    float damage;   /* per pellet/bullet */
-    int pellets;    /* 1 for pistol, >1 for shotgun */
-    float spread;   /* radians of random spread (per pellet) */
-    float fire_cd;  /* seconds between shots */
-    float cooldown; /* current cooldown remaining */
-    float anim;     /* shot animation: 1 = just fired, down to 0 over WEAPON_SHOT_TIME */
+    int pickup_ammo; /* rounds the weapon itself brings when picked up */
+    float damage;    /* per pellet/bullet */
+    int pellets;     /* 1 for pistol, >1 for shotgun */
+    float spread;    /* radians of random spread (per pellet) */
+    float fire_cd;   /* seconds between shots */
+    float cooldown;  /* current cooldown remaining */
+    float anim;      /* shot animation: 1 = just fired, down to 0 over WEAPON_SHOT_TIME */
 } Weapon;
 
 typedef struct {
@@ -48,6 +49,12 @@ typedef struct {
  * The player owns the pistol alone; every other weapon is to be picked up,
  * and comes with no ammo until then. */
 void weapon_system_init(WeaponSystem *ws);
+
+/* Pick weapon idx up for p: p owns it from now on, and it brings its
+ * pickup_ammo on top of whatever ammo p has for it already, up to max_ammo.
+ * Returns 1 if that changed anything; 0 for an index outside the table, or a
+ * weapon p owns already with full ammo — a pickup with nothing to give. */
+int weapon_give(struct PlayerState *p, int idx);
 
 /* Switch p's weapon by index (0..WEAPON_COUNT-1). A weapon p does not own is
  * not switched to. */
