@@ -310,6 +310,7 @@ int assets_load_png(Texture *tex, const char *path)
                 (uint32_t)p[0];
     }
     stbi_image_free(data);
+    texture_free(tex);
     tex->w = tex->fw = w;
     tex->h = tex->fh = h;
     tex->cols = tex->rows = 1;

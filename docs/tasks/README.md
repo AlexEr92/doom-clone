@@ -117,7 +117,6 @@
 
 | # | Задача | Где |
 |---|---|---|
-| [bug-008](bug-008-load-png-leaks-replaced-pixels.md) | `assets_load_png()` теряет пиксели замещаемого слота | `assets.c` |
 | [bug-014](bug-014-player-hit-by-player-is-silent.md) | Попадание игрока по игроку не порождает `EV_PLAYER_HURT` | `player.c`, `weapon.c`, `enemy.c` |
 | [bug-015](bug-015-door-closes-silently.md) | Дверь, закрывающаяся сама, и дверь, передумавшая закрываться, беззвучны | `door.c`, `world.c`, `main.c` |
 | [bug-016](bug-016-level1-row-8-too-long.md) | Строка 8 `level1.txt` длиннее `MAP_MAX_W`, `map_load()` молча обрезает | `level1.txt`, `map.c` |
@@ -193,3 +192,4 @@
 | [07-07](../closed_tasks/07-07-launch-modes.md) | Режимы запуска + headless-сборка | Сделано |
 | [10-05](../closed_tasks/10-05-five-weapons.md) | Пять стволов и патроны к каждому | Сделано |
 | [10-08](../closed_tasks/10-08-status-bar-graphics.md) | Графика статус-бара: лицо, иконки и новая панель | Сделано: панель 52 px из пяти отсеков |
+| [bug-008](../closed_tasks/bug-008-load-png-leaks-replaced-pixels.md) | `assets_load_png()` теряет пиксели замещаемого слота | Сделано: освобождает после успешного чтения |

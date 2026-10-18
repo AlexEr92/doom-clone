@@ -58,7 +58,9 @@ typedef struct {
 int assets_init(Assets *a);
 void assets_shutdown(Assets *a);
 
-/* Load PNG from path into tex (replaces existing). Returns 0 on success. */
+/* Load a PNG from path into tex as one frame, freeing the pixels tex held
+ * before, so tex must be zeroed or a texture of its own. Returns 0 on success;
+ * on failure reports it on stderr, leaves tex alone and returns non-zero. */
 int assets_load_png(Texture *tex, const char *path);
 
 /* Load a sheet of fw x fh frames from a PNG: checks the _<fw>x<fh> suffix of

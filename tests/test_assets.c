@@ -2,9 +2,9 @@
  *
  * The generators need no test — a framebuffer is what would show them wrong.
  * What is checked here is the contract between a file name and the code that
- * asks for it, the four ways a file can be refused, how the list of skins
- * turns into skin numbers, and which weapon or slot of the status bar each
- * sheet goes to.
+ * asks for it, the four ways a file can be refused, what a loaded PNG does to
+ * the texture it lands in, how the list of skins turns into skin numbers, and
+ * which weapon or slot of the status bar each sheet goes to.
  *
  * PNGs are written by the test itself rather than kept as fixtures: the
  * suffix is part of the name, so a case needs a file named for it, and CTest
@@ -280,6 +280,36 @@ static void test_rejected_sheet_leaves_the_slot_alone(void)
     remove(SHEET_JUNK);
 }
 
+/* A texture that already holds pixels is replaced by the image, frame layout
+ * included. That the old buffer is freed rather than dropped shows under
+ * valgrind, not here. */
+static void test_png_replaces_what_the_texture_held(void)
+{
+    TEST_ASSERT_EQUAL_INT(0, texture_alloc(&tex, TEX_SIZE, TEX_SIZE));
+    TEST_ASSERT_EQUAL_INT(0, write_sheet(SHEET_OK, 256, 64));
+    TEST_ASSERT_EQUAL_INT(0, assets_load_png(&tex, SHEET_OK));
+    TEST_ASSERT_EQUAL_INT(256, tex.w);
+    TEST_ASSERT_EQUAL_INT(64, tex.h);
+    TEST_ASSERT_EQUAL_INT(256, tex.fw);
+    TEST_ASSERT_EQUAL_INT(1, tex.cols);
+    TEST_ASSERT_EQUAL_HEX32(make_color(200, 30, 40), tex.pixels[0]);
+    remove(SHEET_OK);
+}
+
+/* The old pixels go only once the new ones are in hand: a file that cannot be
+ * read takes nothing away. */
+static void test_png_that_fails_leaves_the_texture_alone(void)
+{
+    TEST_ASSERT_EQUAL_INT(0, texture_alloc(&tex, TEX_SIZE, TEX_SIZE));
+    tex.pixels[0] = make_color(1, 2, 3);
+    uint32_t *before = tex.pixels;
+
+    TEST_ASSERT_NOT_EQUAL(0, assets_load_png(&tex, "no_such_file.png"));
+    TEST_ASSERT_EQUAL_PTR(before, tex.pixels);
+    TEST_ASSERT_EQUAL_HEX32(make_color(1, 2, 3), tex.pixels[0]);
+    TEST_ASSERT_EQUAL_INT(TEX_SIZE, tex.w);
+}
+
 /* ---- Characters ---- */
 
 #define SKIN_DIR "test_players"
@@ -527,6 +557,8 @@ int main(void)
     RUN_TEST(test_sheet_rejects_size_that_is_not_whole_frames);
     RUN_TEST(test_sheet_rejects_suffix_the_code_did_not_ask_for);
     RUN_TEST(test_rejected_sheet_leaves_the_slot_alone);
+    RUN_TEST(test_png_replaces_what_the_texture_held);
+    RUN_TEST(test_png_that_fails_leaves_the_texture_alone);
     RUN_TEST(test_without_the_skin_list_every_character_is_the_checker);
     RUN_TEST(test_skins_are_numbered_by_their_line);
     RUN_TEST(test_skin_list_stops_at_max_skins);
