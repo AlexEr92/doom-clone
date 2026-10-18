@@ -417,6 +417,13 @@ static const SheetSlot SHEETS[] = {
         {"assets/items/medkit_64x64", 64, 64, offsetof(Assets, sprite_medkit)},
         {"assets/items/armor_64x64", 64, 64, offsetof(Assets, sprite_armor)},
         {"assets/items/ammo_pistol_64x64", 64, 64, offsetof(Assets, sprite_ammo)},
+        {"assets/hud/face_48x48", 48, 48, offsetof(Assets, hud_face)},
+        {"assets/hud/icon_pistol_32x16", 32, 16, offsetof(Assets, hud_icon[WEAPON_PISTOL])},
+        {"assets/hud/icon_shotgun_32x16", 32, 16, offsetof(Assets, hud_icon[WEAPON_SHOTGUN])},
+        {"assets/hud/icon_ak47_32x16", 32, 16, offsetof(Assets, hud_icon[WEAPON_AK47])},
+        {"assets/hud/icon_rifle_32x16", 32, 16, offsetof(Assets, hud_icon[WEAPON_RIFLE])},
+        {"assets/hud/icon_grenade_launcher_32x16", 32, 16,
+         offsetof(Assets, hud_icon[WEAPON_GRENADE])},
 };
 
 static int file_exists(const char *path)
@@ -604,5 +611,7 @@ void assets_shutdown(Assets *a)
     texture_free(&a->sprite_armor);
     for (int k = 0; k < WEAPON_COUNT; k++) {
         texture_free(&a->weapon_fp[k]);
+        texture_free(&a->hud_icon[k]);
     }
+    texture_free(&a->hud_face);
 }

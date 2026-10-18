@@ -85,8 +85,9 @@ if(ENABLE_MULTIPLAYER)
     target_compile_definitions(test_options PRIVATE ENABLE_MULTIPLAYER)
 endif()
 doom_test(game   SRC game.c)
-# Кадр оружия в HUD. Рисование не проверяется; weapon.c линкуется, чтобы
-# Weapon.anim затухал так же, как в тике, — с хитсканом и его зависимостями.
+# Кадр оружия и кадр лица в HUD. Рисование не проверяется; weapon.c линкуется,
+# чтобы Weapon.anim затухал так же, как в тике, — с хитсканом и его
+# зависимостями, player.c — чтобы попадание снимало hp, как в мире.
 doom_test(hud    SRC hud.c weapon.c raycast_world.c enemy.c player.c map.c door.c)
 # Скины, выбор анимации и кадра персонажей. Сам рендер спрайтов не
 # проверяется: zBuffer тест определяет сам, raycast.c не линкуется.
@@ -102,6 +103,36 @@ doom_test(audio SRC audio.c LINK ${TEST_MIXER_LIBS})
 # симуляцию; графики в ней нет — спрайты строит клиент.
 doom_test(replay FILE replay_test.c
     SRC world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)
+# ---- Ручные инструменты: tests/manual/ ----
+# Их запускают руками, а «работает или нет» по их выводу решает человек или
+# агент, поэтому в ctest их нет. Граница проведена папкой: всё, что лежит в
+# tests/ напрямую, гоняет ctest, а в tests/manual/ — то, что нет. Собираются
+# они вместе с игрой, чтобы правка API, на котором они стоят, ломала сборку, а
+# не оставляла их устаревшими молча.
+# doom_manual(<имя> SRC <файлы из src/>... [LINK <библиотеки>...]) собирает
+# tests/manual/<имя>.c в build/tests/<имя>.
+function(doom_manual name)
+    cmake_parse_arguments(T "" "" "SRC;LINK" ${ARGN})
+    set(sources "")
+    foreach(s IN LISTS T_SRC)
+        list(APPEND sources ${CMAKE_SOURCE_DIR}/src/${s})
+    endforeach()
+    add_executable(${name} manual/${name}.c ${sources})
+    target_include_directories(${name} PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${TEST_SDL2_INCLUDES}
+    )
+    target_link_libraries(${name} PRIVATE ${T_LINK})
+    if(NOT WIN32)
+        target_link_libraries(${name} PRIVATE m)
+    endif()
+endfunction()
+
+# Статус-бар, нарисованный hud_draw() с файлами из assets/ или без них, в
+# состояниях, до которых в игре трудно дойти: ступени здоровья, попадание,
+# смерть, каждый ствол в руках. Сети не нужно, поэтому он вне блока ниже.
+doom_manual(hud_shot SRC hud.c assets.c player.c weapon.c raycast_world.c enemy.c map.c door.c)
+
 if(ENABLE_MULTIPLAYER)
     # Сам ENet из vendor/enet/: заголовки и библиотека — один и тот же ENet.
     # Системный enet.h, найденный раньше vendor/enet/include, собрался бы и
@@ -140,33 +171,12 @@ if(ENABLE_MULTIPLAYER)
         LINK doom_enet)
     target_compile_definitions(test_session PRIVATE ENABLE_MULTIPLAYER)
 
-    # ---- Ручные инструменты: tests/manual/ ----
-    # Их запускают руками, и сами они не завершаются, поэтому в ctest их нет.
-    # Граница проведена папкой: всё, что лежит в tests/ напрямую, гоняет
-    # ctest, а в tests/manual/ — то, что нет. Собираются они вместе с игрой,
-    # чтобы правка API, на котором они стоят, ломала сборку, а не оставляла их
-    # устаревшими молча.
-    # doom_manual(<имя> SRC <файлы из src/>...) собирает tests/manual/<имя>.c в
-    # build/tests/<имя>.
-    function(doom_manual name)
-        cmake_parse_arguments(T "" "" "SRC" ${ARGN})
-        set(sources "")
-        foreach(s IN LISTS T_SRC)
-            list(APPEND sources ${CMAKE_SOURCE_DIR}/src/${s})
-        endforeach()
-        add_executable(${name} manual/${name}.c ${sources})
-        target_include_directories(${name} PRIVATE ${CMAKE_SOURCE_DIR}/src)
-        target_link_libraries(${name} PRIVATE doom_enet)
-        if(NOT WIN32)
-            target_link_libraries(${name} PRIVATE m)
-        endif()
-    endfunction()
-
     # Транспорт между двумя процессами — эхо, kill -9 клиента, частота цикла
     # с net_poll().
-    doom_manual(net_echo SRC net_transport.c)
+    doom_manual(net_echo SRC net_transport.c LINK doom_enet)
     # Игроки без окна, через net_client.h: мир глазами клиента, игрок по
     # сценарию, нагрузка из нескольких игроков.
     doom_manual(net_bot SRC net_client.c net_transport.c net_protocol.c
-        world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)
+        world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c
+        LINK doom_enet)
 endif()

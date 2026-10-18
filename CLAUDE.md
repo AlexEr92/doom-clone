@@ -136,7 +136,8 @@ the multiplayer work has been; do not add a new one.
   `sprite.h` is included from `main.c` and `sprite.c` only.
 - **Animation is the client's.** `SpriteAnim` (`sprite.h`) keeps a clock
   per player and enemy id and tells running, getting hurt and firing by
-  comparing each frame with the last; nothing in the world carries a
+  comparing each frame with the last, and `HudFace` (`hud.h`) tells the
+  status bar's face a hit the same way; nothing in the world carries a
   velocity, a damage flag, a shot flag or a skin for the sake of a picture.
 - **Hitscan is world-space.** `weapon_try_fire()` traces `world_raycast()`
   and reads neither the camera nor `zBuffer`.
@@ -219,9 +220,11 @@ slots it finds sheets for under `assets/`: a missing file is normal and
 silent, a broken one is a warning and the procedural texture. Characters —
 players and enemies alike — have no procedural variant: they are loaded
 from `assets/players/` in the order of `skins.txt`, one sheet per `AnimId`,
-and a sheet with no file is the checker. A `Texture` is a sheet
-of frames (`fw`/`fh`, `cols`/`rows`, row stride the width of the whole
-image), addressed through `texture_frame()` (`assets.h`).
+and a sheet with no file is the checker. The status bar's face and weapon
+icons have neither: with no file the slot stays empty, `hud_draw()` draws
+a face of its own and the weapon's box shows its key without the icon. A
+`Texture` is a sheet of frames (`fw`/`fh`, `cols`/`rows`, row stride the
+width of the whole image), addressed through `texture_frame()` (`assets.h`).
 `docs/assets-spec.md` says what the files must contain.
 
 ### Map format

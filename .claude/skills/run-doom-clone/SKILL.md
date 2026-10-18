@@ -97,6 +97,12 @@ image pixel-identical is answered directly by `compare -metric AE`. Compare fram
 movement). Those reproduce across independent runs and across builds; a
 frame taken after `hold`/`turn` does not.
 
+The status bar in states the game reaches only with effort — each step of
+health, the grimace after a hit, death, every weapon in hand — is drawn
+without a window by `build/tests/hud_shot [out.png] [--no-files]`, from
+the project root: one band per state, at the window's 2x, the band names on
+stdout. `--no-files` shows it as a checkout without `assets/hud/` does.
+
 ## Run (human path)
 
 ```bash

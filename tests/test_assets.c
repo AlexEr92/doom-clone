@@ -3,7 +3,8 @@
  * The generators need no test — a framebuffer is what would show them wrong.
  * What is checked here is the contract between a file name and the code that
  * asks for it, the four ways a file can be refused, how the list of skins
- * turns into skin numbers, and which weapon each sheet goes to.
+ * turns into skin numbers, and which weapon or slot of the status bar each
+ * sheet goes to.
  *
  * PNGs are written by the test itself rather than kept as fixtures: the
  * suffix is part of the name, so a case needs a file named for it, and CTest
@@ -436,6 +437,71 @@ static void test_each_weapon_takes_the_sheet_named_for_it(void)
     }
 }
 
+/* ---- The status bar ---- */
+
+#define FACE_SHEET "assets/hud/face_48x48.png"
+
+static const char *const ICON_SHEETS[WEAPON_COUNT] = {
+        [WEAPON_PISTOL] = "assets/hud/icon_pistol_32x16.png",
+        [WEAPON_SHOTGUN] = "assets/hud/icon_shotgun_32x16.png",
+        [WEAPON_AK47] = "assets/hud/icon_ak47_32x16.png",
+        [WEAPON_RIFLE] = "assets/hud/icon_rifle_32x16.png",
+        [WEAPON_GRENADE] = "assets/hud/icon_grenade_launcher_32x16.png",
+};
+
+/* With no files the status bar's slots stay empty — neither a generator nor
+ * the checker fills them: hud_draw() then draws the face and the weapon
+ * blocks of its own, as it did before there were files. */
+static void test_without_files_the_status_bar_slots_are_empty(void)
+{
+    TEST_ASSERT_EQUAL_INT(0, assets_init(&assets));
+    TEST_ASSERT_NULL(assets.hud_face.pixels);
+    for (int k = 0; k < WEAPON_COUNT; k++) {
+        TEST_ASSERT_NULL(assets.hud_icon[k].pixels);
+    }
+    assets_shutdown(&assets);
+}
+
+/* The face takes its sheet, and each weapon the icon named for it and no
+ * other: the icons are one to five frames long, and the length shows which
+ * went where. In an assets/hud/ of the test's own, for the reason the weapon
+ * sheets above are. */
+static void test_status_bar_takes_the_sheets_named_for_it(void)
+{
+    make_dir("assets");
+    if (make_dir("assets/hud") != 0) {
+        TEST_IGNORE_MESSAGE("assets/hud/ is already here: not writing sheets into it");
+    }
+    TEST_ASSERT_EQUAL_INT(0, write_sheet(FACE_SHEET, 48 * 7, 48));
+    for (int k = 0; k < WEAPON_COUNT; k++) {
+        TEST_ASSERT_EQUAL_INT(0, write_sheet(ICON_SHEETS[k], 32 * (k + 1), 16));
+    }
+
+    int rc = assets_init(&assets);
+    int face_cols = assets.hud_face.cols;
+    int face_fw = assets.hud_face.fw;
+    int cols[WEAPON_COUNT];
+    int fh[WEAPON_COUNT];
+    for (int k = 0; k < WEAPON_COUNT; k++) {
+        cols[k] = assets.hud_icon[k].cols;
+        fh[k] = assets.hud_icon[k].fh;
+    }
+    assets_shutdown(&assets);
+    remove(FACE_SHEET);
+    for (int k = 0; k < WEAPON_COUNT; k++) {
+        remove(ICON_SHEETS[k]);
+    }
+    remove_dir("assets/hud");
+
+    TEST_ASSERT_EQUAL_INT(0, rc);
+    TEST_ASSERT_EQUAL_INT(48, face_fw);
+    TEST_ASSERT_EQUAL_INT(7, face_cols);
+    for (int k = 0; k < WEAPON_COUNT; k++) {
+        TEST_ASSERT_EQUAL_INT(k + 1, cols[k]);
+        TEST_ASSERT_EQUAL_INT(16, fh[k]);
+    }
+}
+
 /* ---- Single-frame textures ---- */
 
 static void test_texture_alloc_declares_one_frame(void)
@@ -466,6 +532,8 @@ int main(void)
     RUN_TEST(test_skin_list_stops_at_max_skins);
     RUN_TEST(test_without_files_a_weapon_with_no_generator_is_the_checker);
     RUN_TEST(test_each_weapon_takes_the_sheet_named_for_it);
+    RUN_TEST(test_without_files_the_status_bar_slots_are_empty);
+    RUN_TEST(test_status_bar_takes_the_sheets_named_for_it);
     RUN_TEST(test_texture_alloc_declares_one_frame);
     return UNITY_END();
 }

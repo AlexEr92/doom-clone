@@ -201,6 +201,8 @@ int main(int argc, char **argv)
     sprite_init(&sprites);
     SpriteAnim anim;
     sprite_anim_init(&anim, &assets);
+    HudFace face;
+    hud_face_init(&face);
 
     double prev = get_time_seconds();
     double accumulator = 0.0;
@@ -257,6 +259,7 @@ int main(int argc, char **argv)
                 input.angle = me->angle;
             }
             sprite_anim_init(&anim, &assets);
+            hud_face_init(&face);
         }
 
         /* Global edge keys handled regardless of state (except menu). */
@@ -322,6 +325,7 @@ int main(int argc, char **argv)
         if (change == SESS_JOINED) {
             input.angle = me->angle;
             sprite_anim_init(&anim, &assets);
+            hud_face_init(&face);
         } else if (change == SESS_LOST) {
             /* The menu, where Enter joins again. */
             game.state = GSTATE_MENU;
@@ -340,12 +344,14 @@ int main(int argc, char **argv)
              * whoever killed the player finishes the shot. A network game is
              * not paused at all: its world goes on under the overlay. */
             int stopped = game.state == GSTATE_PAUSED && !sess.shared;
-            sprite_anim_update(&anim, world, stopped ? 0.0f : (float)frame_time);
+            float anim_dt = stopped ? 0.0f : (float)frame_time;
+            sprite_anim_update(&anim, world, anim_dt);
             sprites_build_from_world(&sprites, world, world->local_player, &anim, &assets);
             sprite_render(&eng.fb, &sprites, me, &cam, &assets);
             const WeaponSystem *ws = &me->weapons;
             hud_draw_weapon(&eng.fb, &assets.weapon_fp[ws->current], ws->weapons[ws->current].anim);
-            hud_draw(&eng.fb, me);
+            hud_face_update(&face, me, anim_dt);
+            hud_draw(&eng.fb, me, &face, &assets);
         } else {
             fb_clear(&eng.fb, make_color(15, 10, 20));
         }

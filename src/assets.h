@@ -48,6 +48,11 @@ typedef struct {
      * procedural variant; a weapon without one is the checker when its file
      * is missing, never another weapon. */
     Texture weapon_fp[WEAPON_COUNT];
+    /* The status bar. Neither has a procedural variant nor the checker: with
+     * no file the slot stays empty (pixels NULL), hud_draw() draws a face of
+     * its own and the weapon's box shows its key without the icon. */
+    Texture hud_face;               /* frames in the FaceFrame order of hud.h */
+    Texture hud_icon[WEAPON_COUNT]; /* by WeaponType; only the alpha is used */
 } Assets;
 
 int assets_init(Assets *a);
