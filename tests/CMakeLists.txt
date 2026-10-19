@@ -112,6 +112,12 @@ doom_test(replay FILE replay_test.c
     SRC world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)
 # Кто и где входит в мир: старт solo, пул точек спавна и выбор точки из него.
 doom_test(world SRC world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)
+# Карты из assets/maps/, какими их видит игра: обещания dm1.txt — 48×48, без
+# врагов, точки спавна не видят друг друга, ни одна дверь не единственный
+# проход — и старт с врагами у level1.txt. Читает файлы из дерева исходников,
+# а не свои: о них и речь.
+doom_test(maps SRC world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)
+target_compile_definitions(test_maps PRIVATE MAPS_DIR="${CMAKE_SOURCE_DIR}/assets/maps/")
 # ---- Ручные инструменты: tests/manual/ ----
 # Их запускают руками, а «работает или нет» по их выводу решает человек или
 # агент, поэтому в ctest их нет. Граница проведена папкой: всё, что лежит в
@@ -144,6 +150,9 @@ doom_manual(hud_shot SRC hud.c text.c assets.c player.c weapon.c raycast_world.c
 # Пул точек спавна карты: точки на сетке, куда каждая смотрит, какие видят
 # друг друга, и куда входят игроки один за другим. Тоже без сети.
 doom_manual(spawn_view SRC world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)
+# Во что обходится кадр стен на карте: raycast_render() из каждой свободной
+# клетки, без окна. Тоже без сети.
+doom_manual(render_bench SRC raycast.c raycast_world.c map.c door.c assets.c)
 
 if(ENABLE_MULTIPLAYER)
     # Сам ENet из vendor/enet/: заголовки и библиотека — один и тот же ENet.

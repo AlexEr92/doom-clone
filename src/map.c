@@ -170,13 +170,17 @@ int map_load(Map *m, const char *path)
     int row = 0;
     int have_start = 0;
     int spawns_dropped = 0;
-    m->w = MAP_MAX_W;
-    m->h = MAP_MAX_H;
 
+    /* The map is as wide as its longest row and as tall as its rows. Past a
+     * row's end the cells are wall, and so is all of the grid outside the map:
+     * map_cell() never reads there, but a loop over the whole grid may. */
     while (row < MAP_MAX_H && fgets(line, sizeof(line), f)) {
         int len = (int)strlen(line);
         while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r')) {
             line[--len] = '\0';
+        }
+        if (len > m->w) {
+            m->w = len < MAP_MAX_W ? len : MAP_MAX_W;
         }
         for (int col = 0; col < MAP_MAX_W && col < len; col++) {
             char c = line[col];
@@ -224,6 +228,7 @@ int map_load(Map *m, const char *path)
     }
     fclose(f);
 
+    m->h = row;
     while (row < MAP_MAX_H) {
         for (int col = 0; col < MAP_MAX_W; col++) {
             m->cells[row][col] = 1;
@@ -247,6 +252,12 @@ int map_load(Map *m, const char *path)
                 m->spawn_count, MAX_PLAYERS, MAP_AUTO_SPAWNS);
     }
     return 0;
+}
+
+int map_file_path(char *out, size_t size, const char *name)
+{
+    int n = snprintf(out, size, MAP_DIR "%s", name);
+    return n >= 0 && (size_t)n < size ? 0 : -1;
 }
 
 int map_cell(const Map *m, int x, int y)

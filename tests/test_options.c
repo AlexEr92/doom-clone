@@ -16,7 +16,7 @@
 #define STDERR_FILE "test_options_stderr.txt"
 
 /* What a refused command line must leave behind: none of it is a default. */
-static const Options untouched = {LAUNCH_CLIENT, "untouched", 4242, "untouched", 42};
+static const Options untouched = {LAUNCH_CLIENT, "untouched", 4242, "untouched", 42, "untouched"};
 
 void setUp(void)
 {}
@@ -70,6 +70,7 @@ static void refuses(const char *says, char **args)
     TEST_ASSERT_EQUAL_UINT16_MESSAGE(untouched.port, o.port, line);
     TEST_ASSERT_EQUAL_PTR_MESSAGE(untouched.name, o.name, line);
     TEST_ASSERT_EQUAL_INT_MESSAGE(untouched.snapshot_rate, o.snapshot_rate, line);
+    TEST_ASSERT_EQUAL_PTR_MESSAGE(untouched.map, o.map, line);
     TEST_ASSERT_NOT_NULL_MESSAGE(strstr(said, says), line);
 }
 
@@ -85,6 +86,7 @@ static void test_no_flags_is_the_game_alone_with_every_default(void)
     TEST_ASSERT_EQUAL_UINT16(NET_PORT_DEFAULT, o.port);
     TEST_ASSERT_EQUAL_STRING("", o.name);
     TEST_ASSERT_EQUAL_INT(SNAPSHOT_RATE, o.snapshot_rate);
+    TEST_ASSERT_EQUAL_STRING(OPT_MAP_SOLO, o.map);
 }
 
 static void test_help_is_asked_for_and_leaves_options_alone(void)
@@ -103,7 +105,7 @@ static void test_usage_names_the_program_and_every_flag(void)
 {
     static const char *const names[] = {"usage: doom-clone ", "--host", "--dedicated",
                                         "--connect",          "--port", "--name",
-                                        "--snaprate",         "--help"};
+                                        "--snaprate",         "--map",  "--help"};
     FILE *f = fopen("test_options_usage.txt", "w+");
     TEST_ASSERT_NOT_NULL(f);
     options_usage(f, "doom-clone");
@@ -130,6 +132,7 @@ static void test_flag_without_its_value_is_refused(void)
     REFUSES("--port needs a value", "--host", "--port");
     REFUSES("--name needs a value", "--connect", "a", "--name");
     REFUSES("--snaprate needs a value", "--host", "--snaprate");
+    REFUSES("--map needs a value", "--map");
 }
 
 static void test_dedicated_without_host_is_refused(void)
@@ -152,6 +155,33 @@ static void test_name_without_connect_is_refused(void)
     REFUSES("--name needs --connect", "--name", "doomguy");
 }
 
+/* The map is a file name, as it goes to the clients, and its directory is the
+ * game's to add. */
+static void test_map_is_the_file_name_given(void)
+{
+    char **args = ARGS("--map", "dm1.txt");
+    Options o = accepts(args);
+    TEST_ASSERT_EQUAL_INT(LAUNCH_SOLO, o.mode);
+    TEST_ASSERT_EQUAL_PTR(args[2], o.map);
+    TEST_ASSERT_EQUAL_STRING("thirty_one_letters_of_a_map.txt",
+                             accepts(ARGS("--map", "thirty_one_letters_of_a_map.txt")).map);
+}
+
+/* A path would name one map here and another on a client, which looks for the
+ * name alone in its own assets/maps/. */
+static void test_map_that_is_no_file_name_is_refused(void)
+{
+    const char *bad[] = {"",
+                         "maps/dm1.txt",
+                         "../dm1.txt",
+                         "..\\dm1.txt",
+                         "/tmp/dm1.txt",
+                         "thirty_two_letters_of_a_map_.txt"};
+    for (size_t i = 0; i < sizeof(bad) / sizeof(bad[0]); i++) {
+        refuses("--map", ARGS("--map", (char *)bad[i]));
+    }
+}
+
 #ifdef ENABLE_MULTIPLAYER
 
 /* ---- the network game ---- */
@@ -163,12 +193,27 @@ static void test_host_serves_and_plays(void)
     TEST_ASSERT_NULL(o.connect);
     TEST_ASSERT_EQUAL_UINT16(NET_PORT_DEFAULT, o.port);
     TEST_ASSERT_EQUAL_INT(SNAPSHOT_RATE, o.snapshot_rate);
+    TEST_ASSERT_EQUAL_STRING(OPT_MAP_SERVER, o.map);
 }
 
 static void test_dedicated_host_serves_alone_whichever_comes_first(void)
 {
     TEST_ASSERT_EQUAL_INT(LAUNCH_DEDICATED, accepts(ARGS("--host", "--dedicated")).mode);
     TEST_ASSERT_EQUAL_INT(LAUNCH_DEDICATED, accepts(ARGS("--dedicated", "--host")).mode);
+    TEST_ASSERT_EQUAL_STRING(OPT_MAP_SERVER, accepts(ARGS("--host", "--dedicated")).map);
+}
+
+/* Co-op on the single-player map is a server told which map to serve. */
+static void test_map_on_a_server_replaces_its_default(void)
+{
+    TEST_ASSERT_EQUAL_STRING(OPT_MAP_SOLO, accepts(ARGS("--host", "--map", OPT_MAP_SOLO)).map);
+    TEST_ASSERT_EQUAL_STRING("x.txt", accepts(ARGS("--map", "x.txt", "--host", "--dedicated")).map);
+}
+
+static void test_map_on_a_client_is_refused(void)
+{
+    REFUSES("--map and --connect", "--connect", "a", "--map", "dm1.txt");
+    REFUSES("--map and --connect", "--map", "dm1.txt", "--connect", "a");
 }
 
 static void test_connect_joins_the_address_given(void)
@@ -179,6 +224,7 @@ static void test_connect_joins_the_address_given(void)
     TEST_ASSERT_EQUAL_PTR(args[2], o.connect);
     TEST_ASSERT_EQUAL_UINT16(NET_PORT_DEFAULT, o.port);
     TEST_ASSERT_EQUAL_STRING("", o.name);
+    TEST_ASSERT_NULL(o.map);
 }
 
 static void test_port_is_taken_from_one_to_65535(void)
@@ -281,9 +327,13 @@ int main(void)
     RUN_TEST(test_port_without_a_network_game_is_refused);
     RUN_TEST(test_snaprate_without_host_is_refused);
     RUN_TEST(test_name_without_connect_is_refused);
+    RUN_TEST(test_map_is_the_file_name_given);
+    RUN_TEST(test_map_that_is_no_file_name_is_refused);
 #ifdef ENABLE_MULTIPLAYER
     RUN_TEST(test_host_serves_and_plays);
     RUN_TEST(test_dedicated_host_serves_alone_whichever_comes_first);
+    RUN_TEST(test_map_on_a_server_replaces_its_default);
+    RUN_TEST(test_map_on_a_client_is_refused);
     RUN_TEST(test_connect_joins_the_address_given);
     RUN_TEST(test_port_is_taken_from_one_to_65535);
     RUN_TEST(test_port_out_of_range_or_not_a_number_is_refused);

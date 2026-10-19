@@ -12,6 +12,8 @@
 #include "world.h"
 #include "options.h"
 #include "session.h"
+#include "map.h"
+#include "net_protocol.h" /* NET_MAP_MAX; a header alone, nothing of it is linked */
 #include "config.h"
 #include "utils.h"
 #include <SDL.h>
@@ -143,7 +145,12 @@ int main(int argc, char **argv)
         return parsed < 0 ? 1 : 0;
     }
 
-    const char *map_path = "assets/maps/level1.txt";
+    /* A client opens no map of its own: it plays the one its server names. */
+    char map_path[sizeof(MAP_DIR) + NET_MAP_MAX] = "";
+    if (opt.map && map_file_path(map_path, sizeof(map_path), opt.map) != 0) {
+        fprintf(stderr, "--map: '%s' is too long a name\n", opt.map);
+        return 1;
+    }
     if (opt.mode == LAUNCH_DEDICATED) {
         return serve(&opt, map_path);
     }

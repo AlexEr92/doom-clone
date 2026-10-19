@@ -2,9 +2,10 @@
 
 ## Project
 
-A Doom-style raycaster in C11 on SDL2, about 2400 lines in `src/`: one map,
-five weapons, two enemy types, doors, pickups, procedural audio. It is being
-turned into a networked deathmatch — see [Ongoing work](#ongoing-work).
+A Doom-style raycaster in C11 on SDL2, about 2400 lines in `src/`: two maps
+(solo and deathmatch), five weapons, two enemy types, doors, pickups,
+procedural audio. It is being turned into a networked deathmatch — see
+[Ongoing work](#ongoing-work).
 
 ## Commands
 
@@ -15,8 +16,8 @@ cmake --build build --target run       # build + run from the project root
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 ```
 
-The game **must** run from the project root: `assets/maps/level1.txt` is
-opened by relative path, and a bare `./build/doom-clone` from elsewhere
+The game **must** run from the project root: the map is opened by relative
+path under `assets/maps/`, and a bare `./build/doom-clone` from elsewhere
 exits with an error. A new `.c` file goes into the source list in
 `CMakeLists.txt` by hand; there is no glob.
 
@@ -56,7 +57,10 @@ A new test file is registered in `tests/CMakeLists.txt` with `doom_test()`,
 which takes the module name and the `src/*.c` it needs (plus `FILE` when
 the file is not `test_<module>.c`, as `replay_test.c` is not). Each
 executable links only its own sources and stubs the rest — that is how
-`test_enemy.c` avoids `sprite.c` and, through it, the renderer.
+`test_enemy.c` avoids `sprite.c` and, through it, the renderer. A test
+writes the maps it loads; `test_maps.c` alone reads the shipped ones from
+`assets/maps/` (`MAPS_DIR`), because they are what it tests — among them
+that no two spawn points of `dm1.txt` see each other.
 
 Only what runs without a framebuffer is tested: not the renderer, and
 `audio.c` only as far as chunk lengths, which sound an event makes and how
@@ -239,11 +243,16 @@ width of the whole image), addressed through `texture_frame()` (`assets.h`).
 
 ### Map format
 
-ASCII grid in `assets/maps/level1.txt`, 24×24 (`MAP_MAX_W/H` in `utils.h`):
+ASCII grids in `assets/maps/`, up to 48×48 (`MAP_MAX_W/H` in `utils.h`): a
+map is as wide as its longest row and as tall as its rows. `level1.txt`
+(24×24, enemies) is what a solo game plays, `dm1.txt` (48×48, none) what a
+server serves; `--map <file>` names another by its file name, never a path,
+as `MSG_ACCEPT` names it to the clients.
 `#` wall, `D` door, `P` solo start, `s` multiplayer spawn point, `.` empty,
 `E`/`S` enemies, `B` barrel, `M` medkit, `A` ammo, `R` armor. A map with no
 `s` gets a pool of 20 from `map_load()`; `world_pick_spawn()` picks a point
-from it at every join.
+from it at every join. `tests/manual/spawn_view` shows which points see each
+other — on `dm1.txt` none may.
 
 ## Ongoing work
 

@@ -4,9 +4,11 @@
 #include "player.h"
 #include <math.h>
 
-/* Cells a single trace may cross before giving up. The map is 24x24, so this
- * is far beyond any line that stays inside it. */
-#define RAY_MAX_STEPS 64
+/* Cells a single trace may cross before giving up. A step crosses one line of
+ * the grid, and a trace from inside the map crosses each column and each row
+ * at most once before it is out — where map_cell() is wall. So no trace runs
+ * out of steps first, and a line of sight never ends short of a wall. */
+#define RAY_MAX_STEPS (MAP_MAX_W + MAP_MAX_H)
 
 RayHit raycast_walls(const Map *m, const DoorList *dl, float ox, float oy, float dx, float dy,
                      float maxdist)

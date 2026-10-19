@@ -18,7 +18,7 @@
  * 2#..D.....#
  * 3#.EMA....#
  * 4##########
- * Everything past column 9 and past row 4 is filled in as wall by map_load. */
+ * The map is 10x5, and everything outside it reads as wall. */
 static const char *const map_rows[] = {
         "##########", "#P.......#", "#..D.....#", "#.EMA....#", "##########",
 };
@@ -56,10 +56,56 @@ void tearDown(void)
     remove(TEST_MAP_PATH);
 }
 
-static void test_map_load_fills_the_full_grid(void)
+/* A map is as large as its file, not as the largest one could be. */
+static void test_map_load_takes_its_size_from_the_file(void)
 {
+    TEST_ASSERT_EQUAL_INT(10, map.w);
+    TEST_ASSERT_EQUAL_INT(5, map.h);
+}
+
+/* Rows of different lengths: the longest sets the width, and the others are
+ * wall to it. */
+static void test_map_load_is_as_wide_as_its_longest_row(void)
+{
+    static const char *const rows[] = {"####", "#.......#", "#..#"};
+    LOAD_ROWS(&map, rows);
+    TEST_ASSERT_EQUAL_INT(9, map.w);
+    TEST_ASSERT_EQUAL_INT(3, map.h);
+    TEST_ASSERT_EQUAL_INT(0, map_cell(&map, 7, 1));
+    TEST_ASSERT_EQUAL_INT(1, map_cell(&map, 7, 0));
+    TEST_ASSERT_EQUAL_INT(1, map_cell(&map, 7, 2));
+}
+
+/* The largest map is read to its last row and column: a door on the far side,
+ * a spawn point and an item in the last row inside the wall. */
+static void test_map_load_reads_a_map_of_the_largest_size(void)
+{
+    static char rows[MAP_MAX_H][MAP_MAX_W + 1];
+    const char *row_ptrs[MAP_MAX_H];
+    for (int y = 0; y < MAP_MAX_H; y++) {
+        for (int x = 0; x < MAP_MAX_W; x++) {
+            int edge = x == 0 || y == 0 || x == MAP_MAX_W - 1 || y == MAP_MAX_H - 1;
+            rows[y][x] = edge ? '#' : '.';
+        }
+        rows[y][MAP_MAX_W] = '\0';
+        row_ptrs[y] = rows[y];
+    }
+    rows[1][MAP_MAX_W - 2] = 'D';
+    rows[MAP_MAX_H - 2][MAP_MAX_W - 2] = 's';
+    rows[MAP_MAX_H - 2][1] = 'M';
+    load_rows(&map, row_ptrs, MAP_MAX_H);
+
     TEST_ASSERT_EQUAL_INT(MAP_MAX_W, map.w);
     TEST_ASSERT_EQUAL_INT(MAP_MAX_H, map.h);
+    TEST_ASSERT_EQUAL_INT(2, map_cell(&map, MAP_MAX_W - 2, 1));
+    TEST_ASSERT_EQUAL_INT(0, map_cell(&map, MAP_MAX_W - 3, MAP_MAX_H - 2));
+    TEST_ASSERT_EQUAL_INT(1, map_cell(&map, MAP_MAX_W - 1, MAP_MAX_H - 2));
+    TEST_ASSERT_EQUAL_INT(1, map_cell(&map, MAP_MAX_W - 2, MAP_MAX_H - 1));
+    TEST_ASSERT_EQUAL_INT(1, map.spawn_count);
+    TEST_ASSERT_EQUAL_FLOAT(MAP_MAX_W - 1.5f, map.spawns[0].x);
+    TEST_ASSERT_EQUAL_FLOAT(MAP_MAX_H - 1.5f, map.spawns[0].y);
+    TEST_ASSERT_EQUAL_INT(1, map.sprite_count);
+    TEST_ASSERT_EQUAL_FLOAT(MAP_MAX_H - 1.5f, map.sprites[0].y);
 }
 
 static void test_map_load_reads_walls_and_floor(void)
@@ -126,6 +172,16 @@ static void test_map_load_strips_crlf(void)
     TEST_ASSERT_EQUAL_FLOAT(1.5f, crlf.start.x);
 }
 
+/* A map is named by its file name, and its path is MAP_DIR's; a name the
+ * buffer cannot hold is refused rather than opened cut short. */
+static void test_map_file_path_puts_the_name_in_the_map_directory(void)
+{
+    char path[sizeof(MAP_DIR) + 8];
+    TEST_ASSERT_EQUAL_INT(0, map_file_path(path, sizeof(path), "dm1.txt"));
+    TEST_ASSERT_EQUAL_STRING(MAP_DIR "dm1.txt", path);
+    TEST_ASSERT_EQUAL_INT(-1, map_file_path(path, sizeof(path), "level1.txt"));
+}
+
 static void test_map_load_rejects_a_missing_file(void)
 {
     Map missing;
@@ -137,6 +193,8 @@ static void test_map_cell_outside_the_grid_is_wall(void)
 {
     TEST_ASSERT_EQUAL_INT(1, map_cell(&map, -1, 1));
     TEST_ASSERT_EQUAL_INT(1, map_cell(&map, 1, -1));
+    TEST_ASSERT_EQUAL_INT(1, map_cell(&map, map.w, 1));
+    TEST_ASSERT_EQUAL_INT(1, map_cell(&map, 1, map.h));
     TEST_ASSERT_EQUAL_INT(1, map_cell(&map, MAP_MAX_W, 1));
     TEST_ASSERT_EQUAL_INT(1, map_cell(&map, 1, MAP_MAX_H));
 }
@@ -343,13 +401,16 @@ static void test_map_spawn_facing_does_not_slip_through_a_corner(void)
 int main(void)
 {
     UNITY_BEGIN();
-    RUN_TEST(test_map_load_fills_the_full_grid);
+    RUN_TEST(test_map_load_takes_its_size_from_the_file);
+    RUN_TEST(test_map_load_is_as_wide_as_its_longest_row);
+    RUN_TEST(test_map_load_reads_a_map_of_the_largest_size);
     RUN_TEST(test_map_load_reads_walls_and_floor);
     RUN_TEST(test_map_load_reads_the_door_cell);
     RUN_TEST(test_map_load_reads_the_player_start);
     RUN_TEST(test_map_load_collects_sprite_spawns);
     RUN_TEST(test_map_load_pads_short_rows_and_missing_rows);
     RUN_TEST(test_map_load_strips_crlf);
+    RUN_TEST(test_map_file_path_puts_the_name_in_the_map_directory);
     RUN_TEST(test_map_load_rejects_a_missing_file);
     RUN_TEST(test_map_cell_outside_the_grid_is_wall);
     RUN_TEST(test_map_is_wall_uses_the_containing_cell);

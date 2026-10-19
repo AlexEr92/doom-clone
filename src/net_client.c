@@ -8,10 +8,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* MSG_ACCEPT names the map by its file name, and the client looks for it where
- * its own copy of the game keeps maps: both ends are the same build. */
-#define MAP_DIR "assets/maps/"
-
 struct Client {
     NetHost *net;
     NetPeerId server; /* NET_PEER_NONE once the connection has ended */
@@ -129,8 +125,7 @@ static void client_on_accept(Client *c, const void *data, size_t size)
         return;
     }
     char path[sizeof(MAP_DIR) + NET_MAP_MAX];
-    snprintf(path, sizeof(path), MAP_DIR "%s", msg.map);
-    if (world_load(&c->world, path) != 0) {
+    if (map_file_path(path, sizeof(path), msg.map) != 0 || world_load(&c->world, path) != 0) {
         char reason[sizeof(c->reason)];
         snprintf(reason, sizeof(reason), "no map %s here", msg.map);
         client_end(c, reason);

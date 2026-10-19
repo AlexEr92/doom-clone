@@ -21,7 +21,15 @@ typedef struct {
     uint16_t port;       /* to serve on or to join, NET_PORT_DEFAULT unless given */
     const char *name;    /* what the client joins under, "" unless given */
     int snapshot_rate;   /* what a server sends a second, SNAPSHOT_RATE unless given */
+    /* The map to play or serve: a file name under MAP_DIR (map.h), never a
+     * path, as MSG_ACCEPT names it to the clients. OPT_MAP_SOLO alone and
+     * OPT_MAP_SERVER on a server unless given; NULL for a client, which plays
+     * the map its server names. */
+    const char *map;
 } Options;
+
+#define OPT_MAP_SOLO "level1.txt" /* enemies to clear: the single-player game */
+#define OPT_MAP_SERVER "dm1.txt"  /* room for ten players to fight in */
 
 /* Read argv into *o. Returns 0 when it describes a launch; 1 when it asks for
  * the help; -1 when it is wrong — an unknown argument, a value missing or out

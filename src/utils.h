@@ -8,8 +8,10 @@
 #define WINDOW_W 1280
 #define WINDOW_H 800
 
-#define MAP_MAX_W 24
-#define MAP_MAX_H 24
+/* The largest map map_load() reads, in cells. A smaller one is as large as its
+ * file. */
+#define MAP_MAX_W 48
+#define MAP_MAX_H 48
 
 /* Half-width of the camera plane at unit view distance, i.e. tan(FOV / 2):
  * 77 degrees across. It is tied to the screen, not free — SCREEN_W / (2 *

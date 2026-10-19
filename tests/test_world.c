@@ -7,6 +7,7 @@
 
 #include "unity.h"
 #include "world.h"
+#include "raycast_world.h"
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -172,6 +173,38 @@ static void test_among_points_in_sight_the_farther_wins(void)
     TEST_ASSERT_EQUAL_INT(1, pick(2));
 }
 
+/* Sight reaches across the largest map: a wall at the far end of its diagonal
+ * hides the point behind it, and that point, out of sight and the farther,
+ * beats the one just round a corner. Player 0 is at (1, 1); the corner is a
+ * wall at (1..3, 5) between it and (1, 10), the far point (46, 45) is behind a
+ * block at (42..44, 41..43), and a trace there crosses over 80 cells. */
+static void test_a_wall_across_the_largest_map_hides_a_point(void)
+{
+    static char rows[MAP_MAX_H][MAP_MAX_W + 1];
+    const char *row_ptrs[MAP_MAX_H];
+    for (int y = 0; y < MAP_MAX_H; y++) {
+        for (int x = 0; x < MAP_MAX_W; x++) {
+            int edge = x == 0 || y == 0 || x == MAP_MAX_W - 1 || y == MAP_MAX_H - 1;
+            int corner = y == 5 && x <= 3;
+            int block = x >= MAP_MAX_W - 6 && x <= MAP_MAX_W - 4 && y >= MAP_MAX_H - 7 &&
+                        y <= MAP_MAX_H - 5;
+            rows[y][x] = edge || corner || block ? '#' : '.';
+        }
+        rows[y][MAP_MAX_W] = '\0';
+        row_ptrs[y] = rows[y];
+    }
+    rows[1][1] = 's';
+    rows[10][1] = 's';
+    rows[MAP_MAX_H - 3][MAP_MAX_W - 2] = 's';
+    load_rows(row_ptrs, MAP_MAX_H);
+
+    TEST_ASSERT_EQUAL_INT(0, world_add_player(&w, NULL));
+    TEST_ASSERT_EQUAL_INT(0, point_of(0));
+    TEST_ASSERT_FALSE(
+            world_line_of_sight(&w.map, &w.doors, 1.5f, 1.5f, MAP_MAX_W - 1.5f, MAP_MAX_H - 2.5f));
+    TEST_ASSERT_EQUAL_INT(2, pick(1));
+}
+
 /* A live enemy counts against every point within its detect range, by as much
  * as the point is inside it; a dead one not at all. From (1, 1), (8, 1) is the
  * farther point by two cells, until an imp stands one cell from it. */
@@ -297,6 +330,7 @@ int main(void)
     RUN_TEST(test_without_a_pool_a_player_comes_in_on_the_start);
     RUN_TEST(test_a_point_out_of_sight_beats_a_farther_one_in_sight);
     RUN_TEST(test_among_points_in_sight_the_farther_wins);
+    RUN_TEST(test_a_wall_across_the_largest_map_hides_a_point);
     RUN_TEST(test_a_live_enemy_counts_against_a_point_near_it);
     RUN_TEST(test_a_point_used_within_ten_seconds_gives_way);
     RUN_TEST(test_a_reused_slot_starts_with_no_history);

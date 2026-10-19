@@ -1,14 +1,15 @@
 #include "options.h"
 #include "config.h"
-#include "net_protocol.h" /* NET_NAME_MAX; a header alone, nothing of it is linked */
+#include "map.h"          /* MAP_DIR; a header alone, nothing of it is linked */
+#include "net_protocol.h" /* NET_NAME_MAX, NET_MAP_MAX; likewise */
 #include <stdlib.h>
 #include <string.h>
 
 void options_usage(FILE *f, const char *prog)
 {
     fprintf(f,
-            "usage: %s [--host [--dedicated] [--snaprate <n>] | --connect <address> "
-            "[--name <nick>]] [--port <n>]\n"
+            "usage: %s [--map <file>] [--host [--dedicated] [--snaprate <n>] | --connect "
+            "<address> [--name <nick>]] [--port <n>]\n"
             "  (no flags)           play alone; no socket is opened\n"
             "  --host               serve a network game and play in it\n"
             "  --dedicated          with --host: serve it with no window and no player\n"
@@ -16,8 +17,11 @@ void options_usage(FILE *f, const char *prog)
             "  --port <n>           the port to serve on or to join, %d by default\n"
             "  --name <nick>        with --connect: the name to join under, up to %d characters\n"
             "  --snaprate <n>       with --host: snapshots a second, %d to %d, %d by default\n"
+            "  --map <file>         the map in %s to play or serve, %s alone and %s\n"
+            "                       on a server by default; a client plays the server's\n"
             "  -h, --help           show this and exit\n",
-            prog, NET_PORT_DEFAULT, NET_NAME_MAX - 1, SNAPSHOT_RATE_MIN, TICK_RATE, SNAPSHOT_RATE);
+            prog, NET_PORT_DEFAULT, NET_NAME_MAX - 1, SNAPSHOT_RATE_MIN, TICK_RATE, SNAPSHOT_RATE,
+            MAP_DIR, OPT_MAP_SOLO, OPT_MAP_SERVER);
 }
 
 /* A whole decimal number in lo .. hi, and nothing else: no sign, no spaces, no
@@ -39,12 +43,13 @@ static int parse_int(const char *s, long lo, long hi, long *out)
 static int takes_value(const char *arg)
 {
     return strcmp(arg, "--connect") == 0 || strcmp(arg, "--port") == 0 ||
-           strcmp(arg, "--name") == 0 || strcmp(arg, "--snaprate") == 0;
+           strcmp(arg, "--name") == 0 || strcmp(arg, "--snaprate") == 0 ||
+           strcmp(arg, "--map") == 0;
 }
 
 int parse_options(int argc, char **argv, Options *out)
 {
-    Options o = {LAUNCH_SOLO, NULL, NET_PORT_DEFAULT, "", SNAPSHOT_RATE};
+    Options o = {LAUNCH_SOLO, NULL, NET_PORT_DEFAULT, "", SNAPSHOT_RATE, NULL};
     int host = 0, dedicated = 0, port_given = 0, name_given = 0, rate_given = 0;
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
@@ -90,6 +95,16 @@ int parse_options(int argc, char **argv, Options *out)
             }
             o.snapshot_rate = (int)n;
             rate_given = 1;
+        } else if (strcmp(arg, "--map") == 0) {
+            /* What MSG_ACCEPT can carry, and what a client takes from it. */
+            size_t len = strlen(value);
+            if (len == 0 || len >= NET_MAP_MAX || strpbrk(value, "/\\")) {
+                fprintf(stderr,
+                        "--map: '%s' is not a map, a file name in %s of 1 to %d characters\n",
+                        value, MAP_DIR, NET_MAP_MAX - 1);
+                return -1;
+            }
+            o.map = value;
         } else {
             size_t len = strlen(value);
             if (len == 0 || len >= NET_NAME_MAX) {
@@ -118,6 +133,10 @@ int parse_options(int argc, char **argv, Options *out)
         fprintf(stderr, "--snaprate needs --host: it is the server that sends snapshots\n");
         return -1;
     }
+    if (o.map && o.connect) {
+        fprintf(stderr, "--map and --connect: a client plays the map its server names\n");
+        return -1;
+    }
     if (name_given && !o.connect) {
         fprintf(stderr, "--name needs --connect: it is the name a client joins under\n");
         return -1;
@@ -134,6 +153,9 @@ int parse_options(int argc, char **argv, Options *out)
              : host      ? LAUNCH_HOST
              : o.connect ? LAUNCH_CLIENT
                          : LAUNCH_SOLO;
+    if (!o.map && !o.connect) {
+        o.map = host ? OPT_MAP_SERVER : OPT_MAP_SOLO;
+    }
     *out = o;
     return 0;
 }

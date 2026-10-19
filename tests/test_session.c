@@ -71,7 +71,9 @@ void tearDown(void)
 
 static Options options(LaunchMode mode)
 {
-    Options o = {mode, mode == LAUNCH_CLIENT ? "127.0.0.1" : NULL, TEST_PORT, "", SNAPSHOT_RATE};
+    /* No map name: session_open() is given the path of the test's own map. */
+    Options o = {mode, mode == LAUNCH_CLIENT ? "127.0.0.1" : NULL, TEST_PORT, "", SNAPSHOT_RATE,
+                 NULL};
     return o;
 }
 

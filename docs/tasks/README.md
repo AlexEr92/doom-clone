@@ -81,7 +81,6 @@
 
 | # | Задача | Зависит от |
 |---|---|---|
-| [09-07](09-07-deathmatch-map.md) | Карта 48×48 для DM | 09-01 |
 | [09-02](09-02-respawn.md) | Респавн и защита от спавн-килла | 09-01 |
 | [09-03](09-03-frags-scoreboard.md) | Фраги, скорборд, kill feed | 09-02 |
 | [09-04](09-04-menu-host-join.md) | Меню HOST/JOIN + ввод IP | 07-07 |
@@ -196,3 +195,4 @@
 | [09-01](../closed_tasks/09-01-spawn-points.md) | Пул точек спавна | Сделано: маркер `s`, автопул, `world_pick_spawn()` |
 | [bug-014](../closed_tasks/bug-014-player-hit-by-player-is-silent.md) | Попадание игрока по игроку не порождает `EV_PLAYER_HURT` | Сделано: событие и урон врага через `player_damage()` |
 | [test-003](../closed_tasks/test-003-text-module-layout-test.md) | Общий модуль шрифта 3×5 и тест раскладки глифов | Сделано: модуль `text.c`, тест `test_text.c` |
+| [09-07](../closed_tasks/09-07-deathmatch-map.md) | Карта 48×48 для DM | Сделано: `dm1.txt`, `--map`, предел луча по размеру карты |

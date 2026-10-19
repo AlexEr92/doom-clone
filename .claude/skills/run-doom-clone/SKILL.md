@@ -103,6 +103,14 @@ without a window by `build/tests/hud_shot [out.png] [--no-files]`, from
 the project root: one band per state, at the window's 2x, the band names on
 stdout. `--no-files` shows it as a checkout without `assets/hud/` does.
 
+The FPS in `status` is held near 60 by vsync. `SDL_RENDER_VSYNC=0
+driver.sh start` lifts the cap (the driver passes its environment on), but
+that FPS is the whole frame — sprites, status bar, upscale, present — of
+which the walls are a small part. What a frame of the walls alone costs on
+a map, to compare two maps or two builds, is
+`build/tests/render_bench [map]`: no window, `raycast_render()` from every
+free cell in eight directions, mean and worst frame.
+
 ## Run (human path)
 
 ```bash
@@ -117,15 +125,16 @@ Useless headless — it needs a real display. Must run from the project root.
 and clients: the server is the game itself, and the bots live in
 `tests/manual/` (built into `build/tests/` with `ENABLE_MULTIPLAYER`, not
 run by CTest). Run every one of them from the project root — the server
-opens `assets/maps/level1.txt`, the client the map `MSG_ACCEPT` names under
-`assets/maps/`.
+opens `assets/maps/dm1.txt` (48×48, no enemies) unless `--map` names
+another file there, `--map level1.txt` for the one with enemies; the client
+opens the map `MSG_ACCEPT` names under `assets/maps/`.
 
 ```bash
-env -u DISPLAY build/doom-clone --host --dedicated & srv=$!   # the server: no window, logs on stdout
+env -u DISPLAY build/doom-clone --host --dedicated & srv=$!   # the server on dm1.txt: no window, logs on stdout
 build/doom-clone --connect 127.0.0.1 --name p1 # a client with a window
 build/doom-clone --host                        # instead of the above: a server with a player at a window
 build/tests/net_bot look [--rate 3]            # the world as the server has it; --rate: ticks, snapshots, KB/s
-build/tests/net_bot run go 3.5 12.5 kill 1 kill 2 go 10.5 12.5 face 10.5 11 use
+build/tests/net_bot run go 3.5 12.5 kill 1 kill 2 go 10.5 12.5 face 10.5 11 use   # a server with --map level1.txt
 build/tests/net_bot swarm 9 60                 # nine players walking and firing for 60 s
 build/tests/net_bot watch 0 10                 # how player 0 moves on a client's screen, frame by frame
 ```

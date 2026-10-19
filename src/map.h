@@ -3,8 +3,14 @@
 
 #include "config.h"
 #include "utils.h"
+#include <stddef.h>
 
 #define MAX_MAP_SPRITES 64
+
+/* Where the game keeps its maps, relative to the project root it runs from. A
+ * map is named by its file name in here: on the command line, and in
+ * MSG_ACCEPT, which each end of a network game resolves against its own copy. */
+#define MAP_DIR "assets/maps/"
 
 typedef struct {
     float x, y;
@@ -20,7 +26,7 @@ typedef struct {
 
 typedef struct Map {
     int cells[MAP_MAX_H][MAP_MAX_W];
-    int w, h;
+    int w, h;         /* the file's longest row and its number of rows, up to MAP_MAX_W/H */
     SpawnPoint start; /* 'P': where a solo game begins, facing -X */
     /* 's': where a multiplayer game puts players, chosen afresh at every
      * spawn by world_pick_spawn(). A point belongs to the map, not to a
@@ -32,6 +38,11 @@ typedef struct Map {
 } Map;
 
 int map_load(Map *m, const char *path);
+
+/* The path of the map whose file name is `name`: MAP_DIR and the name, into
+ * `out` of `size` bytes. Returns 0, or -1 when it does not fit, and `out` then
+ * holds as much of it as did. */
+int map_file_path(char *out, size_t size, const char *name);
 int map_cell(const Map *m, int x, int y);
 int map_is_wall(const Map *m, float x, float y);
 
