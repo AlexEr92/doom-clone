@@ -119,7 +119,6 @@
 | [bug-017](bug-017-hud-face-mouth-inverted.md) | Рот лица в статус-баре перевёрнут: хмурится при полном здоровье | `hud.c` |
 | [bug-018](bug-018-lint-changed-deleted-file.md) | `lint.sh changed` отдаёт cppcheck удалённый `src/*.c` и падает | `lint.sh`, `SKILL.md` |
 | [bug-019](bug-019-hud-weapon-freezes-mid-flash.md) | Оружие в руках замирает на кадре вспышки под оверлеем победы/смерти | `main.c`, `sprite.c`, `hud.c` |
-| [bug-021](bug-021-snapshot-lacks-weapon-ownership.md) | Снапшот не несёт `owned` и патроны стволов не в руках | `net_protocol.c/.h` |
 | [bug-022](bug-022-bang-glyph-has-no-dot.md) | Глиф `!` шрифта 3×5 без точки: сплошная палка | `text.c`, `tests/manual/` |
 | [chore-001](chore-001-github-actions-ci.md) | CI на трёх платформах через GitHub Actions | `.github/workflows/` |
 | [chore-003](chore-003-const-correctness-lint.md) | Указатели без `const`, хотя только читаются | `enemy.c`, `game.c`, `player.c`, `world.c` |
@@ -197,3 +196,4 @@
 | [bug-014](../closed_tasks/bug-014-player-hit-by-player-is-silent.md) | Попадание игрока по игроку не порождает `EV_PLAYER_HURT` | Сделано: событие и урон врага через `player_damage()` |
 | [test-003](../closed_tasks/test-003-text-module-layout-test.md) | Общий модуль шрифта 3×5 и тест раскладки глифов | Сделано: модуль `text.c`, тест `test_text.c` |
 | [09-07](../closed_tasks/09-07-deathmatch-map.md) | Карта 48×48 для DM | Сделано: `dm1.txt`, `--map`, предел луча по размеру карты |
+| [bug-021](../closed_tasks/bug-021-snapshot-lacks-weapon-ownership.md) | Снапшот не несёт `owned` и патроны стволов не в руках | Сделано: оружие целиком только получателю, `MsgSnapshot.yours` |

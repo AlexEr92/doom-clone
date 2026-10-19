@@ -68,11 +68,12 @@
       переполнения: равенство, не порядок), а не по росту `reload`;
       параметр `reload` и поле `AnimClock.reload` уходят. Первый кадр
       (`!c->seen`) выстрелом не считается, как и сейчас
-- [ ] `NetPlayer` получает `uint8_t shots`; `flags` остаётся нетронутым.
-      `NetEnemy` кладёт `shots` на место `_pad`. Размер `NetPlayer`
-      (24 → 28 из-за выравнивания), его `_Static_assert` и формула размера
-      `MsgSnapshot` — поправить; `SNAPSHOT_MAX_BYTES` должен
-      выдерживаться (полный снапшот по расчёту ~1136 байт из 1400)
+- [ ] `NetPlayer` получает `uint8_t shots` на место одного из двух байтов
+      `_pad`; `flags` остаётся нетронутым. `NetEnemy` кладёт `shots` на
+      место `_pad`. Размеры `NetPlayer` (24), `NetEnemy` (12) и полного
+      снапшота (1112 байт из `SNAPSHOT_MAX_BYTES` = 1400) не меняются, что
+      проверяют существующие `_Static_assert`; не растёт и трафик
+      deathmatch, который `test_ten_clients_deathmatch` держит в 80 КБ/с
 - [ ] `snapshot_write()` заполняет `shots`; `snapshot_apply()` кладёт его в
       `PlayerState`/`Enemy`. `snapshot_encode()` / `snapshot_decode()`
       копируют новые поля (они копируют по полям — см. комментарий у

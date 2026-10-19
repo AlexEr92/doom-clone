@@ -17,6 +17,7 @@
 
 #include "config.h"
 #include "event.h"
+#include "weapon.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -24,7 +25,7 @@ struct World;
 struct PlayerState;
 
 /* Raised with every change to anything in this file a peer reads. */
-#define PROTO_VERSION 1
+#define PROTO_VERSION 2
 
 #define NET_NAME_MAX 16 /* player name, terminating NUL included */
 #define NET_MAP_MAX 32  /* map file name, terminating NUL included */
@@ -82,7 +83,8 @@ typedef struct {
 } MsgInput;
 
 /* One player who is in the world. hp and armor are whole points, rounded up:
- * a player with any hp left never arrives with 0. */
+ * a player with any hp left never arrives with 0. Of the weapons it carries
+ * the one in hand; the receiver's own come whole in MsgSnapshot.yours. */
 typedef struct {
     uint8_t id;     /* index into World.players */
     uint8_t flags;  /* no bits defined yet; always 0 */
@@ -90,10 +92,21 @@ typedef struct {
     uint8_t alive;
     float x, y, angle;
     uint8_t hp, armor;
-    uint16_t ammo;   /* of the weapon in hand */
+    uint8_t _pad[2];
     uint16_t frags;  /* not counted by the simulation yet; always 0 */
     uint16_t deaths; /* likewise */
 } NetPlayer;
+
+/* The weapons of the player a snapshot is addressed to: which are picked up
+ * and the ammo of each, the one in hand among them. A client switching weapons
+ * on its own (task 08-02) needs them all. Of everyone else it needs no more
+ * than the weapon in hand, and sending each of ten receivers the weapons of
+ * all ten players would add a quarter to what a deathmatch server sends. */
+typedef struct {
+    uint8_t id;                  /* the receiver's player id */
+    uint8_t owned;               /* bit 1 << WeaponType: the weapons picked up */
+    uint16_t ammo[WEAPON_COUNT]; /* by WeaponType, owned or not */
+} NetWeapons;
 
 /* An enemy, corpses included; its index in MsgSnapshot.enemies is its id. */
 typedef struct {
@@ -125,7 +138,9 @@ typedef struct {
     MsgHeader h;
     uint32_t tick;            /* World.tick the snapshot was taken at */
     uint32_t last_input_tick; /* the newest input of the receiver's the server has used */
-    uint8_t player_count, enemy_count, event_count, _pad;
+    NetWeapons yours;         /* the receiver's weapons */
+    uint8_t player_count, enemy_count, event_count;
+    uint8_t _pad[5];
     NetPlayer players[MAX_PLAYERS]; /* the players in the world, by ascending id */
     NetEnemy enemies[MAX_ENEMIES];
     uint64_t items_alive;     /* bit i: World.items.items[i] is still there */
@@ -133,14 +148,15 @@ typedef struct {
     NetEvent events[MAX_EVENTS];
 } MsgSnapshot;
 
-/* Fill `s` from the world as it stands: every player in the world, every
- * enemy, the items, the doors, and the events of the last tick. `s` is zeroed
+/* Fill `s` from the world as it stands, for the player `receiver` of `w` — an
+ * active one: every player in the world, every enemy, the items, the doors,
+ * the events of the last tick, and the receiver's weapons. `s` is zeroed
  * first, padding and unused slots included.
  *
  * The events are those of the last world_step() only. A server that sends
  * snapshots less often than it ticks replaces them with the ones it collected
  * in between, through snapshot_set_events() after this call. */
-void snapshot_write(MsgSnapshot *s, const struct World *w, uint32_t last_input_tick);
+void snapshot_write(MsgSnapshot *s, const struct World *w, int receiver, uint32_t last_input_tick);
 
 /* Make the first `count` of `events` the snapshot's events, as many as
  * MAX_EVENTS holds; the rest are dropped. */
@@ -162,7 +178,11 @@ void snapshot_pick_events(MsgSnapshot *s, const GameEvent *events, int count,
  *
  * Only what a snapshot carries is set; the rest of each entity keeps what it
  * had, and a player who appears in a slot that was empty starts from
- * player_init(). Door states are inferred from openness: 0 is closed, 255 is
+ * player_init(). The receiver's weapons are set whole from `yours`; of every
+ * other player only the weapon in hand is, and the rest of their weapons is
+ * not known. A player entry snapshot_decode() would turn away — an id or
+ * weapon out of range, the receiver holding a weapon not in `yours.owned` —
+ * is passed over. Door states are inferred from openness: 0 is closed, 255 is
  * open, and in between the door is moving the way its openness changed. The
  * events replace w->events. */
 void snapshot_apply(struct World *w, const MsgSnapshot *s);
@@ -181,8 +201,10 @@ size_t snapshot_encode(const MsgSnapshot *s, void *out);
 /* Read a snapshot of `size` bytes, as snapshot_encode() lays it out, into `s`.
  * Returns 0, or -1 with `s` zeroed when the bytes are not a snapshot: too
  * short, another type, a count past its limit, a size that does not match the
- * counts, or an id, weapon, enemy type or state, or event kind out of range.
- * Positions are not checked — the server is trusted with those. */
+ * counts, an id, weapon, enemy type or state, or event kind out of range, or
+ * `yours.owned` with a bit past WEAPON_COUNT or without the weapon the
+ * receiver holds. Positions are not checked — the server is trusted with
+ * those. */
 int snapshot_decode(MsgSnapshot *s, const void *data, size_t size);
 
 /* ---- the layout, pinned ---- */
@@ -193,14 +215,15 @@ _Static_assert(sizeof(MsgAccept) == 44, "MsgAccept changed size");
 _Static_assert(sizeof(MsgReject) == 5, "MsgReject changed size");
 _Static_assert(sizeof(MsgInput) == 16, "MsgInput changed size");
 _Static_assert(sizeof(NetPlayer) == 24, "NetPlayer changed size");
+_Static_assert(sizeof(NetWeapons) == 12, "NetWeapons changed size");
 _Static_assert(sizeof(NetEnemy) == 12, "NetEnemy changed size");
 _Static_assert(sizeof(NetEvent) == 12, "NetEvent changed size");
 
 /* A field added to the snapshot, or one the limits pushed off its alignment,
  * shows up here: snapshot_encode() and snapshot_decode() copy field by field
  * and have to be told about it. */
-_Static_assert(offsetof(MsgSnapshot, players) == 16, "the snapshot head changed size");
-_Static_assert(sizeof(MsgSnapshot) == 16 + MAX_PLAYERS * sizeof(NetPlayer) +
+_Static_assert(offsetof(MsgSnapshot, players) == 32, "the snapshot head changed size");
+_Static_assert(sizeof(MsgSnapshot) == 32 + MAX_PLAYERS * sizeof(NetPlayer) +
                                               MAX_ENEMIES * sizeof(NetEnemy) + sizeof(uint64_t) +
                                               MAX_DOORS + MAX_EVENTS * sizeof(NetEvent),
                "MsgSnapshot changed: check snapshot_encode() and snapshot_decode()");
@@ -211,6 +234,8 @@ _Static_assert(sizeof(MsgSnapshot) <= SNAPSHOT_MAX_BYTES,
 
 _Static_assert(MAX_PLAYERS <= 255 && MAX_ENEMIES <= 255 && MAX_EVENTS <= 255,
                "the counts in a snapshot are uint8_t");
+
+_Static_assert(WEAPON_COUNT <= 8, "NetWeapons.owned is a uint8_t, a bit per weapon");
 
 /* A peer of the other byte order reads the version with its bytes swapped,
  * which tells it apart only while the two bytes differ. */

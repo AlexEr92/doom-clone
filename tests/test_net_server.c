@@ -632,6 +632,36 @@ static void test_each_client_hears_its_own_empty_click_alone(void)
     TEST_ASSERT_TRUE_MESSAGE(own > 0, "the bot's own click within TEST_WAIT_MS");
 }
 
+static const MsgSnapshot *bot_latest(const Bot *b)
+{
+    return b->snapshots > 0 ? &b->recent[(b->snapshots - 1) % RECENT] : NULL;
+}
+
+/* The weapons a snapshot carries whole are its receiver's: of two bots, the
+ * one who picked up the shotgun is told so, and the other is not. */
+static void test_each_client_gets_its_own_weapons(void)
+{
+    Bot *a = bot_joined();
+    Bot *b = bot_joined();
+    World *w = server_world(server);
+    PlayerState *pb = &w->players[b->accept.your_id];
+    weapon_give(pb, WEAPON_SHOTGUN);
+    weapon_switch(pb, WEAPON_SHOTGUN);
+    uint32_t given = w->tick;
+
+    TICK_UNTIL(bot_latest(a) && bot_latest(a)->tick > given && bot_latest(b) &&
+               bot_latest(b)->tick > given);
+
+    const NetWeapons *wa = &bot_latest(a)->yours;
+    const NetWeapons *wb = &bot_latest(b)->yours;
+    TEST_ASSERT_EQUAL_UINT8(a->accept.your_id, wa->id);
+    TEST_ASSERT_EQUAL_UINT8(1u << WEAPON_PISTOL, wa->owned);
+    TEST_ASSERT_EQUAL_UINT16(0, wa->ammo[WEAPON_SHOTGUN]);
+    TEST_ASSERT_EQUAL_UINT8(b->accept.your_id, wb->id);
+    TEST_ASSERT_EQUAL_UINT8(1u << WEAPON_PISTOL | 1u << WEAPON_SHOTGUN, wb->owned);
+    TEST_ASSERT_EQUAL_UINT16(pb->weapons.weapons[WEAPON_SHOTGUN].ammo, wb->ammo[WEAPON_SHOTGUN]);
+}
+
 /* An enemy's death is heard by every player near it, not only by whoever
  * killed it: the local player shoots one, and both bots get the death. */
 static void test_an_enemy_death_reaches_every_client_near_it(void)
@@ -815,6 +845,7 @@ int main(void)
     RUN_TEST(test_a_weapon_key_is_not_lost_under_a_newer_input);
     RUN_TEST(test_press_is_not_repeated_while_input_is_late);
     RUN_TEST(test_each_client_hears_its_own_empty_click_alone);
+    RUN_TEST(test_each_client_gets_its_own_weapons);
     RUN_TEST(test_an_enemy_death_reaches_every_client_near_it);
     RUN_TEST(test_shot_in_the_second_tick_reaches_the_snapshot);
     RUN_TEST(test_shot_in_the_first_tick_reaches_the_snapshot);

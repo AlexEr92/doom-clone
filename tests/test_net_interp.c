@@ -61,13 +61,15 @@ void tearDown(void)
 
 /* ---- building snapshots ---- */
 
-/* A snapshot of `tick` with the local player standing still and the imp of
- * the map alive where it stands; the tests add the rest. */
+/* A snapshot of `tick` to the local player, standing still with the pistol,
+ * and the imp of the map alive where it stands; the tests add the rest. */
 static MsgSnapshot *snap_new(uint32_t tick)
 {
     memset(&snap, 0, sizeof(snap));
     snap.h.type = MSG_SNAPSHOT;
     snap.tick = tick;
+    snap.yours.id = ME;
+    snap.yours.owned = 1u << WEAPON_PISTOL;
     NetPlayer *me = &snap.players[snap.player_count++];
     me->id = ME;
     me->alive = 1;

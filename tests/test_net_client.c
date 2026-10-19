@@ -173,14 +173,17 @@ static void fake_send_reject(uint8_t reason)
     fake_send(&msg, sizeof(msg));
 }
 
-/* A snapshot of player `id` standing at (x, 1.5), with one MARK event per
- * entry of `marks`, its actor that entry. Returns its size on the wire. */
+/* A snapshot to player `id`, standing at (x, 1.5) with the pistol, with one
+ * MARK event per entry of `marks`, its actor that entry. Returns its size on
+ * the wire. */
 static size_t fake_send_snapshot(uint32_t tick, uint8_t id, float x, const uint8_t *marks, int n)
 {
     MsgSnapshot s;
     memset(&s, 0, sizeof(s));
     s.h.type = MSG_SNAPSHOT;
     s.tick = tick;
+    s.yours.id = id;
+    s.yours.owned = 1u << WEAPON_PISTOL;
     s.player_count = 1;
     s.players[0].id = id;
     s.players[0].alive = 1;
@@ -207,6 +210,7 @@ static void fake_send_two(uint32_t tick, float x0, float x1)
     memset(&s, 0, sizeof(s));
     s.h.type = MSG_SNAPSHOT;
     s.tick = tick;
+    s.yours.owned = 1u << WEAPON_PISTOL;
     s.player_count = 2;
     const float x[2] = {x0, x1};
     for (int i = 0; i < 2; i++) {

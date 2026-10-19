@@ -64,15 +64,22 @@ void tearDown(void)
     remove(MAP_PATH);
 }
 
-/* Server to client the way the network will do it: through the bytes. */
-static size_t send_snapshot(uint32_t last_input_tick)
+/* Server to client the way the network will do it: through the bytes. The
+ * snapshot is addressed to player `receiver`. */
+static size_t send_snapshot_to(int receiver, uint32_t last_input_tick)
 {
-    snapshot_write(&snap, &server, last_input_tick);
+    snapshot_write(&snap, &server, receiver, last_input_tick);
     size_t size = snapshot_encode(&snap, wire);
     TEST_ASSERT_TRUE(size > 0);
     TEST_ASSERT_EQUAL_INT(0, snapshot_decode(&decoded, wire, size));
     snapshot_apply(&client, &decoded);
     return size;
+}
+
+/* The same, addressed to player 0. */
+static size_t send_snapshot(uint32_t last_input_tick)
+{
+    return send_snapshot_to(0, last_input_tick);
 }
 
 static void add_players(World *w, int n)
@@ -88,7 +95,7 @@ static void add_players(World *w, int n)
  * net_protocol.h hold this at compile time; this is the number they pin. */
 static void test_a_full_snapshot_fits_in_one_packet(void)
 {
-    TEST_ASSERT_EQUAL_size_t(16 + 10 * 24 + 32 * 12 + 8 + 64 + 32 * 12, sizeof(MsgSnapshot));
+    TEST_ASSERT_EQUAL_size_t(32 + 10 * 24 + 32 * 12 + 8 + 64 + 32 * 12, sizeof(MsgSnapshot));
     TEST_ASSERT_TRUE(sizeof(MsgSnapshot) <= SNAPSHOT_MAX_BYTES);
 
     snap.h.type = MSG_SNAPSHOT;
@@ -99,8 +106,8 @@ static void test_a_full_snapshot_fits_in_one_packet(void)
 }
 
 /* Deathmatch has no enemies, so the enemy list goes out empty instead of as
- * 32 blank slots: 16 + 10×24 + 8 + 64 + 5×12 bytes. */
-static void test_a_deathmatch_snapshot_is_about_390_bytes(void)
+ * 32 blank slots: 32 + 10×24 + 8 + 64 + 5×12 bytes. */
+static void test_a_deathmatch_snapshot_is_about_400_bytes(void)
 {
     add_players(&server, MAX_PLAYERS);
     server.enemies.count = 0;
@@ -108,19 +115,19 @@ static void test_a_deathmatch_snapshot_is_about_390_bytes(void)
         event_push(&server.events, EV_SHOT, i, 1.5f, 1.5f);
     }
 
-    TEST_ASSERT_EQUAL_size_t(388, send_snapshot(0));
+    TEST_ASSERT_EQUAL_size_t(404, send_snapshot(0));
 }
 
 /* Every list is cut to its count, and nothing else changes size. */
 static void test_each_list_is_cut_to_its_count(void)
 {
     snap.h.type = MSG_SNAPSHOT;
-    TEST_ASSERT_EQUAL_size_t(16 + 8 + 64, snapshot_encode(&snap, wire));
+    TEST_ASSERT_EQUAL_size_t(32 + 8 + 64, snapshot_encode(&snap, wire));
 
     snap.player_count = 3;
     snap.enemy_count = 2;
     snap.event_count = 1;
-    TEST_ASSERT_EQUAL_size_t(16 + 3 * 24 + 2 * 12 + 8 + 64 + 1 * 12, snapshot_encode(&snap, wire));
+    TEST_ASSERT_EQUAL_size_t(32 + 3 * 24 + 2 * 12 + 8 + 64 + 1 * 12, snapshot_encode(&snap, wire));
 }
 
 /* ---- the round trip ---- */
@@ -137,7 +144,6 @@ static void test_players_arrive_where_the_server_has_them(void)
     /* the last weapon there is, picked up: the whole range goes on the wire */
     p->weapons.weapons[WEAPON_GRENADE].owned = 1;
     weapon_switch(p, WEAPON_GRENADE);
-    p->weapons.weapons[WEAPON_GRENADE].ammo = 7;
     server.players[1].alive = 0;
     server.players[1].hp = 0.0f;
 
@@ -158,7 +164,53 @@ static void test_players_arrive_where_the_server_has_them(void)
         TEST_ASSERT_EQUAL_INT(s->weapons.current, c->weapons.current);
     }
     TEST_ASSERT_EQUAL_INT(WEAPON_GRENADE, client.players[2].weapons.current);
-    TEST_ASSERT_EQUAL_INT(7, client.players[2].weapons.weapons[WEAPON_GRENADE].ammo);
+}
+
+/* The weapons of the player the snapshot goes to arrive whole: which are
+ * picked up and the ammo of every one, in hand or not. A client switching
+ * weapons on its own needs exactly that — and can now switch to what the
+ * server let its player pick up. */
+static void test_the_receivers_weapons_arrive_whole(void)
+{
+    static const int ammo[WEAPON_COUNT] = {41, 12, 30, 9, 3};
+    add_players(&server, 3);
+    PlayerState *p = &server.players[1];
+    p->weapons.weapons[WEAPON_SHOTGUN].owned = 1;
+    p->weapons.weapons[WEAPON_GRENADE].owned = 1;
+    weapon_switch(p, WEAPON_SHOTGUN);
+    for (int k = 0; k < WEAPON_COUNT; k++) {
+        p->weapons.weapons[k].ammo = ammo[k];
+    }
+
+    send_snapshot_to(1, 0);
+
+    const WeaponSystem *ws = &client.players[1].weapons;
+    TEST_ASSERT_EQUAL_INT(WEAPON_SHOTGUN, ws->current);
+    for (int k = 0; k < WEAPON_COUNT; k++) {
+        int owned = k == WEAPON_PISTOL || k == WEAPON_SHOTGUN || k == WEAPON_GRENADE;
+        TEST_ASSERT_EQUAL_INT_MESSAGE(owned, ws->weapons[k].owned, "owned");
+        TEST_ASSERT_EQUAL_INT_MESSAGE(ammo[k], ws->weapons[k].ammo, "ammo");
+    }
+    weapon_switch(&client.players[1], WEAPON_GRENADE);
+    TEST_ASSERT_EQUAL_INT(WEAPON_GRENADE, client.players[1].weapons.current);
+}
+
+/* Of everyone else the snapshot carries the weapon in hand and no more: what
+ * they own and their ammo stay as the client had them. */
+static void test_of_the_others_only_the_weapon_in_hand_arrives(void)
+{
+    add_players(&server, 2);
+    PlayerState *p = &server.players[1];
+    p->weapons.weapons[WEAPON_SHOTGUN].owned = 1;
+    weapon_switch(p, WEAPON_SHOTGUN);
+    p->weapons.weapons[WEAPON_SHOTGUN].ammo = 13;
+
+    send_snapshot_to(0, 0);
+
+    const WeaponSystem *ws = &client.players[1].weapons;
+    TEST_ASSERT_EQUAL_INT(WEAPON_SHOTGUN, ws->current);
+    TEST_ASSERT_FALSE(ws->weapons[WEAPON_SHOTGUN].owned);
+    TEST_ASSERT_EQUAL_INT(0, ws->weapons[WEAPON_SHOTGUN].ammo);
 }
 
 /* A slot freed on the server is left out of the snapshot, and the ids of the
@@ -193,19 +245,28 @@ static void test_a_player_the_snapshot_leaves_out_has_left(void)
     TEST_ASSERT_EQUAL_INT(1, client.local_player);
 }
 
-/* A player who appears in an empty slot has what a snapshot does not carry —
- * the weapons that are not in hand, their limits — from player_init(). */
+/* A player who appears in an empty slot takes what the entry carries from it
+ * and the rest from player_init(): the receiver their weapons, owned and
+ * ammo, from `yours`, with the limits of player_init(); anyone else no more
+ * than the weapon in hand. */
 static void test_a_new_player_starts_from_player_init(void)
 {
-    add_players(&server, 1);
+    add_players(&server, 2);
+    for (int i = 0; i < 2; i++) {
+        server.players[i].weapons.weapons[WEAPON_RIFLE].owned = 1;
+        server.players[i].weapons.weapons[WEAPON_RIFLE].ammo = 6;
+    }
 
-    send_snapshot(0);
+    send_snapshot_to(0, 0);
 
-    const WeaponSystem *ws = &client.players[0].weapons;
+    const WeaponSystem *mine = &client.players[0].weapons;
+    const WeaponSystem *theirs = &client.players[1].weapons;
     TEST_ASSERT_EQUAL_INT(server.players[0].weapons.weapons[WEAPON_PISTOL].max_ammo,
-                          ws->weapons[WEAPON_PISTOL].max_ammo);
-    TEST_ASSERT_EQUAL_INT(server.players[0].weapons.weapons[WEAPON_SHOTGUN].ammo,
-                          ws->weapons[WEAPON_SHOTGUN].ammo);
+                          mine->weapons[WEAPON_PISTOL].max_ammo);
+    TEST_ASSERT_TRUE(mine->weapons[WEAPON_RIFLE].owned);
+    TEST_ASSERT_EQUAL_INT(6, mine->weapons[WEAPON_RIFLE].ammo);
+    TEST_ASSERT_FALSE(theirs->weapons[WEAPON_RIFLE].owned);
+    TEST_ASSERT_EQUAL_INT(0, theirs->weapons[WEAPON_RIFLE].ammo);
     TEST_ASSERT_EQUAL_INT8(-1, client.players[0].last_attacker);
 }
 
@@ -250,15 +311,15 @@ static void test_values_out_of_range_are_pinned(void)
     server.players[0].hp = -5.0f;
     server.players[0].armor = NAN;
     server.players[0].weapons.weapons[WEAPON_PISTOL].ammo = -3;
-    server.players[1].weapons.weapons[WEAPON_PISTOL].ammo = 70000;
+    server.players[0].weapons.weapons[WEAPON_SHOTGUN].ammo = 70000;
     server.doors.doors[0].openness = 1.5f;
 
     send_snapshot(0);
 
     TEST_ASSERT_EQUAL_UINT8(0, snap.players[0].hp);
     TEST_ASSERT_EQUAL_UINT8(0, snap.players[0].armor);
-    TEST_ASSERT_EQUAL_UINT16(0, snap.players[0].ammo);
-    TEST_ASSERT_EQUAL_UINT16(UINT16_MAX, snap.players[1].ammo);
+    TEST_ASSERT_EQUAL_UINT16(0, snap.yours.ammo[WEAPON_PISTOL]);
+    TEST_ASSERT_EQUAL_UINT16(UINT16_MAX, snap.yours.ammo[WEAPON_SHOTGUN]);
     TEST_ASSERT_EQUAL_UINT8(255, snap.doors[0]);
 
     server.doors.doors[0].openness = -0.5f;
@@ -305,6 +366,35 @@ static void test_apply_passes_over_a_player_it_cannot_index(void)
     TEST_ASSERT_EQUAL_INT(2, client.player_count);
     TEST_ASSERT_TRUE(client.players[1].active);
     TEST_ASSERT_EQUAL_FLOAT(2.5f, client.players[1].x);
+}
+
+/* The receiver holding a weapon `yours` says they do not own is an entry that
+ * does not add up, and is passed over like one that cannot be indexed — the
+ * weapons with it. Anyone else's weapon in hand is not checked against
+ * `yours`: it is not theirs. */
+static void test_apply_passes_over_the_receiver_holding_a_weapon_not_owned(void)
+{
+    snap.h.type = MSG_SNAPSHOT;
+    snap.player_count = 2;
+    snap.players[0].id = 0;
+    snap.players[0].weapon = WEAPON_SHOTGUN;
+    snap.players[1].id = 1;
+    snap.players[1].weapon = WEAPON_SHOTGUN;
+    snap.yours.id = 0;
+    snap.yours.owned = 1u << WEAPON_PISTOL;
+    snap.yours.ammo[WEAPON_PISTOL] = 9;
+
+    snapshot_apply(&client, &snap);
+
+    TEST_ASSERT_FALSE(client.players[0].active);
+    TEST_ASSERT_TRUE(client.players[1].active);
+    TEST_ASSERT_EQUAL_INT(WEAPON_SHOTGUN, client.players[1].weapons.current);
+
+    snap.players[0].weapon = WEAPON_PISTOL;
+    snapshot_apply(&client, &snap);
+
+    TEST_ASSERT_TRUE(client.players[0].active);
+    TEST_ASSERT_EQUAL_INT(9, client.players[0].weapons.weapons[WEAPON_PISTOL].ammo);
 }
 
 /* The client holds as many enemies and events as the snapshot says, and never
@@ -454,7 +544,7 @@ static void test_set_events_keeps_the_first_that_fit(void)
         many[i].y = 0.5f;
     }
     event_push(&server.events, EV_SHOT, 0, 1.5f, 1.5f);
-    snapshot_write(&snap, &server, 0);
+    snapshot_write(&snap, &server, 0, 0);
 
     snapshot_set_events(&snap, many, MAX_EVENTS + 5);
     TEST_ASSERT_EQUAL_UINT8(MAX_EVENTS, snap.event_count);
@@ -591,7 +681,7 @@ static void test_apply_characters_puts_the_players_and_enemies_alone(void)
     server.items.items[0].active = 0;
     server.doors.doors[0].openness = 1.0f;
     event_push(&server.events, EV_SHOT, 0, 1.5f, 1.5f);
-    snapshot_write(&snap, &server, 0);
+    snapshot_write(&snap, &server, 0, 0);
     event_push(&client.events, EV_DOOR, 0, 4.5f, 2.5f);
 
     snapshot_apply_characters(&client, &snap);
@@ -640,7 +730,7 @@ static size_t encode_server(void)
     TEST_ASSERT_EQUAL_INT(0, world_load(&server, MAP_PATH));
     add_players(&server, 2);
     event_push(&server.events, EV_SHOT, 0, 1.5f, 1.5f);
-    snapshot_write(&snap, &server, 0);
+    snapshot_write(&snap, &server, 0, 0);
     return snapshot_encode(&snap, wire);
 }
 
@@ -709,6 +799,37 @@ static void test_decode_rejects_an_index_out_of_range(void)
     size = encode_server();
     wire[events + offsetof(NetEvent, kind)] = EV_COUNT;
     assert_rejected(size);
+
+    size = encode_server();
+    wire[offsetof(MsgSnapshot, yours.id)] = MAX_PLAYERS;
+    assert_rejected(size);
+}
+
+/* The receiver's weapons have to add up: no bit past the last weapon, and the
+ * one the receiver holds among those they own. Someone else's weapon in hand
+ * is not held to `yours` — it is not theirs. encode_server() addresses the
+ * snapshot to player 0, the first entry, who owns the pistol alone. */
+static void test_decode_rejects_the_receiver_holding_a_weapon_not_owned(void)
+{
+    const size_t owned = offsetof(MsgSnapshot, yours.owned);
+    const size_t players = offsetof(MsgSnapshot, players);
+    size_t size;
+
+    size = encode_server();
+    wire[players + offsetof(NetPlayer, weapon)] = WEAPON_SHOTGUN;
+    assert_rejected(size);
+
+    size = encode_server();
+    wire[owned] = 0;
+    assert_rejected(size);
+
+    size = encode_server();
+    wire[owned] |= 1u << WEAPON_COUNT;
+    assert_rejected(size);
+
+    size = encode_server();
+    wire[players + sizeof(NetPlayer) + offsetof(NetPlayer, weapon)] = WEAPON_SHOTGUN;
+    TEST_ASSERT_EQUAL_INT(0, snapshot_decode(&decoded, wire, size));
 }
 
 static void test_encode_refuses_a_count_past_its_limit(void)
@@ -734,9 +855,11 @@ int main(void)
 {
     UNITY_BEGIN();
     RUN_TEST(test_a_full_snapshot_fits_in_one_packet);
-    RUN_TEST(test_a_deathmatch_snapshot_is_about_390_bytes);
+    RUN_TEST(test_a_deathmatch_snapshot_is_about_400_bytes);
     RUN_TEST(test_each_list_is_cut_to_its_count);
     RUN_TEST(test_players_arrive_where_the_server_has_them);
+    RUN_TEST(test_the_receivers_weapons_arrive_whole);
+    RUN_TEST(test_of_the_others_only_the_weapon_in_hand_arrives);
     RUN_TEST(test_a_free_slot_stays_free_and_ids_hold);
     RUN_TEST(test_a_player_the_snapshot_leaves_out_has_left);
     RUN_TEST(test_a_new_player_starts_from_player_init);
@@ -745,6 +868,7 @@ int main(void)
     RUN_TEST(test_values_out_of_range_are_pinned);
     RUN_TEST(test_fields_with_nothing_behind_them_are_zero);
     RUN_TEST(test_apply_passes_over_a_player_it_cannot_index);
+    RUN_TEST(test_apply_passes_over_the_receiver_holding_a_weapon_not_owned);
     RUN_TEST(test_apply_takes_its_counts_from_the_snapshot);
     RUN_TEST(test_enemies_arrive_where_the_server_has_them);
     RUN_TEST(test_enemies_the_client_lacks_are_spawned);
@@ -764,6 +888,7 @@ int main(void)
     RUN_TEST(test_decode_rejects_a_size_that_does_not_match_the_counts);
     RUN_TEST(test_decode_rejects_a_count_past_its_limit);
     RUN_TEST(test_decode_rejects_an_index_out_of_range);
+    RUN_TEST(test_decode_rejects_the_receiver_holding_a_weapon_not_owned);
     RUN_TEST(test_encode_refuses_a_count_past_its_limit);
     RUN_TEST(test_the_platform_is_little_endian);
     return UNITY_END();

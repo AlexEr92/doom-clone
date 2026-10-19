@@ -22,6 +22,17 @@ static uint8_t quantize_openness(float openness)
     return (uint8_t)(clampf(openness, 0.0f, 1.0f) * 255.0f + 0.5f);
 }
 
+/* A player entry snapshot_apply() can take as it is: the id and the weapon
+ * are indices in range, and the receiver holds a weapon `yours` says they own
+ * — the server never switches to one not picked up. */
+static int player_valid(const NetPlayer *np, const NetWeapons *yours)
+{
+    if (np->id >= MAX_PLAYERS || np->weapon >= WEAPON_COUNT) {
+        return 0;
+    }
+    return np->id != yours->id || ((yours->owned >> np->weapon) & 1u);
+}
+
 /* Bytes on the wire of a snapshot with these counts. */
 static size_t wire_size(size_t players, size_t enemies, size_t events)
 {
@@ -29,12 +40,24 @@ static size_t wire_size(size_t players, size_t enemies, size_t events)
            enemies * sizeof(NetEnemy) + sizeof(uint64_t) + MAX_DOORS + events * sizeof(NetEvent);
 }
 
-void snapshot_write(MsgSnapshot *s, const World *w, uint32_t last_input_tick)
+void snapshot_write(MsgSnapshot *s, const World *w, int receiver, uint32_t last_input_tick)
 {
     memset(s, 0, sizeof(*s));
     s->h.type = MSG_SNAPSHOT;
     s->tick = w->tick;
     s->last_input_tick = last_input_tick;
+
+    s->yours.id = (uint8_t)receiver;
+    if (receiver >= 0 && receiver < MAX_PLAYERS) {
+        const WeaponSystem *ws = &w->players[receiver].weapons;
+        for (int k = 0; k < WEAPON_COUNT; k++) {
+            const Weapon *wp = &ws->weapons[k];
+            if (wp->owned) {
+                s->yours.owned |= (uint8_t)(1u << k);
+            }
+            s->yours.ammo[k] = (uint16_t)clampi(wp->ammo, 0, UINT16_MAX);
+        }
+    }
 
     int n = 0;
     for (int i = 0; i < w->player_count; i++) {
@@ -43,7 +66,6 @@ void snapshot_write(MsgSnapshot *s, const World *w, uint32_t last_input_tick)
             continue;
         }
         const WeaponSystem *ws = &p->weapons;
-        int ammo = ws->weapons[ws->current].ammo;
         NetPlayer *np = &s->players[n++];
         np->id = (uint8_t)i;
         np->weapon = (uint8_t)ws->current;
@@ -53,7 +75,6 @@ void snapshot_write(MsgSnapshot *s, const World *w, uint32_t last_input_tick)
         np->angle = p->angle;
         np->hp = quantize_points(p->hp);
         np->armor = quantize_points(p->armor);
-        np->ammo = (uint16_t)(ammo < 0 ? 0 : ammo > UINT16_MAX ? UINT16_MAX : ammo);
     }
     s->player_count = (uint8_t)n;
 
@@ -192,7 +213,7 @@ void snapshot_apply_characters(World *w, const MsgSnapshot *s)
     int listed[MAX_PLAYERS] = {0};
     for (int i = 0; i < s->player_count && i < MAX_PLAYERS; i++) {
         const NetPlayer *np = &s->players[i];
-        if (np->id >= MAX_PLAYERS || np->weapon >= WEAPON_COUNT) {
+        if (!player_valid(np, &s->yours)) {
             continue;
         }
         PlayerState *p = &w->players[np->id];
@@ -207,10 +228,16 @@ void snapshot_apply_characters(World *w, const MsgSnapshot *s)
         p->hp = (float)np->hp;
         p->armor = (float)np->armor;
         p->weapons.current = np->weapon;
-        p->weapons.weapons[np->weapon].ammo = np->ammo;
         listed[np->id] = 1;
         if (np->id >= w->player_count) {
             w->player_count = np->id + 1;
+        }
+    }
+    if (s->yours.id < MAX_PLAYERS && listed[s->yours.id]) {
+        WeaponSystem *ws = &w->players[s->yours.id].weapons;
+        for (int k = 0; k < WEAPON_COUNT; k++) {
+            ws->weapons[k].owned = (s->yours.owned >> k) & 1u;
+            ws->weapons[k].ammo = s->yours.ammo[k];
         }
     }
     /* Freed as world_remove_player() frees a slot, but without letting go of
@@ -271,8 +298,11 @@ size_t snapshot_encode(const MsgSnapshot *s, void *out)
  * hands on as an enum is in range. */
 static int snapshot_valid(const MsgSnapshot *s)
 {
+    if (s->yours.id >= MAX_PLAYERS || (s->yours.owned >> WEAPON_COUNT) != 0) {
+        return 0;
+    }
     for (int i = 0; i < s->player_count; i++) {
-        if (s->players[i].id >= MAX_PLAYERS || s->players[i].weapon >= WEAPON_COUNT) {
+        if (!player_valid(&s->players[i], &s->yours)) {
             return 0;
         }
     }
