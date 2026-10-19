@@ -132,6 +132,7 @@
 | [feat-003](feat-003-remote-shot-animation.md) | Выстрел чужого игрока и врага в снапшоте: `ANIM_SHOOT` по сети | `net_protocol.c/.h` |
 | [feat-004](feat-004-player-chooses-skin.md) | Игрок сам выбирает персонажа из свободных: экран выбора после входа | `net_protocol.h`, `net_server.c`, `game.c`, `sprite.c` |
 | [feat-005](feat-005-smooth-interp-after-long-gap.md) | Возврат чужого игрока после 3+ потерянных снапшотов подряд без ступеньки | `net_interp.c/.h`, `test_net_interp.c` |
+| [feat-006](feat-006-deathmatch-cover.md) | Укрытия на DM-карте: ящики-кубы (`C`) и твёрдые бочки (`B`), графика по промптам | `map.c`, `player.c`, `raycast_world.c`, `assets.c`, `prepare_sheet.c`, `dm1.txt` |
 | [test-002](test-002-fps-with-network.md) | Замер FPS клиента с работающей сетью | `SKILL.md`, `netdriver.sh` |
 | [test-004](test-004-replay-compares-events.md) | `replay_test.c` сравнивает события двух прогонов по тикам | `tests/replay_test.c` |
 
