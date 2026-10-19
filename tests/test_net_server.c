@@ -327,7 +327,7 @@ static void test_second_join_changes_nothing(void)
     TEST_ASSERT_FALSE(server_world(server)->players[1].active);
 }
 
-/* Two players never start on one cell: each spawns at the cell of its id. */
+/* Two players never start on one cell: the second comes in away from the first. */
 static void test_joined_players_spawn_apart(void)
 {
     bot_joined();
@@ -736,7 +736,7 @@ static void run_ten_clients(int enemies, const char *mode, size_t max_bytes_per_
     World *w = server_world(server);
     w->enemies.count = 0;
     for (int i = 0; i < enemies; i++) {
-        int col = i % 14, row = i / 14; /* rows 3-5, clear of the players in row 1 */
+        int col = i % 14, row = i / 14; /* rows 3-5, before any player is in */
         enemy_spawn(&w->enemies, 1.5f + (float)col, 3.5f + (float)row, ENEMY_IMP);
     }
     for (int i = 0; i < MAX_PLAYERS; i++) {

@@ -1,5 +1,7 @@
 #include "world.h"
+#include "raycast_world.h"
 #include "weapon.h"
+#include <math.h>
 #include <string.h>
 
 /* The button that selects each weapon: key 1 the first in WeaponType, and on. */
@@ -22,6 +24,7 @@ int world_load(World *w, const char *map_path)
     door_list_init(&w->doors);
     event_queue_clear(&w->events);
     w->tick = 0;
+    memset(w->spawned_at, 0, sizeof(w->spawned_at));
 
     /* Barrels are on the map too, but they are decor with no state of their
      * own: the client puts them back on the screen straight from the map. */
@@ -46,37 +49,84 @@ int world_load(World *w, const char *map_path)
     return 0;
 }
 
-/* Where the player joining at `spawn_index` starts out. The map knows a single
- * start cell and nothing else until task 09-01 gives it a spawn pool, so index
- * 0 is that cell and the rest are the free cells that follow it in scan order:
- * enough to put ten players on a map without stacking them on one another.
- * An index past the last free cell falls back to the start. */
-static void world_spawn_cell(const World *w, int spawn_index, int *cx, int *cy)
+/* world_pick_spawn() scores a point in cells of distance. No two points on a
+ * map lie farther apart than SPAWN_FAR, and no enemy's penalty comes to more,
+ * so the one for being seen outweighs every other term together: a distance,
+ * MAX_ENEMIES enemies and a recent spawn. */
+#define SPAWN_FAR ((float)(MAP_MAX_W + MAP_MAX_H))
+#define SPAWN_SEEN_PENALTY (SPAWN_FAR * (float)(MAX_ENEMIES + 3))
+#define SPAWN_RECENT_PENALTY 8.0f /* cells */
+#define SPAWN_RECENT_TICKS (10 * TICK_RATE)
+
+/* A player who can be hurt and can shoot back: the test the enemies and the
+ * items make as well. */
+static int is_live(const PlayerState *p)
 {
-    *cx = w->map.start_x;
-    *cy = w->map.start_y;
-    if (spawn_index <= 0) {
-        return;
-    }
-    int seen = 0;
-    for (int y = 0; y < w->map.h; y++) {
-        for (int x = 0; x < w->map.w; x++) {
-            if (map_cell(&w->map, x, y) != 0) {
-                continue;
-            }
-            if (x == w->map.start_x && y == w->map.start_y) {
-                continue;
-            }
-            if (++seen == spawn_index) {
-                *cx = x;
-                *cy = y;
-                return;
-            }
-        }
-    }
+    return p->active && p->alive && p->hp > 0.0f;
 }
 
-int world_add_player(World *w, int spawn_index)
+/* The score of map.spawns[i] for `player_id`, and in *taken whether a live
+ * player stands on it, close enough that whoever came in there would be
+ * inside them. */
+static float spawn_score(const World *w, int player_id, int i, int *taken)
+{
+    const SpawnPoint *sp = &w->map.spawns[i];
+    float nearest = SPAWN_FAR;
+    int seen = 0;
+    for (int k = 0; k < w->player_count; k++) {
+        const PlayerState *p = &w->players[k];
+        if (k == player_id || !is_live(p)) {
+            continue;
+        }
+        float dx = p->x - sp->x, dy = p->y - sp->y;
+        float d = sqrtf(dx * dx + dy * dy);
+        if (d < nearest) {
+            nearest = d;
+        }
+        if (!seen && world_line_of_sight(&w->map, &w->doors, p->x, p->y, sp->x, sp->y)) {
+            seen = 1;
+        }
+    }
+    *taken = nearest < 2.0f * PLAYER_RADIUS;
+    float penalty = seen ? SPAWN_SEEN_PENALTY : 0.0f;
+    for (int k = 0; k < w->enemies.count; k++) {
+        const Enemy *e = &w->enemies.items[k];
+        if (e->state == ESTATE_DEAD) {
+            continue;
+        }
+        float dx = e->x - sp->x, dy = e->y - sp->y;
+        float into = enemy_def(e->type)->detect_range - sqrtf(dx * dx + dy * dy);
+        if (into > 0.0f) {
+            penalty += into < SPAWN_FAR ? into : SPAWN_FAR;
+        }
+    }
+    if (player_id >= 0 && player_id < MAX_PLAYERS) {
+        uint32_t at = w->spawned_at[player_id][i];
+        if (at != 0 && w->tick - (at - 1) < SPAWN_RECENT_TICKS) {
+            penalty += SPAWN_RECENT_PENALTY;
+        }
+    }
+    return nearest - penalty;
+}
+
+const SpawnPoint *world_pick_spawn(const World *w, int player_id)
+{
+    int best = -1, best_taken = 0;
+    float best_score = 0.0f;
+    for (int i = 0; i < w->map.spawn_count; i++) {
+        int taken;
+        float score = spawn_score(w, player_id, i, &taken);
+        int better = taken == best_taken ? score > best_score : !taken;
+        if (best < 0 || better) {
+            best = i;
+            best_taken = taken;
+            best_score = score;
+        }
+    }
+    return best < 0 ? NULL : &w->map.spawns[best];
+}
+
+int world_add_player(World *w, const SpawnPoint *at)
 {
     int id = -1;
     for (int i = 0; i < w->player_count; i++) {
@@ -92,10 +142,20 @@ int world_add_player(World *w, int spawn_index)
         id = w->player_count++;
     }
 
-    int cx, cy;
-    world_spawn_cell(w, spawn_index, &cx, &cy);
+    /* Whoever had the slot before took their spawns with them. */
+    memset(w->spawned_at[id], 0, sizeof(w->spawned_at[id]));
+    const SpawnPoint *sp = at;
+    if (!sp) {
+        sp = world_pick_spawn(w, id);
+        if (sp) {
+            w->spawned_at[id][sp - w->map.spawns] = w->tick + 1;
+        } else {
+            sp = &w->map.start;
+        }
+    }
     PlayerState *p = &w->players[id];
-    player_init(p, cx, cy);
+    player_init(p, (int)sp->x, (int)sp->y);
+    p->angle = sp->angle;
     p->id = (uint8_t)id;
     return id;
 }

@@ -118,15 +118,12 @@ void server_destroy(Server *s)
     free(s);
 }
 
-/* world_add_player() takes the lowest free slot, and the spawn cell goes by
- * the same number: two players in the world never start on one cell. */
+/* The one way into the game, for a client over the network and the local
+ * player of a listen-server alike: the lowest free slot, at the spawn point
+ * world_pick_spawn() finds safest for whoever is in the world now. */
 static int server_add_player(Server *s)
 {
-    int slot = 0;
-    while (slot < MAX_PLAYERS && s->world.players[slot].active) {
-        slot++;
-    }
-    return world_add_player(&s->world, slot);
+    return world_add_player(&s->world, NULL);
 }
 
 int server_add_local_player(Server *s)

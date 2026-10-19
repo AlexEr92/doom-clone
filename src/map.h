@@ -1,6 +1,7 @@
 #ifndef MAP_H
 #define MAP_H
 
+#include "config.h"
 #include "utils.h"
 
 #define MAX_MAP_SPRITES 64
@@ -10,10 +11,22 @@ typedef struct {
     char marker; /* 'E','S','B','M','A','R' */
 } MapSpriteSpawn;
 
+/* Where a player comes into the world: the centre of a free cell, and the way
+ * they face on arrival. */
+typedef struct {
+    float x, y;
+    float angle; /* radians, as PlayerState.angle */
+} SpawnPoint;
+
 typedef struct Map {
     int cells[MAP_MAX_H][MAP_MAX_W];
     int w, h;
-    int start_x, start_y;
+    SpawnPoint start; /* 'P': where a solo game begins, facing -X */
+    /* 's': where a multiplayer game puts players, chosen afresh at every
+     * spawn by world_pick_spawn(). A point belongs to the map, not to a
+     * player. A map with no 's' gets a pool made from its free cells. */
+    SpawnPoint spawns[MAX_SPAWNS];
+    int spawn_count;
     MapSpriteSpawn sprites[MAX_MAP_SPRITES];
     int sprite_count;
 } Map;

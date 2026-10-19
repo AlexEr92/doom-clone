@@ -235,8 +235,10 @@ width of the whole image), addressed through `texture_frame()` (`assets.h`).
 ### Map format
 
 ASCII grid in `assets/maps/level1.txt`, 24×24 (`MAP_MAX_W/H` in `utils.h`):
-`#` wall, `D` door, `P` player start, `.` empty, `E`/`S` enemies, `B`
-barrel, `M` medkit, `A` ammo, `R` armor.
+`#` wall, `D` door, `P` solo start, `s` multiplayer spawn point, `.` empty,
+`E`/`S` enemies, `B` barrel, `M` medkit, `A` ammo, `R` armor. A map with no
+`s` gets a pool of 20 from `map_load()`; `world_pick_spawn()` picks a point
+from it at every join.
 
 ## Ongoing work
 

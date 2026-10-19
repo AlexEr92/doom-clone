@@ -113,7 +113,7 @@ static void run_replay(World *w, unsigned seed)
     TEST_ASSERT_EQUAL_INT(0, world_load(w, MAP_PATH));
     /* A loaded world is empty of players; the one this run drives joins at the
      * map's start cell and takes id 0, which is the input's index. */
-    TEST_ASSERT_EQUAL_INT(0, world_add_player(w, 0));
+    TEST_ASSERT_EQUAL_INT(0, world_add_player(w, &w->map.start));
     for (uint32_t t = 0; t < REPLAY_TICKS; t++) {
         PlayerInput in = scripted_input(t);
         world_step(w, &in, 1, FIXED_DT);
@@ -255,7 +255,7 @@ static void test_the_scripted_run_exercises_the_world(void)
 static void test_a_tick_clears_the_event_queue_it_fills(void)
 {
     TEST_ASSERT_EQUAL_INT(0, world_load(&first, MAP_PATH));
-    TEST_ASSERT_EQUAL_INT(0, world_add_player(&first, 0));
+    TEST_ASSERT_EQUAL_INT(0, world_add_player(&first, &first.map.start));
 
     PlayerInput in = scripted_input(0);
     in.buttons = BTN_FIRE;
@@ -272,7 +272,7 @@ static void test_a_tick_clears_the_event_queue_it_fills(void)
 static void test_a_tick_without_input_keeps_the_facing(void)
 {
     TEST_ASSERT_EQUAL_INT(0, world_load(&first, MAP_PATH));
-    TEST_ASSERT_EQUAL_INT(0, world_add_player(&first, 0));
+    TEST_ASSERT_EQUAL_INT(0, world_add_player(&first, &first.map.start));
     float angle = first.players[0].angle;
     float x = first.players[0].x, y = first.players[0].y;
 
@@ -292,7 +292,7 @@ static void test_a_weapon_key_takes_only_an_owned_weapon(void)
     static const uint16_t keys[WEAPON_COUNT] = {BTN_WEAPON1, BTN_WEAPON2, BTN_WEAPON3, BTN_WEAPON4,
                                                 BTN_WEAPON5};
     TEST_ASSERT_EQUAL_INT(0, world_load(&first, MAP_PATH));
-    TEST_ASSERT_EQUAL_INT(0, world_add_player(&first, 0));
+    TEST_ASSERT_EQUAL_INT(0, world_add_player(&first, &first.map.start));
     PlayerState *p = &first.players[0];
     PlayerInput in = {0, 0, p->angle};
 

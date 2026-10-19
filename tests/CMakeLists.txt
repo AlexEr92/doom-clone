@@ -103,6 +103,8 @@ doom_test(audio SRC audio.c LINK ${TEST_MIXER_LIBS})
 # симуляцию; графики в ней нет — спрайты строит клиент.
 doom_test(replay FILE replay_test.c
     SRC world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)
+# Кто и где входит в мир: старт solo, пул точек спавна и выбор точки из него.
+doom_test(world SRC world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)
 # ---- Ручные инструменты: tests/manual/ ----
 # Их запускают руками, а «работает или нет» по их выводу решает человек или
 # агент, поэтому в ctest их нет. Граница проведена папкой: всё, что лежит в
@@ -132,6 +134,9 @@ endfunction()
 # состояниях, до которых в игре трудно дойти: ступени здоровья, попадание,
 # смерть, каждый ствол в руках. Сети не нужно, поэтому он вне блока ниже.
 doom_manual(hud_shot SRC hud.c assets.c player.c weapon.c raycast_world.c enemy.c map.c door.c)
+# Пул точек спавна карты: точки на сетке, куда каждая смотрит, какие видят
+# друг друга, и куда входят игроки один за другим. Тоже без сети.
+doom_manual(spawn_view SRC world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)
 
 if(ENABLE_MULTIPLAYER)
     # Сам ENet из vendor/enet/: заголовки и библиотека — один и тот же ENet.

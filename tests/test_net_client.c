@@ -40,9 +40,10 @@
 
 #define MAX_CLIENTS (MAX_PLAYERS + 1)
 
-/* The second player starts beside the first, right before a door. Armor lies
- * two steps south of the first, and an imp stands out of reach of both, so
- * that it stays put until it is shot.
+/* The first player starts on the 'P', two steps short of a door, and the
+ * others wherever world_pick_spawn() puts them. Armor lies two steps south of
+ * the first, and an imp stands out of reach of both, so that it stays put
+ * until it is shot.
  *
  *   0123456789012345
  * 0 ################
@@ -433,6 +434,10 @@ static void test_door_opened_by_one_opens_for_the_other(void)
     Client *a = client_joined();
     Client *b = client_joined();
     TEST_ASSERT_EQUAL_INT(DOOR_CLOSED, client_world(a)->doors.doors[0].state);
+    /* b comes in far from the door: put them in front of it. */
+    PlayerState *at_door = &server_world(server)->players[1];
+    at_door->x = 2.5f;
+    at_door->y = 1.5f;
     send_input(b, BTN_USE, ANGLE_EAST);
     send_input(b, 0, ANGLE_EAST);
 

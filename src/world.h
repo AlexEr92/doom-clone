@@ -26,6 +26,9 @@ typedef struct World {
     DoorList doors;
     EventQueue events; /* what the last tick produced, drained by the client */
     uint32_t tick;     /* ticks since world_load() */
+    /* The tick each player last came in at each of map.spawns, plus one: 0 is
+     * never. Read by world_pick_spawn(), cleared for whoever takes a slot. */
+    uint32_t spawned_at[MAX_PLAYERS][MAX_SPAWNS];
     int loaded;
 } World;
 
@@ -37,10 +40,29 @@ typedef struct World {
  * is the caller's business, and a dedicated server never joins at all. */
 int world_load(World *w, const char *map_path);
 
-/* Put a player on the map at spawn point `spawn_index` and return their id,
- * or -1 when every slot is taken. The id is the index into w->players and is
- * what an input in world_step() is matched against. */
-int world_add_player(World *w, int spawn_index);
+/* Put a player on the map at `at` and return their id, or -1 when every slot
+ * is taken. The id is the index into w->players and is what an input in
+ * world_step() is matched against. `at` NULL is a multiplayer join: the point
+ * is world_pick_spawn()'s, and the map's start when the map has no pool. */
+int world_add_player(World *w, const SpawnPoint *at);
+
+/* The safest of map.spawns for player `player_id` to come in at, or NULL for a
+ * map without any. A point a live player stands on is chosen only when every
+ * point is taken. Of the rest each is scored and the highest wins, the first
+ * of equals; the player themselves count for nothing, alive or not. The score
+ * is the distance to the nearest live player, in cells, less
+ *   - if any live player has a line of sight to the point: more than
+ *     everything else together, so that a point out of sight always wins
+ *     over one in somebody's — and among those in sight, distance decides,
+ *     not how many see it: one player a step away is worse than two across
+ *     the map;
+ *   - for every live enemy within its detect range of it: as far as the
+ *     point is inside that range;
+ *   - if this player came in at it less than 10 s ago: 8, so that a player is
+ *     not sent back where somebody may be waiting while another point is
+ *     about as good.
+ * Reads no clock and no rand(): the same world gives the same point. */
+const SpawnPoint *world_pick_spawn(const World *w, int player_id);
 
 /* Take player `id` out of the world. The slot is marked free rather than
  * removed, so the ids of everyone else keep meaning what they meant, and the

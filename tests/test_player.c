@@ -29,6 +29,7 @@ void weapon_system_init(WeaponSystem *ws)
 
 #define DOOR_CELL_X 4
 #define DOOR_CELL_Y 3
+#define START_CELL 1 /* the player starts in cell (1, 1) */
 
 static Map map;
 static DoorList doors;
@@ -57,8 +58,6 @@ static void build_map(Map *m)
     }
     m->cells[DOOR_CELL_Y][DOOR_CELL_X] = 2;
     m->cells[5][4] = 1;
-    m->start_x = 1;
-    m->start_y = 1;
 }
 
 /* The lone player is passed the array they live in — themselves and nobody
@@ -82,7 +81,7 @@ void setUp(void)
     door_list_init(&doors);
     door_discover(&doors, &map);
     weapon_system_init_calls = 0;
-    player_init(&player, map.start_x, map.start_y);
+    player_init(&player, START_CELL, START_CELL);
     memset(&in, 0, sizeof(in));
     in.angle = player.angle;
 }

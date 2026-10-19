@@ -75,6 +75,10 @@
 _Static_assert(MAX_SPRITES >= MAX_ENEMIES + MAX_ITEMS + MAX_PLAYERS - 1,
                "MAX_SPRITES cannot hold one frame's worth of entities");
 
+/* With as many spawn points as players, the last one in has no choice left
+ * but the point next to whoever came before. */
+_Static_assert(MAX_SPAWNS >= 2 * MAX_PLAYERS, "a map needs twice as many spawn points as players");
+
 /* A player's skin is their id. Ids are unique among the players in a match and
  * the same on every client, so no two players share a character and each one
  * looks the same everywhere — while there is a skin for every slot. */

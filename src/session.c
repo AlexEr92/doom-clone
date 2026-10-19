@@ -48,7 +48,7 @@ static int solo_restart(void *ctx)
                 s->map_path);
         return -1;
     }
-    s->world.local_player = world_add_player(&s->world, 0);
+    s->world.local_player = world_add_player(&s->world, &s->world.map.start);
     return 0;
 }
 

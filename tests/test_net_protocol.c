@@ -78,7 +78,7 @@ static size_t send_snapshot(uint32_t last_input_tick)
 static void add_players(World *w, int n)
 {
     for (int i = 0; i < n; i++) {
-        TEST_ASSERT_EQUAL_INT(i, world_add_player(w, i));
+        TEST_ASSERT_EQUAL_INT(i, world_add_player(w, NULL));
     }
 }
 
