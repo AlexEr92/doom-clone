@@ -127,6 +127,7 @@ build/doom-clone --host                        # instead of the above: a server 
 build/tests/net_bot look [--rate 3]            # the world as the server has it; --rate: ticks, snapshots, KB/s
 build/tests/net_bot run go 3.5 12.5 kill 1 kill 2 go 10.5 12.5 face 10.5 11 use
 build/tests/net_bot swarm 9 60                 # nine players walking and firing for 60 s
+build/tests/net_bot watch 0 10                 # how player 0 moves on a client's screen, frame by frame
 ```
 
 `--port N` moves the server and everyone joining it off 27015 (`net_bot
@@ -142,6 +143,14 @@ the run with status 1 and names it, and the world is printed at the end.
 `look` prints one line an entity (`player`, `enemy`, `door`, `item`, and
 `me` — the bot's own id), so `grep`/`awk` assert on it. `swarm` prints a
 line a second: how many are in, what one player receives and sends.
+`watch ID [SECONDS]` stands still at 60 frames a second and prints two
+lines on player ID, `view` (what the game draws, interpolated) and `world`
+(the snapshots as they come): frames moved, average step, jerks — frames
+whose step differs from the last by over half the average — and the most a
+frame turned them. Smooth motion is `view` moving in nearly every frame
+with jerks only where the player starts or stops; give it a moving target
+with `run go …` from another bot, and clear the enemies first or they kill
+it.
 
 Two clients with windows go on **two Xvfb displays**, not on `:99`: input
 goes to the focused window and there is one focus a display, and

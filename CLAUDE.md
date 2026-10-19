@@ -67,8 +67,10 @@ in one process (`test_net_transport.c`), and its timeouts by moving ENet's
 clock with `enet_time_set()` rather than by waiting; the server likewise,
 against bots that speak the protocol by hand (`test_net_server.c`); the
 client against both the server and a stand-in that sends what the server
-never does (`test_net_client.c`); the launch modes through the
-`GameSession` table, as the frame loop drives them (`test_session.c`).
+never does (`test_net_client.c`); the interpolation between snapshots on
+times of its own, with no sockets (`test_net_interp.c`); the launch modes
+through the `GameSession` table, as the frame loop drives them
+(`test_session.c`).
 Everything at the top of `tests/` runs under CTest; `tests/manual/` holds
 what is run by hand — `net_echo`, `net_bot` — built into `build/tests/`
 with the game so an API change breaks it rather than leaving it stale. The
@@ -197,11 +199,14 @@ on it: `session_open()` (`session.h`) hands it a `GameSession`. Alone it is
 `world_step()`; with `--host`, `server_tick()` with the local player's
 input; with `--connect <addr>` the tick sends the `PlayerInput`, and
 `poll()`, once a frame in every state, puts the newest snapshot into the
-client's own `World` as it is. A world shared with other players goes on
-ticking under the menu and the pause. `--host --dedicated` runs no frame
-loop at all: no window, no assets, no sound, SDL for its timer alone. The
-command line is `options.c`, which reaches no other module and is tested on
-its own.
+client's own `World` as it is. The players and enemies a frame draws come
+from `view()`: the world itself, but in a client a copy with everyone else
+`INTERP_DELAY` in the past, between two snapshots (`net_interp.h`); the
+camera, the walls and the HUD stay with the world. A world shared with
+other players goes on ticking under the menu and the pause. `--host
+--dedicated` runs no frame loop at all: no window, no assets, no sound, SDL
+for its timer alone. The command line is `options.c`, which reaches no
+other module and is tested on its own.
 
 ### Colour packing — easy to break silently
 

@@ -162,6 +162,33 @@ void snapshot_apply(World *w, const MsgSnapshot *s)
 {
     w->tick = s->tick;
 
+    snapshot_apply_characters(w, s);
+
+    for (int i = 0; i < w->items.count; i++) {
+        w->items.items[i].active = (int)((s->items_alive >> i) & 1u);
+    }
+
+    for (int i = 0; i < w->doors.count; i++) {
+        Door *d = &w->doors.doors[i];
+        float openness = (float)s->doors[i] / 255.0f;
+        d->state = door_state_from(d, openness);
+        d->openness = openness;
+    }
+
+    int events = s->event_count < MAX_EVENTS ? s->event_count : MAX_EVENTS;
+    for (int i = 0; i < events; i++) {
+        const NetEvent *ne = &s->events[i];
+        GameEvent *ev = &w->events.items[i];
+        ev->kind = ne->kind;
+        ev->actor = ne->actor;
+        ev->x = ne->x;
+        ev->y = ne->y;
+    }
+    w->events.count = events;
+}
+
+void snapshot_apply_characters(World *w, const MsgSnapshot *s)
+{
     int listed[MAX_PLAYERS] = {0};
     for (int i = 0; i < s->player_count && i < MAX_PLAYERS; i++) {
         const NetPlayer *np = &s->players[i];
@@ -209,28 +236,6 @@ void snapshot_apply(World *w, const MsgSnapshot *s)
         e->y = ne->y;
     }
     w->enemies.count = enemies;
-
-    for (int i = 0; i < w->items.count; i++) {
-        w->items.items[i].active = (int)((s->items_alive >> i) & 1u);
-    }
-
-    for (int i = 0; i < w->doors.count; i++) {
-        Door *d = &w->doors.doors[i];
-        float openness = (float)s->doors[i] / 255.0f;
-        d->state = door_state_from(d, openness);
-        d->openness = openness;
-    }
-
-    int events = s->event_count < MAX_EVENTS ? s->event_count : MAX_EVENTS;
-    for (int i = 0; i < events; i++) {
-        const NetEvent *ne = &s->events[i];
-        GameEvent *ev = &w->events.items[i];
-        ev->kind = ne->kind;
-        ev->actor = ne->actor;
-        ev->x = ne->x;
-        ev->y = ne->y;
-    }
-    w->events.count = events;
 }
 
 size_t snapshot_encode(const MsgSnapshot *s, void *out)

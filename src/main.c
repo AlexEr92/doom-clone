@@ -345,8 +345,12 @@ int main(int argc, char **argv)
              * not paused at all: its world goes on under the overlay. */
             int stopped = game.state == GSTATE_PAUSED && !sess.shared;
             float anim_dt = stopped ? 0.0f : (float)frame_time;
-            sprite_anim_update(&anim, world, anim_dt);
-            sprites_build_from_world(&sprites, world, world->local_player, &anim, &assets);
+            /* Characters as the session shows them, which for a network
+             * client is a moment behind the newest snapshot; the camera, the
+             * walls and the HUD stay with the world itself. */
+            const World *view = sess.view(sess.ctx);
+            sprite_anim_update(&anim, view, anim_dt);
+            sprites_build_from_world(&sprites, view, view->local_player, &anim, &assets);
             sprite_render(&eng.fb, &sprites, me, &cam, &assets);
             const WeaponSystem *ws = &me->weapons;
             hud_draw_weapon(&eng.fb, &assets.weapon_fp[ws->current], ws->weapons[ws->current].anim);

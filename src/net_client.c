@@ -1,4 +1,5 @@
 #include "net_client.h"
+#include "net_interp.h"
 #include "net_protocol.h"
 #include "net_transport.h"
 #include "world.h"
@@ -17,15 +18,25 @@ struct Client {
     ClientState state;
     char reason[64];         /* empty while nothing has gone wrong */
     char name[NET_NAME_MAX]; /* what MSG_JOIN names the player */
-    uint32_t connect_time;   /* net_time() at client_connect() */
+    uint32_t connect_time;   /* net_time() at client_connect(), where client_clock() starts */
+    double poll_time;        /* client_clock() at the start of the latest client_poll() */
     int linked;              /* the transport connection is up */
     int accepted;            /* MSG_ACCEPT came: the map is loaded, local_player set */
     int has_world;           /* ... and a snapshot has been put into it */
     uint32_t input_tick;     /* the number the next input goes out with */
     ClientStats stats;
     World world;
+    World view; /* what client_view() made of the world last */
+    SnapshotBuffer interp;
     MsgSnapshot snapshot;
 };
+
+/* Seconds since client_connect(), on ENet's clock: a test that moves it moves
+ * this. Counted from the connection, so that the clock wrapping does not. */
+static double client_clock(const Client *c)
+{
+    return (double)(uint32_t)(net_time() - c->connect_time) / 1000.0;
+}
 
 Client *client_create(void)
 {
@@ -78,6 +89,7 @@ int client_connect(Client *c, const char *addr, uint16_t port, const char *name)
     c->has_world = 0;
     c->input_tick = 0;
     memset(&c->stats, 0, sizeof(c->stats));
+    interp_reset(&c->interp);
     c->world.local_player = -1;
     if (c->server == NET_PEER_NONE) {
         client_end(c, c->net ? "the address does not resolve" : "the network does not start");
@@ -144,8 +156,9 @@ static void client_on_reject(Client *c, const uint8_t *data, size_t size)
 }
 
 /* Snapshots travel unreliably, so one may be lost, come twice or come after a
- * newer one; only a newer one is put into the world. Its events go after
- * those of the snapshots this poll has already applied. */
+ * newer one; only a newer one is put into the world, and kept for
+ * client_view(). Its events go after those of the snapshots this poll has
+ * already applied. */
 static void client_on_snapshot(Client *c, const void *data, size_t size)
 {
     if (!c->accepted || snapshot_decode(&c->snapshot, data, size) != 0) {
@@ -160,6 +173,7 @@ static void client_on_snapshot(Client *c, const void *data, size_t size)
         earlier.items[earlier.count++] = c->world.events.items[i];
     }
     c->world.events = earlier;
+    interp_push(&c->interp, &c->snapshot, c->poll_time);
     c->has_world = 1;
     c->state = CL_CONNECTED;
 }
@@ -189,6 +203,9 @@ void client_poll(Client *c)
         return;
     }
     event_queue_clear(&c->world.events);
+    /* Every snapshot of one poll is dated by it: when the poll came, not when
+     * each datagram did, which the transport does not tell. */
+    c->poll_time = client_clock(c);
     /* The host has one peer, the server, and once client_end() has let it go
      * the transport reports nothing more of it. */
     NetTransportEvent ev;
@@ -241,6 +258,15 @@ const char *client_reason(const Client *c)
 World *client_world(Client *c)
 {
     return c->has_world ? &c->world : NULL;
+}
+
+World *client_view(Client *c)
+{
+    if (!c->has_world) {
+        return NULL;
+    }
+    interp_view(&c->view, &c->world, &c->interp, client_clock(c));
+    return &c->view;
 }
 
 int client_local_player(const Client *c)

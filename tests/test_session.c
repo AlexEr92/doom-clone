@@ -162,6 +162,8 @@ static void test_solo_runs_a_world_of_its_own(void)
     TEST_ASSERT_FALSE(s.remote);
     World *w = s.world(s.ctx);
     TEST_ASSERT_NOT_NULL(w);
+    /* Everyone in it moves every tick: the frame draws the world itself. */
+    TEST_ASSERT_EQUAL_PTR(w, s.view(s.ctx));
     TEST_ASSERT_EQUAL_INT(0, s.local_player(s.ctx));
     TEST_ASSERT_TRUE(w->players[0].active);
 
@@ -195,6 +197,7 @@ static void test_host_plays_on_its_own_server_and_shares_it(void)
     TEST_ASSERT_TRUE(host.shared);
     TEST_ASSERT_FALSE(host.remote);
     World *w = host.world(host.ctx);
+    TEST_ASSERT_EQUAL_PTR(w, host.view(host.ctx));
     int me = host.local_player(host.ctx);
     TEST_ASSERT_EQUAL_INT(0, me);
     TEST_ASSERT_EQUAL_INT(me, w->local_player);
@@ -279,10 +282,15 @@ static void test_client_joins_plays_and_loses_the_game(void)
     TEST_ASSERT_TRUE(client.shared);
     TEST_ASSERT_TRUE(client.remote);
     TEST_ASSERT_NULL(client.world(client.ctx));
+    TEST_ASSERT_NULL(client.view(client.ctx));
     step_until_client(SESS_JOINED);
 
     World *seen = client.world(client.ctx);
     TEST_ASSERT_NOT_NULL(seen);
+    /* The others are drawn a moment back, in a world of the view's own. */
+    World *view = client.view(client.ctx);
+    TEST_ASSERT_NOT_NULL(view);
+    TEST_ASSERT_TRUE(view != seen);
     int me = client.local_player(client.ctx);
     TEST_ASSERT_EQUAL_INT(0, me);
     TEST_ASSERT_TRUE(seen->players[me].active);

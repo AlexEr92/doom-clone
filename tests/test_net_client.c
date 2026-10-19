@@ -198,6 +198,27 @@ static size_t fake_send_snapshot(uint32_t tick, uint8_t id, float x, const uint8
     return size;
 }
 
+/* A snapshot of the client's own player, 0, at (x0, 1.5) and another, 1, at
+ * (x1, 2.5). */
+static void fake_send_two(uint32_t tick, float x0, float x1)
+{
+    MsgSnapshot s;
+    memset(&s, 0, sizeof(s));
+    s.h.type = MSG_SNAPSHOT;
+    s.tick = tick;
+    s.player_count = 2;
+    const float x[2] = {x0, x1};
+    for (int i = 0; i < 2; i++) {
+        s.players[i].id = (uint8_t)i;
+        s.players[i].alive = 1;
+        s.players[i].x = x[i];
+        s.players[i].y = 1.5f + (float)i;
+        s.players[i].hp = 100;
+    }
+    static uint8_t wire[sizeof(MsgSnapshot)];
+    fake_send(wire, snapshot_encode(&s, wire));
+}
+
 /* ---- polling ---- */
 
 static void poll_clients(void)
@@ -861,6 +882,69 @@ static void test_events_of_one_poll_add_up(void)
     TEST_ASSERT_EQUAL_INT(0, client_world(c)->events.count);
 }
 
+/* ---- the view ---- */
+
+/* The other player is drawn where they were INTERP_DELAY ago, on the way from
+ * one snapshot to the next and on past the newest for INTERP_EXTRAPOLATE; the
+ * client's own player is where the newest has them. The handshake and both
+ * snapshots are read in one poll, which dates them all: the moments below are
+ * counted from it, on ENet's clock, which the test moves. */
+static void test_view_draws_the_others_a_moment_back(void)
+{
+    Client *c = fake_client_joining();
+    TEST_ASSERT_NULL(client_view(c));
+    fake_send_accept(0, MAP_NAME);
+    fake_send_two(30, 1.5f, 2.0f);
+    fake_send_two(33, 1.8f, 2.3f);
+    uint32_t start = enet_time_get();
+    while (enet_time_get() - start < 20) {
+        fake_poll();
+    }
+    client_poll(c);
+    TEST_ASSERT_EQUAL_INT(CL_CONNECTED, client_state(c));
+    TEST_ASSERT_EQUAL_UINT32(33, client_world(c)->tick);
+
+    /* Tick 27 is drawn, before the oldest: the oldest stands for it. */
+    const World *v = client_view(c);
+    TEST_ASSERT_NOT_NULL(v);
+    TEST_ASSERT_EQUAL_FLOAT(2.0f, v->players[1].x);
+    TEST_ASSERT_EQUAL_FLOAT(1.8f, v->players[0].x);
+    TEST_ASSERT_EQUAL_FLOAT(2.3f, client_world(c)->players[1].x);
+
+    /* Tick 31.5, give or take what the test itself took. */
+    advance_clock(75);
+    v = client_view(c);
+    TEST_ASSERT_TRUE(v->players[1].x > 2.0f && v->players[1].x < 2.3f);
+    TEST_ASSERT_EQUAL_FLOAT(1.8f, v->players[0].x);
+
+    /* A second on, nothing new: on at 0.1 a tick for INTERP_EXTRAPOLATE past
+     * tick 33, then standing. */
+    advance_clock(1000);
+    float stop = 2.3f + 0.1f * (float)(INTERP_EXTRAPOLATE * TICK_RATE);
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, stop, client_view(c)->players[1].x);
+}
+
+/* A new connection starts from no snapshots: the server it joins counts its
+ * ticks from wherever it does, and kept ones of the last would outrank them. */
+static void test_view_starts_over_with_a_new_connection(void)
+{
+    Client *c = fake_client_joining();
+    fake_send_accept(0, MAP_NAME);
+    fake_send_two(300, 1.5f, 2.0f);
+    fake_send_two(303, 1.5f, 2.3f);
+    TICK_UNTIL(client_world(c) && client_world(c)->tick == 303);
+    const MsgHeader bye = {MSG_DISCONNECT, {0}};
+    fake_send(&bye, sizeof(bye));
+    TICK_UNTIL(client_state(c) == CL_DISCONNECTED);
+
+    TEST_ASSERT_EQUAL_INT(0, client_connect(c, "127.0.0.1", FAKE_PORT, NULL));
+    TICK_UNTIL(fake.joins == 2);
+    fake_send_accept(0, MAP_NAME);
+    fake_send_two(3, 1.5f, 5.0f);
+    TICK_UNTIL(client_state(c) == CL_CONNECTED);
+    TEST_ASSERT_EQUAL_FLOAT(5.0f, client_view(c)->players[1].x);
+}
+
 /* ---- traffic ---- */
 
 /* Payload both ways since client_connect(), as it was sent: an input the
@@ -930,6 +1014,8 @@ int main(void)
     RUN_TEST(test_stale_snapshot_is_ignored);
     RUN_TEST(test_snapshot_that_does_not_decode_is_dropped);
     RUN_TEST(test_events_of_one_poll_add_up);
+    RUN_TEST(test_view_draws_the_others_a_moment_back);
+    RUN_TEST(test_view_starts_over_with_a_new_connection);
     RUN_TEST(test_stats_count_the_payload);
     return UNITY_END();
 }

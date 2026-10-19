@@ -8,8 +8,9 @@
  *   solo    the world is this process's own: a tick is world_step();
  *   host    the world is a server's run here: a tick is server_tick(), with
  *           the local player's input, or none on a dedicated server;
- *   client  the world is a server's elsewhere: a tick sends the input, and the
- *           world is whatever the newest snapshot says.
+ *   client  the world is a server's elsewhere: a tick sends the input, the
+ *           world is whatever the newest snapshot says, and everyone else is
+ *           drawn a moment behind it.
  *
  * Nothing here reaches SDL, a framebuffer or the sound: a dedicated server
  * runs it too. */
@@ -30,6 +31,10 @@ typedef struct GameSession {
     /* The world to show, NULL while there is none: a client before its first
      * snapshot. */
     struct World *(*world)(void *ctx);
+    /* The players and enemies a frame draws, once a frame: world() itself,
+     * but in a client the others are a moment in the past, moving smoothly
+     * between snapshots (client_view()). NULL while world() is. */
+    struct World *(*view)(void *ctx);
     /* One fixed step. `local` is the local player's input, NULL while nobody
      * at this machine plays: a dedicated server, a player in a menu. */
     void (*tick)(void *ctx, const struct PlayerInput *local, double dt);

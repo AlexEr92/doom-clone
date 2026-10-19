@@ -167,6 +167,12 @@ void snapshot_pick_events(MsgSnapshot *s, const GameEvent *events, int count,
  * events replace w->events. */
 void snapshot_apply(struct World *w, const MsgSnapshot *s);
 
+/* The part of snapshot_apply() that puts the players and the enemies of `s`
+ * into `w`, by the same rules, and nothing else: the tick, the items, the
+ * doors and the events stay as they are. A client draws the characters of an
+ * older snapshot than the rest of the world (net_interp.h). */
+void snapshot_apply_characters(struct World *w, const MsgSnapshot *s);
+
 /* Lay `s` out for the wire, each list cut to its count, into `out`, which has
  * room for sizeof(MsgSnapshot) bytes — the encoded snapshot is never longer.
  * Returns the number of bytes written, or 0 when a count is past its limit. */

@@ -5,6 +5,7 @@
  *   net_bot [--addr A] [--port N] look [--rate SECONDS]
  *   net_bot [--addr A] [--port N] run STEP...
  *   net_bot [--addr A] [--port N] swarm COUNT [SECONDS]
+ *   net_bot [--addr A] [--port N] watch ID [SECONDS]
  *
  * look   joins, and prints the world of its first snapshot: a line an
  *        entity, for grep and awk. With --rate it watches for SECONDS first
@@ -22,6 +23,14 @@
  *        second it prints how many are in and what one of them sends and
  *        receives, until SECONDS have passed (0: until Ctrl+C). Status 1 when
  *        any was turned away or lost.
+ * watch  stands still and watches player ID for SECONDS (5 unless given) at
+ *        60 frames a second, as the game draws it — client_view() — and as
+ *        the snapshots leave it — client_world(). For each it prints in how
+ *        many frames the player moved, how far a frame on average, how many
+ *        jerks there were — frames whose move differs from the one before by
+ *        more than half the average; a start and a stop are one each — and
+ *        the most a frame turned them. Status 1 when the player was never
+ *        seen or the game was lost.
  *
  * The address is 127.0.0.1 and the port NET_PORT_DEFAULT unless given. Each
  * bot is a real player: it takes a slot, and enemies go for it — there is no
@@ -506,6 +515,89 @@ static int run_swarm(int count, double seconds)
     return rejected == 0 && stayed == in ? 0 : 1;
 }
 
+/* ---- watch ---- */
+
+#define WATCH_MAX_FRAMES (600 * TICK_RATE)
+
+/* One way of seeing one player, a frame at a time. */
+typedef struct {
+    float x, y, angle; /* where the last frame had them */
+    int seen;          /* the last frame had them at all */
+    int n;
+    float step[WATCH_MAX_FRAMES]; /* how far each frame since the first moved them */
+    float turn_max;               /* the most one frame turned them, radians */
+} Track;
+
+static void track(Track *t, const PlayerState *p)
+{
+    if (!p->active) {
+        t->seen = 0;
+        return;
+    }
+    if (t->seen && t->n < WATCH_MAX_FRAMES) {
+        t->step[t->n++] = hypotf(p->x - t->x, p->y - t->y);
+        t->turn_max = fmaxf(t->turn_max, fabsf(wrap_angle(p->angle - t->angle)));
+    }
+    t->x = p->x;
+    t->y = p->y;
+    t->angle = p->angle;
+    t->seen = 1;
+}
+
+static void track_print(const char *name, const Track *t)
+{
+    double sum = 0.0;
+    int moving = 0;
+    for (int i = 0; i < t->n; i++) {
+        if (t->step[i] > 0.0f) {
+            sum += t->step[i];
+            moving++;
+        }
+    }
+    double mean = moving > 0 ? sum / moving : 0.0;
+    int jerks = 0;
+    for (int i = 1; i < t->n; i++) {
+        jerks += fabs((double)t->step[i] - (double)t->step[i - 1]) > mean / 2.0;
+    }
+    printf("%-5s moved in %d of %d frames, %.4f a frame on average, %d jerks, "
+           "turned %.3f rad a frame at most\n",
+           name, moving, t->n, mean, jerks, t->turn_max);
+}
+
+static int run_watch(int id, double seconds)
+{
+    static Track view, world;
+    Bot b;
+    if (bot_join(&b) != 0) {
+        client_destroy(b.c);
+        return 1;
+    }
+    ClientStats s0 = client_stats(b.c);
+    double t0 = now_s();
+    while (now_s() - t0 < seconds && !stop && client_state(b.c) == CL_CONNECTED) {
+        bot_send(&b, 0);
+        client_poll(b.c);
+        track(&view, &client_view(b.c)->players[id]);
+        track(&world, &client_world(b.c)->players[id]);
+        pace();
+    }
+    double t = now_s() - t0;
+    int ok = client_state(b.c) == CL_CONNECTED;
+    if (!ok) {
+        fprintf(stderr, "left the game: %s\n", stop ? "interrupted" : client_reason(b.c));
+    } else if (view.n == 0) {
+        fprintf(stderr, "player %d was not in the game\n", id);
+        ok = 0;
+    } else {
+        printf("player %d over %.1f s, %.1f snapshots/s\n", id, t,
+               (double)(client_stats(b.c).snapshots - s0.snapshots) / t);
+        track_print("view", &view);
+        track_print("world", &world);
+    }
+    client_destroy(b.c);
+    return ok ? 0 : 1;
+}
+
 /* ---- command line ---- */
 
 static int usage(void)
@@ -513,6 +605,7 @@ static int usage(void)
     fprintf(stderr, "usage: net_bot [--addr A] [--port N] look [--rate SECONDS]\n"
                     "       net_bot [--addr A] [--port N] run STEP...\n"
                     "       net_bot [--addr A] [--port N] swarm COUNT [SECONDS]\n"
+                    "       net_bot [--addr A] [--port N] watch ID [SECONDS]\n"
                     "steps: go X Y | face X Y | kill N | use | fire | wait S\n");
     return 2;
 }
@@ -565,6 +658,14 @@ int main(int argc, char **argv)
             return usage();
         }
         return run_swarm(count, seconds);
+    }
+    if (strcmp(mode, "watch") == 0) {
+        int id = i < argc ? atoi(argv[i]) : -1;
+        double seconds = i + 1 < argc ? strtod(argv[i + 1], NULL) : 5.0;
+        if (i >= argc || id < 0 || id >= MAX_PLAYERS || seconds <= 0.0) {
+            return usage();
+        }
+        return run_watch(id, seconds);
     }
     return usage();
 }

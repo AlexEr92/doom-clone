@@ -69,8 +69,16 @@ static int solo_open(GameSession *gs, const char *map_path)
         free(s);
         return -1;
     }
-    *gs = (GameSession){
-            solo_world, solo_tick, solo_local_player, no_change, solo_restart, solo_close, s, 0, 0};
+    *gs = (GameSession){.world = solo_world,
+                        .view = solo_world,
+                        .tick = solo_tick,
+                        .local_player = solo_local_player,
+                        .poll = no_change,
+                        .restart = solo_restart,
+                        .close = solo_close,
+                        .ctx = s,
+                        .shared = 0,
+                        .remote = 0};
     return 0;
 }
 
@@ -120,8 +128,16 @@ static int host_open(GameSession *gs, const Options *o, const char *map_path)
     if (o->mode == LAUNCH_HOST) {
         server_add_local_player(s);
     }
-    *gs = (GameSession){
-            host_world, host_tick, host_local_player, no_change, host_restart, host_close, s, 1, 0};
+    *gs = (GameSession){.world = host_world,
+                        .view = host_world,
+                        .tick = host_tick,
+                        .local_player = host_local_player,
+                        .poll = no_change,
+                        .restart = host_restart,
+                        .close = host_close,
+                        .ctx = s,
+                        .shared = 1,
+                        .remote = 0};
     return 0;
 }
 
@@ -150,6 +166,11 @@ static void remote_join(Remote *r)
 static World *remote_world(void *ctx)
 {
     return client_world(((Remote *)ctx)->client);
+}
+
+static World *remote_view(void *ctx)
+{
+    return client_view(((Remote *)ctx)->client);
 }
 
 /* The server runs the tick; the client numbers the input. */
@@ -215,15 +236,16 @@ static int remote_open(GameSession *gs, const Options *o)
         remote_close(r);
         return -1;
     }
-    *gs = (GameSession){remote_world,
-                        remote_tick,
-                        remote_local_player,
-                        remote_poll,
-                        remote_restart,
-                        remote_close,
-                        r,
-                        1,
-                        1};
+    *gs = (GameSession){.world = remote_world,
+                        .view = remote_view,
+                        .tick = remote_tick,
+                        .local_player = remote_local_player,
+                        .poll = remote_poll,
+                        .restart = remote_restart,
+                        .close = remote_close,
+                        .ctx = r,
+                        .shared = 1,
+                        .remote = 1};
     return 0;
 }
 

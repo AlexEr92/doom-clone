@@ -3,8 +3,9 @@
 
 /* The client's end of the network game: it joins a server, sends one input a
  * tick, and keeps a World that is whatever the newest snapshot says. Nothing is
- * simulated here — no world_step(), no prediction, no interpolation — so other
- * players move in 20 Hz steps and the client's own player a round trip late.
+ * simulated here — no world_step(), no prediction — so the client's own player
+ * moves a round trip late. Everyone else is drawn from client_view(), a moment
+ * in the past between two snapshots (net_interp.h), and moves smoothly.
  *
  * Called from the frame loop: client_send_input() once per fixed step,
  * client_poll() once a frame after them, so the inputs of the frame leave in
@@ -45,7 +46,8 @@ void client_destroy(Client *c);
 void client_send_input(Client *c, const struct PlayerInput *in);
 
 /* Send what is queued and take what came, once a frame. Every new snapshot is
- * put into the world in turn and an older one than the world shows is dropped.
+ * put into the world in turn, and kept for client_view() dated by this call;
+ * an older one than the world shows is dropped.
  * After the call World.events holds the events of the snapshots it applied, in
  * order, as many as MAX_EVENTS holds, and nothing else: each arrives once.
  *
@@ -63,6 +65,13 @@ const char *client_reason(const Client *c);
 /* The world as the newest snapshot left it. NULL until the first one; after
  * the connection ends, the last one the client saw. */
 struct World *client_world(Client *c);
+
+/* The world as a frame draws it now: client_world(), but with the other
+ * players and the enemies where they were INTERP_DELAY ago, between the
+ * snapshots around that moment, as interp_view() puts them. The local player
+ * is client_world()'s. Rebuilt by every call, so once a frame; valid until
+ * the next one. NULL while client_world() is. */
+struct World *client_view(Client *c);
 
 /* The id of the player this client plays as, from MSG_ACCEPT; -1 before it. */
 int client_local_player(const Client *c);

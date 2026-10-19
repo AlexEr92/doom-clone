@@ -72,7 +72,6 @@
 
 | # | Задача | Зависит от |
 |---|---|---|
-| [08-01](08-01-snapshot-interpolation.md) | Буфер снапшотов и интерполяция | 07-05 |
 | [08-02](08-02-client-prediction.md) | Предсказание своего игрока | 07-05 |
 | [08-03](08-03-reconciliation.md) | Реконсиляция и сглаживание | 08-02 |
 | [08-04](08-04-net-debug-overlay.md) | Отладочный оверлей (F3) | 07-05 |
@@ -130,10 +129,11 @@
 | [chore-008](chore-008-net-smoke-driver.md) | `netdriver.sh`: сервер и два клиента без экрана, `net-smoke` | `.claude/skills/run-doom-clone/`, `check.sh` |
 | [chore-009](chore-009-net-smoke-lag-loss.md) | `net-stress`: 4 клиента под `--netlag`/`--netloss` | `netdriver.sh` |
 | [chore-010](chore-010-sanitizers-in-review-harness.md) | Санитайзеры в `check.sh` и у тестера | `check.sh`, `tester.md`, `CLAUDE.md` |
-| [chore-013](chore-013-lint-net-client-no-sdl.md) | `lint.sh sim` не проверяет, что `net_client.c` собирается без SDL | `lint.sh`, `SKILL.md`, `harness.md` |
+| [chore-013](chore-013-lint-net-client-no-sdl.md) | `lint.sh sim` не проверяет, что `net_client.c` и `net_interp.c` собираются без SDL | `lint.sh`, `SKILL.md`, `harness.md` |
 | [chore-017](chore-017-record-game-audio.md) | Запись звука игры в `driver.sh` и анализатор всплесков | `driver.sh`, `SKILL.md`, `harness.md` |
 | [feat-003](feat-003-remote-shot-animation.md) | Выстрел чужого игрока и врага в снапшоте: `ANIM_SHOOT` по сети | `net_protocol.c/.h` |
 | [feat-004](feat-004-player-chooses-skin.md) | Игрок сам выбирает персонажа из свободных: экран выбора после входа | `net_protocol.h`, `net_server.c`, `game.c`, `sprite.c` |
+| [feat-005](feat-005-smooth-interp-after-long-gap.md) | Возврат чужого игрока после 3+ потерянных снапшотов подряд без ступеньки | `net_interp.c/.h`, `test_net_interp.c` |
 | [test-002](test-002-fps-with-network.md) | Замер FPS клиента с работающей сетью | `SKILL.md`, `netdriver.sh` |
 | [test-003](test-003-text-module-layout-test.md) | Общий модуль шрифта 3×5 и тест раскладки глифов | `text.c`, `hud.c`, `game.c` |
 
@@ -193,3 +193,4 @@
 | [10-05](../closed_tasks/10-05-five-weapons.md) | Пять стволов и патроны к каждому | Сделано |
 | [10-08](../closed_tasks/10-08-status-bar-graphics.md) | Графика статус-бара: лицо, иконки и новая панель | Сделано: панель 52 px из пяти отсеков |
 | [bug-008](../closed_tasks/bug-008-load-png-leaks-replaced-pixels.md) | `assets_load_png()` теряет пиксели замещаемого слота | Сделано: освобождает после успешного чтения |
+| [08-01](../closed_tasks/08-01-snapshot-interpolation.md) | Буфер снапшотов и интерполяция | Сделано: модуль `net_interp`, вид для рендера |

@@ -56,6 +56,19 @@
  * answers at all answers within a round trip; one that does not is not there. */
 #define NET_CONNECT_TIMEOUT_MS 5000
 
+/* How far in the past a client draws other players and enemies: far enough
+ * that the moment drawn lies between two snapshots it already has. Two
+ * snapshot intervals at SNAPSHOT_RATE, so that one can be lost on the way. */
+#define INTERP_DELAY_MS 100
+#define INTERP_DELAY (INTERP_DELAY_MS / 1000.0) /* seconds */
+
+/* Past the newest snapshot, whoever was moving goes on at the speed the last
+ * two showed for this long, in seconds, and then stands. */
+#define INTERP_EXTRAPOLATE 0.25
+
+/* Snapshots a client keeps to draw INTERP_DELAY back from. */
+#define SNAPSHOT_HISTORY 8
+
 /* One frame can show every enemy, every item and every player but the one
  * holding the camera. Barrels come on top of that and are already counted in
  * the value above. */
@@ -72,6 +85,11 @@ _Static_assert(MAX_SKINS >= MAX_PLAYERS, "a player's skin is their id: every slo
 _Static_assert(SNAPSHOT_RATE_MIN > 0 && SNAPSHOT_RATE_MIN <= SNAPSHOT_RATE &&
                        SNAPSHOT_RATE <= TICK_RATE,
                "the snapshot rate must lie in SNAPSHOT_RATE_MIN .. TICK_RATE");
+
+/* At the highest snapshot rate INTERP_DELAY is the most snapshots back, and
+ * the moment drawn needs one on each side of it. */
+_Static_assert(SNAPSHOT_HISTORY >= INTERP_DELAY_MS * TICK_RATE / 1000 + 2,
+               "SNAPSHOT_HISTORY does not reach INTERP_DELAY back at TICK_RATE snapshots a second");
 
 /* Which items are gone travels in a snapshot as a single bitmask. */
 _Static_assert(MAX_ITEMS <= 64, "the pickup mask in a snapshot is 64 bits wide");

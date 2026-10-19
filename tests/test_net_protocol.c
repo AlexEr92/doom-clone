@@ -577,6 +577,36 @@ static void test_the_ticks_travel_with_the_snapshot(void)
     TEST_ASSERT_EQUAL_UINT32(1234, client.tick);
 }
 
+/* The characters alone: the players and the enemies arrive as snapshot_apply()
+ * would put them, and the tick, the items, the doors and the events of the
+ * client stay as they were. */
+static void test_apply_characters_puts_the_players_and_enemies_alone(void)
+{
+    add_players(&server, 2);
+    server.players[1].x = 3.25f;
+    server.players[1].hp = 40.0f;
+    server.enemies.items[0].x = 7.25f;
+    server.enemies.items[0].state = ESTATE_CHASE;
+    server.tick = 99;
+    server.items.items[0].active = 0;
+    server.doors.doors[0].openness = 1.0f;
+    event_push(&server.events, EV_SHOT, 0, 1.5f, 1.5f);
+    snapshot_write(&snap, &server, 0);
+    event_push(&client.events, EV_DOOR, 0, 4.5f, 2.5f);
+
+    snapshot_apply_characters(&client, &snap);
+    TEST_ASSERT_TRUE(client.players[1].active);
+    TEST_ASSERT_EQUAL_FLOAT(3.25f, client.players[1].x);
+    TEST_ASSERT_EQUAL_FLOAT(40.0f, client.players[1].hp);
+    TEST_ASSERT_EQUAL_FLOAT(7.25f, client.enemies.items[0].x);
+    TEST_ASSERT_EQUAL_INT(ESTATE_CHASE, client.enemies.items[0].state);
+    TEST_ASSERT_EQUAL_UINT32(0, client.tick);
+    TEST_ASSERT_TRUE(client.items.items[0].active);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, client.doors.doors[0].openness);
+    TEST_ASSERT_EQUAL_INT(1, client.events.count);
+    TEST_ASSERT_EQUAL_INT(EV_DOOR, client.events.items[0].kind);
+}
+
 /* What decode gives back is what encode was given — padding and unused slots
  * included, which snapshot_write() leaves zero. */
 static void test_decode_gives_back_what_encode_was_given(void)
@@ -727,6 +757,7 @@ int main(void)
     RUN_TEST(test_what_the_receiver_cannot_hear_is_not_picked);
     RUN_TEST(test_the_nearest_of_every_tick_since_the_last_snapshot_are_picked);
     RUN_TEST(test_the_ticks_travel_with_the_snapshot);
+    RUN_TEST(test_apply_characters_puts_the_players_and_enemies_alone);
     RUN_TEST(test_decode_gives_back_what_encode_was_given);
     RUN_TEST(test_decode_rejects_bytes_too_short_for_the_head);
     RUN_TEST(test_decode_rejects_another_message_type);

@@ -92,9 +92,9 @@ static int item_sprite_type(int type)
 
 /* How long a character keeps running after it last moved. A position does not
  * change every frame: above the tick rate a frame with no tick in it moves
- * nobody, and another player moves only when a snapshot arrives. A hold
- * shorter than a snapshot interval would blink into idle between two of them;
- * two intervals also cover one that comes late. */
+ * nobody, and a hold shorter than a tick would blink into idle between two.
+ * Two snapshot intervals are well over that. A network client draws other
+ * players from client_view(), which moves them every frame. */
 #define ANIM_RUN_HOLD (2.0f / (float)SNAPSHOT_RATE)
 
 /* Which character draws each enemy type: enemies are drawn by the same

@@ -146,6 +146,11 @@ if(ENABLE_MULTIPLAYER)
     # симуляцию: snapshot_apply() заводит игроков и врагов её же функциями.
     doom_test(net_protocol SRC net_protocol.c
         world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)
+    # Буфер снапшотов и интерполяция чужих игроков и врагов: время теста своё,
+    # сокетов нет. Линкует протокол и симуляцию — вид строится из мира,
+    # загруженного с карты, функциями snapshot_apply().
+    doom_test(net_interp SRC net_interp.c net_protocol.c
+        world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)
     # Сервер по настоящим сокетам на 127.0.0.1: он и клиенты-боты, которые
     # говорят на протоколе вручную, в одном процессе. Таймауты — сдвигом часов
     # ENet, как в test_net_transport.
@@ -157,7 +162,7 @@ if(ENABLE_MULTIPLAYER)
     # на протоколе вручную, — всё в одном процессе, по 127.0.0.1. Карту из
     # MSG_ACCEPT клиент ищет в assets/maps/ рабочего каталога; тест пишет её
     # туда сам, каталог заводится здесь, рядом с тестом.
-    doom_test(net_client SRC net_client.c net_server.c net_transport.c net_protocol.c
+    doom_test(net_client SRC net_client.c net_interp.c net_server.c net_transport.c net_protocol.c
         world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c
         LINK doom_enet)
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/assets/maps)
@@ -166,7 +171,7 @@ if(ENABLE_MULTIPLAYER)
     # host и dedicated на 127.0.0.1, клиент против сессии хоста и против
     # подставного, который говорит на протоколе вручную. Карту пишет в тот же
     # assets/maps/, что и test_net_client.
-    doom_test(session SRC session.c net_client.c net_server.c net_transport.c net_protocol.c
+    doom_test(session SRC session.c net_client.c net_interp.c net_server.c net_transport.c net_protocol.c
         world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c
         LINK doom_enet)
     target_compile_definitions(test_session PRIVATE ENABLE_MULTIPLAYER)
@@ -176,7 +181,7 @@ if(ENABLE_MULTIPLAYER)
     doom_manual(net_echo SRC net_transport.c LINK doom_enet)
     # Игроки без окна, через net_client.h: мир глазами клиента, игрок по
     # сценарию, нагрузка из нескольких игроков.
-    doom_manual(net_bot SRC net_client.c net_transport.c net_protocol.c
+    doom_manual(net_bot SRC net_client.c net_interp.c net_transport.c net_protocol.c
         world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c
         LINK doom_enet)
 endif()

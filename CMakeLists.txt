@@ -125,6 +125,7 @@ if(ENABLE_MULTIPLAYER)
         src/net_protocol.c
         src/net_server.c
         src/net_client.c
+        src/net_interp.c
     )
     target_link_libraries(doom-clone PRIVATE doom_enet)
     target_compile_definitions(doom-clone PRIVATE ENABLE_MULTIPLAYER)
