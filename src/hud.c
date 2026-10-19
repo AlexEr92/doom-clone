@@ -1,73 +1,8 @@
 #include "hud.h"
+#include "text.h"
 #include "utils.h"
 #include <math.h>
 #include <string.h>
-
-/* 3x5 block font for digits 0-9 and a few letters. Each glyph is 5 rows of
- * 3-bit masks (bit0 = left, bit1 = mid, bit2 = right). */
-static const uint8_t digits[10][5] = {
-        /* 0 */ {0b111, 0b101, 0b101, 0b101, 0b111},
-        /* 1 */ {0b010, 0b110, 0b010, 0b010, 0b111},
-        /* 2 */ {0b111, 0b001, 0b111, 0b100, 0b111},
-        /* 3 */ {0b111, 0b001, 0b111, 0b001, 0b111},
-        /* 4 */ {0b101, 0b101, 0b111, 0b001, 0b001},
-        /* 5 */ {0b111, 0b100, 0b111, 0b001, 0b111},
-        /* 6 */ {0b111, 0b100, 0b111, 0b101, 0b111},
-        /* 7 */ {0b111, 0b001, 0b010, 0b010, 0b010},
-        /* 8 */ {0b111, 0b101, 0b111, 0b101, 0b111},
-        /* 9 */ {0b111, 0b101, 0b111, 0b001, 0b111},
-};
-
-static void draw_glyph(Framebuffer *fb, int x0, int y0, int ch, uint32_t color, int scale)
-{
-    if (ch < 0 || ch > 9) {
-        return;
-    }
-    for (int r = 0; r < 5; r++) {
-        uint8_t row = digits[ch][r];
-        for (int c = 0; c < 3; c++) {
-            /* MSB = leftmost column */
-            if (row & (1 << (2 - c))) {
-                int px = x0 + c * scale;
-                int py = y0 + r * scale;
-                for (int dy = 0; dy < scale; dy++) {
-                    for (int dx = 0; dx < scale; dx++) {
-                        int X = px + dx, Y = py + dy;
-                        if (X < 0 || X >= SCREEN_W || Y < 0 || Y >= SCREEN_H) {
-                            continue;
-                        }
-                        fb->pixels[(size_t)Y * SCREEN_W + X] = color;
-                    }
-                }
-            }
-        }
-    }
-}
-
-static void draw_int(Framebuffer *fb, int x0, int y0, int value, uint32_t color, int scale)
-{
-    char buf[16];
-    int n = 0;
-    if (value < 0) {
-        value = -value; /* draw minus as nothing for simplicity */
-    }
-    if (value == 0) {
-        draw_glyph(fb, x0, y0, 0, color, scale);
-        return;
-    }
-    int tmp = value;
-    while (tmp > 0) {
-        buf[n++] = (char)('0' + tmp % 10);
-        tmp /= 10;
-    }
-    /* buf holds the least significant digit first: walk it backwards so the
-     * most significant digit lands at x0. */
-    int x = x0;
-    for (int i = n - 1; i >= 0; i--) {
-        draw_glyph(fb, x, y0, buf[i] - '0', color, scale);
-        x += 4 * scale;
-    }
-}
 
 /* Frame `col` of t with its top-left corner at (x0, y0). A pixel at alpha 0
  * is skipped, as everywhere, and so is one off the screen. A `tone` of 0
@@ -317,8 +252,8 @@ static void draw_segment(Framebuffer *fb, int x0, int w, uint32_t color)
 static void draw_number(Framebuffer *fb, int x0, int value, uint32_t color)
 {
     int y0 = SCREEN_H - HUD_PANEL_H + NUMBER_Y;
-    draw_int(fb, x0 + 1, y0 + 1, value, make_color(0, 0, 0), 3);
-    draw_int(fb, x0, y0, value, color, 3);
+    text_draw_int(fb, x0 + 1, y0 + 1, value, make_color(0, 0, 0), 3);
+    text_draw_int(fb, x0, y0, value, color, 3);
 }
 
 /* Health, armor or ammo: the icon and the number, and under them a gauge
@@ -376,8 +311,8 @@ static void draw_weapon_box(Framebuffer *fb, int x0, const WeaponSystem *ws, con
         } else {
             fill_rect(fb, x, top + GAUGE_Y, seg_w, GAUGE_H, tone);
         }
-        draw_glyph(fb, x + (seg_w - 3) / 2, top + GAUGE_Y + 1, k + 1,
-                   lit ? PANEL_COLOR : make_color(90, 90, 80), 1);
+        text_draw_char(fb, x + (seg_w - TEXT_GLYPH_W) / 2, top + GAUGE_Y + 1, (char)('1' + k),
+                       lit ? PANEL_COLOR : make_color(90, 90, 80), 1);
     }
 }
 

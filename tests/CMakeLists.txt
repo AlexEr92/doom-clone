@@ -86,11 +86,15 @@ doom_test(options SRC options.c)
 if(ENABLE_MULTIPLAYER)
     target_compile_definitions(test_options PRIVATE ENABLE_MULTIPLAYER)
 endif()
-doom_test(game   SRC game.c)
+doom_test(game   SRC game.c text.c)
+# Раскладка шрифта 3×5: строка и число, нарисованные одним вызовом, против
+# тех же глифов, нарисованных по одному. Буфер кадра тест выделяет сам, окна
+# не нужно; вид глифов тест не знает и картинку не сравнивает.
+doom_test(text   SRC text.c)
 # Кадр оружия и кадр лица в HUD. Рисование не проверяется; weapon.c линкуется,
 # чтобы Weapon.anim затухал так же, как в тике, — с хитсканом и его
 # зависимостями, player.c — чтобы попадание снимало hp, как в мире.
-doom_test(hud    SRC hud.c weapon.c raycast_world.c enemy.c player.c map.c door.c)
+doom_test(hud    SRC hud.c text.c weapon.c raycast_world.c enemy.c player.c map.c door.c)
 # Скины, выбор анимации и кадра персонажей. Сам рендер спрайтов не
 # проверяется: zBuffer тест определяет сам, raycast.c не линкуется. player.c —
 # за enemy.c, чья атака зовёт player_damage(); weapon_system_init() подменён.
@@ -136,7 +140,7 @@ endfunction()
 # Статус-бар, нарисованный hud_draw() с файлами из assets/ или без них, в
 # состояниях, до которых в игре трудно дойти: ступени здоровья, попадание,
 # смерть, каждый ствол в руках. Сети не нужно, поэтому он вне блока ниже.
-doom_manual(hud_shot SRC hud.c assets.c player.c weapon.c raycast_world.c enemy.c map.c door.c)
+doom_manual(hud_shot SRC hud.c text.c assets.c player.c weapon.c raycast_world.c enemy.c map.c door.c)
 # Пул точек спавна карты: точки на сетке, куда каждая смотрит, какие видят
 # друг друга, и куда входят игроки один за другим. Тоже без сети.
 doom_manual(spawn_view SRC world.c player.c map.c door.c enemy.c item.c weapon.c raycast_world.c)

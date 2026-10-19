@@ -1,9 +1,9 @@
 /* game.c: the menu/pause/dead/win state machine.
  *
  * game_handle_event returns 1 when it consumed the event, so the caller knows
- * whether gameplay input should still see it. The overlays and the bitmap font
- * in the same file are pixel output and are checked by eye through
- * driver.sh, not here.
+ * whether gameplay input should still see it. The overlays in the same file
+ * are pixel output and are checked by eye through driver.sh, not here; where
+ * their font puts each glyph is test_text.c's.
  *
  * game.c compiles against the SDL2 headers but calls no SDL function, so the
  * Engine below never needs a window. */

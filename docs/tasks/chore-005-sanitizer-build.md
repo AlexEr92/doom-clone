@@ -75,7 +75,7 @@ BUILD_DIR=build-san .claude/skills/run-doom-clone/driver.sh smoke
 санитайзера. `main()` доходит до `return 0` (`main.c:220-223`, после
 `assets_shutdown`/`audio_shutdown`/`engine_shutdown`) только если цикл вышел
 по `eng.running = 0`; единственный путь к этому без падения — `Escape` из
-`GSTATE_MENU` (`game.c:166-170`, `g->quit = 1; g->eng->running = 0;`).
+`GSTATE_MENU` (`game.c:25-29`, `g->quit = 1; g->eng->running = 0;`).
 `driver.sh stop` останавливает игру через `pkill -x doom-clone`
 (`driver.sh:167-174`) — это `SIGTERM` без установленного в проекте
 обработчика (`grep -rn "signal\|SIGTERM" src/*.c` — пусто), процесс
@@ -87,10 +87,10 @@ BUILD_DIR=build-san .claude/skills/run-doom-clone/driver.sh smoke
 `../closed_tasks/bug-004-audio-init-leak.md`, куда вынесена сама находка.
 
 Из любого достижимого игрового состояния до выхода не больше трёх нажатий
-`Escape`: `PLAYING → PAUSED` (`game.c:173-176`), `PAUSED → MENU` с
-`restart = 1` (`game.c:182-187`), `DEAD`/`WIN → MENU` тоже с `restart = 1`
-(`game.c:199-203`, `211-215`) — и наконец `MENU → выход`
-(`game.c:166-170`). Итого не более трёх `Escape` из любой точки гарантированно
+`Escape`: `PLAYING → PAUSED` (`game.c:32-35`), `PAUSED → MENU` с
+`restart = 1` (`game.c:41-46`), `DEAD`/`WIN → MENU` тоже с `restart = 1`
+(`game.c:58-62`, `70-74`) — и наконец `MENU → выход`
+(`game.c:25-29`). Итого не более трёх `Escape` из любой точки гарантированно
 доводят процесс до штатного `return 0`.
 
 **Ложных срабатываний SDL2/SDL2_mixer не найдено.** Прогнан ручной сценарий

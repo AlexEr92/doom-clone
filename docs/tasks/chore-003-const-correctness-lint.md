@@ -27,7 +27,7 @@
    используется двумя вызовами `map_is_wall_door()`, а тот принимает
    `const struct DoorList *` (`src/map.h`).
 
-4. **`src/game.c:155`** — `game_handle_event(Game *g, InputState *in,
+4. **`src/game.c:14`** — `game_handle_event(Game *g, InputState *in,
    SDL_Event *ev)`. Тело читает только `ev->type` и `ev->key.keysym.sym`,
    присваиваний через `ev` нет. Объявление — `src/game.h:30`; вызывающие
    (`src/main.c`, `tests/test_game.c`) передают обычный `SDL_Event *`, что

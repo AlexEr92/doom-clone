@@ -121,6 +121,7 @@
 | [bug-018](bug-018-lint-changed-deleted-file.md) | `lint.sh changed` отдаёт cppcheck удалённый `src/*.c` и падает | `lint.sh`, `SKILL.md` |
 | [bug-019](bug-019-hud-weapon-freezes-mid-flash.md) | Оружие в руках замирает на кадре вспышки под оверлеем победы/смерти | `main.c`, `sprite.c`, `hud.c` |
 | [bug-021](bug-021-snapshot-lacks-weapon-ownership.md) | Снапшот не несёт `owned` и патроны стволов не в руках | `net_protocol.c/.h` |
+| [bug-022](bug-022-bang-glyph-has-no-dot.md) | Глиф `!` шрифта 3×5 без точки: сплошная палка | `text.c`, `tests/manual/` |
 | [chore-001](chore-001-github-actions-ci.md) | CI на трёх платформах через GitHub Actions | `.github/workflows/` |
 | [chore-003](chore-003-const-correctness-lint.md) | Указатели без `const`, хотя только читаются | `enemy.c`, `game.c`, `player.c`, `world.c` |
 | [chore-005](chore-005-sanitizer-build.md) | Сборка с ASan/UBSan для локальных и CI-прогонов | `CMakeLists.txt`, `driver.sh` |
@@ -133,7 +134,6 @@
 | [feat-004](feat-004-player-chooses-skin.md) | Игрок сам выбирает персонажа из свободных: экран выбора после входа | `net_protocol.h`, `net_server.c`, `game.c`, `sprite.c` |
 | [feat-005](feat-005-smooth-interp-after-long-gap.md) | Возврат чужого игрока после 3+ потерянных снапшотов подряд без ступеньки | `net_interp.c/.h`, `test_net_interp.c` |
 | [test-002](test-002-fps-with-network.md) | Замер FPS клиента с работающей сетью | `SKILL.md`, `netdriver.sh` |
-| [test-003](test-003-text-module-layout-test.md) | Общий модуль шрифта 3×5 и тест раскладки глифов | `text.c`, `hud.c`, `game.c` |
 
 ## Закрытые
 
@@ -194,3 +194,4 @@
 | [08-01](../closed_tasks/08-01-snapshot-interpolation.md) | Буфер снапшотов и интерполяция | Сделано: модуль `net_interp`, вид для рендера |
 | [09-01](../closed_tasks/09-01-spawn-points.md) | Пул точек спавна | Сделано: маркер `s`, автопул, `world_pick_spawn()` |
 | [bug-014](../closed_tasks/bug-014-player-hit-by-player-is-silent.md) | Попадание игрока по игроку не порождает `EV_PLAYER_HURT` | Сделано: событие и урон врага через `player_damage()` |
+| [test-003](../closed_tasks/test-003-text-module-layout-test.md) | Общий модуль шрифта 3×5 и тест раскладки глифов | Сделано: модуль `text.c`, тест `test_text.c` |

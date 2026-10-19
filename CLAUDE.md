@@ -62,6 +62,10 @@ Only what runs without a framebuffer is tested: not the renderer, and
 `audio.c` only as far as chunk lengths, which sound an event makes and how
 loud, and the channel it plays on (`test_audio.c` uses the `dummy`
 driver); `docs/closed_tasks/test-001-unit-test-harness.md` says why.
+The one exception is where the 3×5 font puts its glyphs: `test_text.c`
+draws into a buffer of its own and compares a line drawn in one call with
+the same glyphs drawn one by one — never a picture, so no glyph's shape or
+colour is in it.
 The transport is tested over real sockets on 127.0.0.1, server and clients
 in one process (`test_net_transport.c`), and its timeouts by moving ENet's
 clock with `enet_time_set()` rather than by waiting; the server likewise,
@@ -193,7 +197,8 @@ leaves the client. `input_turn()` turns the client's angle once a frame;
 fire, use, weapon switch — are cleared by the sample that carries them, so
 a press reaches exactly one tick however many ticks the frame holds;
 `input_end_frame()` clears only what belongs to the frame. Game states
-(`GSTATE_*`) and the 3×5 bitmap font every overlay uses live in `game.c`.
+(`GSTATE_*`) live in `game.c`; the 3×5 bitmap font every overlay and the
+status bar's numbers are drawn with is `text.c`.
 What the fixed step runs is the launch mode's, and the loop does not branch
 on it: `session_open()` (`session.h`) hands it a `GameSession`. Alone it is
 `world_step()`; with `--host`, `server_tick()` with the local player's

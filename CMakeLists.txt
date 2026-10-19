@@ -87,6 +87,7 @@ add_executable(doom-clone
     src/enemy.c
     src/weapon.c
     src/hud.c
+    src/text.c
     src/audio.c
     src/assets.c
     src/utils.c
