@@ -134,6 +134,7 @@
 | [feat-004](feat-004-player-chooses-skin.md) | Игрок сам выбирает персонажа из свободных: экран выбора после входа | `net_protocol.h`, `net_server.c`, `game.c`, `sprite.c` |
 | [feat-005](feat-005-smooth-interp-after-long-gap.md) | Возврат чужого игрока после 3+ потерянных снапшотов подряд без ступеньки | `net_interp.c/.h`, `test_net_interp.c` |
 | [test-002](test-002-fps-with-network.md) | Замер FPS клиента с работающей сетью | `SKILL.md`, `netdriver.sh` |
+| [test-004](test-004-replay-compares-events.md) | `replay_test.c` сравнивает события двух прогонов по тикам | `tests/replay_test.c` |
 
 ## Закрытые
 
