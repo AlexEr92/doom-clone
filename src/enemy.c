@@ -273,23 +273,9 @@ void enemy_update_all(EnemyList *el, const Map *m, DoorList *dl, PlayerState *pl
                     break;
                 }
                 if (e->attack_cooldown <= 0.0f) {
-                    /* hit: armor absorbs a fraction of damage first */
-                    float dmg = d->damage;
-                    if (pl->armor > 0.0f) {
-                        float absorbed = dmg * 0.5f;
-                        if (absorbed > pl->armor) {
-                            absorbed = pl->armor;
-                        }
-                        pl->armor -= absorbed;
-                        dmg -= absorbed;
-                    }
-                    pl->hp -= dmg;
-                    if (pl->hp < 0.0f) {
-                        pl->hp = 0.0f;
-                    }
-                    /* the enemy is the source: the client measures the
-                     * distance from its own player to it */
-                    event_push(evq, EV_PLAYER_HURT, pl->id, e->x, e->y);
+                    /* no player dealt it, and the enemy is the source: the
+                     * client measures the distance from its own player to it */
+                    player_damage(pl, d->damage, -1, e->x, e->y, evq);
                     e->attack_cooldown = d->attack_cd;
                 }
                 break;

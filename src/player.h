@@ -8,6 +8,7 @@
 /* PlayerInput is defined in input.h to avoid a circular dependency. */
 struct PlayerInput;
 struct DoorList;
+struct EventQueue;
 
 /* Simulation state of one player. Nothing here comes from the renderer:
  * facing is a single angle, which packs into one float on the wire and
@@ -27,11 +28,16 @@ typedef struct PlayerState {
 
 void player_init(PlayerState *p, int start_x, int start_y);
 
-/* Take damage: armor absorbs half of it first, the rest comes off hp, which
- * stops at zero. `attacker_id` is the player who dealt it, recorded in
- * last_attacker so a frag can be attributed; pass -1 for damage that belongs
- * to no player. */
-void player_damage(PlayerState *victim, float dmg, int attacker_id);
+/* Take damage: armor absorbs half of it first, but no more armor than is
+ * left, and the rest comes off hp, which stops at zero. Every hit, whoever
+ * dealt it, is announced as EV_PLAYER_HURT coming from (src_x, src_y) — the
+ * enemy's position, or the shooter's. evq may be NULL (event dropped).
+ * `attacker_id` is the player who dealt it, recorded in last_attacker so a
+ * frag can be attributed; pass -1 for damage that belongs to no player, which
+ * leaves last_attacker as it was: a player who wounded the victim keeps the
+ * credit when an enemy finishes them off. */
+void player_damage(PlayerState *victim, float dmg, int attacker_id, float src_x, float src_y,
+                   struct EventQueue *evq);
 
 /* dt update. The player takes the facing in `in` as given — the client has
  * already turned it — and moves along it by the buttons pressed.

@@ -24,6 +24,15 @@
 #include <math.h>
 #include <string.h>
 
+/* An attack hurts the player through player_damage(), so player.c is linked
+ * for real: the armor rule the attacking tests check is the one in it. Its
+ * player_init() calls this, and weapon.c would bring the hitscan with it;
+ * the players here are set up by add_player() and own no weapons. */
+void weapon_system_init(WeaponSystem *ws)
+{
+    memset(ws, 0, sizeof(*ws));
+}
+
 #define TEST_STEP (1.0 / 60.0)
 
 /* Mirrors of the constants private to enemy.c. */
@@ -315,6 +324,22 @@ static void test_attacks_are_spaced_by_the_cooldown(void)
     step((int)(0.4f / (float)TEST_STEP));
     TEST_ASSERT_EQUAL_FLOAT(after_first - d->damage, player->hp);
     TEST_ASSERT_EQUAL_INT(2, count_events(EV_PLAYER_HURT));
+}
+
+/* An enemy is no player: its hit leaves whoever wounded the player last in
+ * last_attacker, so the frag is still theirs when an enemy finishes the job. */
+static void test_an_enemy_hit_keeps_the_last_attacker(void)
+{
+    player->x = 5.5f;
+    player->y = 5.5f;
+    player->last_attacker = 3;
+
+    for (int i = 0; i < 600 && player->hp >= 100.0f; i++) {
+        step(1);
+    }
+
+    TEST_ASSERT_TRUE(player->hp < 100.0f);
+    TEST_ASSERT_EQUAL_INT(3, player->last_attacker);
 }
 
 /* ---- losing sight ---- */
@@ -619,6 +644,7 @@ int main(void)
     RUN_TEST(test_enemy_in_line_of_sight_attacks_and_armor_absorbs_half);
     RUN_TEST(test_without_armor_the_player_takes_full_damage);
     RUN_TEST(test_attacks_are_spaced_by_the_cooldown);
+    RUN_TEST(test_an_enemy_hit_keeps_the_last_attacker);
     RUN_TEST(test_enemy_searches_the_last_seen_position);
     RUN_TEST(test_enemy_gives_up_on_reaching_the_last_seen_position);
     RUN_TEST(test_enemy_gives_up_when_the_search_times_out);

@@ -1,19 +1,20 @@
-/* player.c: movement, wall/door collision and the facing it takes from the
- * input. Turning itself is the client's (input_turn(), tests/test_input.c):
- * PlayerInput has no mouse_dx or turn keys for player_update() to read. The
- * map is built in memory so the test needs neither the working directory nor
- * the level file. */
+/* player.c: movement, wall/door collision, the facing it takes from the
+ * input, and damage. Turning itself is the client's (input_turn(),
+ * tests/test_input.c): PlayerInput has no mouse_dx or turn keys for
+ * player_update() to read. The map is built in memory so the test needs
+ * neither the working directory nor the level file. */
 
 #include "unity.h"
 #include "player.h"
 #include "input.h"
 #include "door.h"
+#include "event.h"
 #include "map.h"
 #include <math.h>
 #include <string.h>
 
-/* weapon.c is not linked: it references the screen-space hitscan's zBuffer and
- * enemy_damage(), neither of which has anything to do with movement. What
+/* weapon.c is not linked: it brings the hitscan and enemy_damage() with it,
+ * neither of which has anything to do with what is tested here. What
  * player_init() has to do is call this at all — the weapon system lives inside
  * the player. What it fills in is test_weapon.c's business. */
 static int weapon_system_init_calls;
@@ -343,6 +344,78 @@ static void test_a_lone_player_moves_as_without_the_array(void)
     TEST_ASSERT_EQUAL_FLOAT(alone_y, player.y);
 }
 
+/* ---- damage ---- */
+
+/* Armor takes half of a hit while it lasts, and hp the other half. */
+static void test_armor_absorbs_half_of_the_damage(void)
+{
+    player.armor = 50.0f;
+    player_damage(&player, 20.0f, -1, 0.0f, 0.0f, NULL);
+    TEST_ASSERT_EQUAL_FLOAT(40.0f, player.armor);
+    TEST_ASSERT_EQUAL_FLOAT(90.0f, player.hp);
+}
+
+/* Armor gives no more than is left of it: the part of its half it cannot
+ * cover comes off hp, and with none left the whole hit does. */
+static void test_armor_absorbs_no_more_than_is_left(void)
+{
+    player.armor = 4.0f;
+    player_damage(&player, 20.0f, -1, 0.0f, 0.0f, NULL);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, player.armor);
+    TEST_ASSERT_EQUAL_FLOAT(84.0f, player.hp);
+
+    player_damage(&player, 20.0f, -1, 0.0f, 0.0f, NULL);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, player.armor);
+    TEST_ASSERT_EQUAL_FLOAT(64.0f, player.hp);
+}
+
+static void test_hp_stops_at_zero(void)
+{
+    player_damage(&player, 250.0f, -1, 0.0f, 0.0f, NULL);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, player.hp);
+
+    player_damage(&player, 10.0f, -1, 0.0f, 0.0f, NULL);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, player.hp);
+}
+
+/* A player's hit is theirs until another player's replaces it. Damage that
+ * belongs to nobody — an enemy's — leaves it standing, so a wound a player
+ * dealt is still theirs when an enemy finishes the victim off. Player 0 is a
+ * player like any other. */
+static void test_only_a_player_takes_over_last_attacker(void)
+{
+    TEST_ASSERT_EQUAL_INT(-1, player.last_attacker);
+    player_damage(&player, 5.0f, -1, 0.0f, 0.0f, NULL);
+    TEST_ASSERT_EQUAL_INT(-1, player.last_attacker);
+
+    player_damage(&player, 5.0f, 3, 0.0f, 0.0f, NULL);
+    TEST_ASSERT_EQUAL_INT(3, player.last_attacker);
+
+    player_damage(&player, 5.0f, -1, 0.0f, 0.0f, NULL);
+    TEST_ASSERT_EQUAL_INT(3, player.last_attacker);
+
+    player_damage(&player, 5.0f, 0, 0.0f, 0.0f, NULL);
+    TEST_ASSERT_EQUAL_INT(0, player.last_attacker);
+}
+
+/* Every hit is the victim's pain, coming from the source it is given rather
+ * than from where the victim stands: that is what a client measures its own
+ * distance to. */
+static void test_a_hit_is_announced_from_its_source(void)
+{
+    EventQueue q;
+    event_queue_clear(&q);
+    player.id = 4;
+
+    player_damage(&player, 5.0f, -1, 7.5f, 2.5f, &q);
+
+    TEST_ASSERT_EQUAL_INT(1, q.count);
+    TEST_ASSERT_EQUAL_UINT8(EV_PLAYER_HURT, q.items[0].kind);
+    TEST_ASSERT_EQUAL_UINT8(4, q.items[0].actor);
+    TEST_ASSERT_EQUAL_FLOAT(7.5f, q.items[0].x);
+    TEST_ASSERT_EQUAL_FLOAT(2.5f, q.items[0].y);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -361,5 +434,10 @@ int main(void)
     RUN_TEST(test_a_second_player_blocks_the_way);
     RUN_TEST(test_an_inactive_player_does_not_block);
     RUN_TEST(test_a_lone_player_moves_as_without_the_array);
+    RUN_TEST(test_armor_absorbs_half_of_the_damage);
+    RUN_TEST(test_armor_absorbs_no_more_than_is_left);
+    RUN_TEST(test_hp_stops_at_zero);
+    RUN_TEST(test_only_a_player_takes_over_last_attacker);
+    RUN_TEST(test_a_hit_is_announced_from_its_source);
     return UNITY_END();
 }

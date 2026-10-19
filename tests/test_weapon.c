@@ -417,6 +417,17 @@ static int count_events(GameEventKind kind)
     return n;
 }
 
+static const GameEvent *find_event(GameEventKind kind)
+{
+    for (int i = 0; i < events.count; i++) {
+        if (events.items[i].kind == kind) {
+            return &events.items[i];
+        }
+    }
+    TEST_FAIL_MESSAGE("no event of that kind");
+    return NULL;
+}
+
 /* Every pellet of a blast at point-blank hurts the enemy, and the tick still
  * has one shot and one pain for the client to play, not seven pains. */
 static void test_a_point_blank_blast_is_one_shot_and_one_pain(void)
@@ -618,6 +629,54 @@ static void test_a_shot_damages_another_player_through_armor(void)
     TEST_ASSERT_EQUAL_INT(SHOOTER, players[VICTIM].last_attacker);
 }
 
+/* A player's pain is announced as an enemy's is: once, as the victim's, and
+ * from where the shooter stands — the position every other client measures
+ * its own distance to. */
+static void test_a_shot_at_a_player_is_announced_as_their_pain(void)
+{
+    aim(&players[SHOOTER], 2.5f, 8.5f, 0.0f);
+    aim(&players[VICTIM], 7.5f, 8.5f, 0.0f);
+
+    fire();
+
+    TEST_ASSERT_EQUAL_INT(1, count_events(EV_PLAYER_HURT));
+    const GameEvent *ev = find_event(EV_PLAYER_HURT);
+    TEST_ASSERT_EQUAL_INT(VICTIM, ev->actor);
+    TEST_ASSERT_EQUAL_FLOAT(2.5f, ev->x);
+    TEST_ASSERT_EQUAL_FLOAT(8.5f, ev->y);
+}
+
+/* Every pellet of a blast at point-blank hurts the player, and the tick has
+ * one shot and one pain, as it has for an enemy. */
+static void test_a_point_blank_blast_at_a_player_is_one_pain(void)
+{
+    aim(&players[SHOOTER], 2.5f, 8.5f, 0.0f);
+    aim(&players[VICTIM], 3.5f, 8.5f, 0.0f);
+    give(&players[SHOOTER], WEAPON_SHOTGUN);
+    weapon_switch(&players[SHOOTER], WEAPON_SHOTGUN);
+    const Weapon *w = &players[SHOOTER].weapons.weapons[WEAPON_SHOTGUN];
+    players[VICTIM].hp = 1000.0f; /* survives the blast */
+
+    fire();
+
+    TEST_ASSERT_FLOAT_WITHIN(1e-3f, 1000.0f - w->damage * (float)w->pellets, players[VICTIM].hp);
+    TEST_ASSERT_EQUAL_INT(2, events.count);
+    TEST_ASSERT_EQUAL_INT(1, count_events(EV_SHOT));
+    TEST_ASSERT_EQUAL_INT(1, count_events(EV_PLAYER_HURT));
+}
+
+/* With no queue the hit lands all the same; only the sound is lost. */
+static void test_a_shot_at_a_player_hurts_without_a_queue(void)
+{
+    aim(&players[SHOOTER], 2.5f, 8.5f, 0.0f);
+    aim(&players[VICTIM], 7.5f, 8.5f, 0.0f);
+
+    weapon_try_fire(&players[SHOOTER], &map, &doors, players, 2, &enemies, NULL);
+
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, 100.0f - pistol_damage(), players[VICTIM].hp);
+    TEST_ASSERT_EQUAL_INT(SHOOTER, players[VICTIM].last_attacker);
+}
+
 /* The ray starts inside the shooter's own hit radius; it must ignore it. */
 static void test_a_player_cannot_shoot_themselves(void)
 {
@@ -699,6 +758,9 @@ int main(void)
     RUN_TEST(test_a_shot_passes_through_a_dead_enemy);
     RUN_TEST(test_a_shot_hits_within_the_world_radius_only);
     RUN_TEST(test_a_shot_damages_another_player_through_armor);
+    RUN_TEST(test_a_shot_at_a_player_is_announced_as_their_pain);
+    RUN_TEST(test_a_point_blank_blast_at_a_player_is_one_pain);
+    RUN_TEST(test_a_shot_at_a_player_hurts_without_a_queue);
     RUN_TEST(test_a_player_cannot_shoot_themselves);
     RUN_TEST(test_a_shot_ignores_a_player_who_is_not_alive);
     RUN_TEST(test_an_empty_weapon_does_not_fire);

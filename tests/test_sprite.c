@@ -17,6 +17,14 @@
 
 float zBuffer[SCREEN_W];
 
+/* player.c comes in behind enemy.c, whose attack calls player_damage(); its
+ * player_init() calls this, and weapon.c would bring the hitscan with it. No
+ * test here runs either: the players are built by hand. */
+void weapon_system_init(WeaponSystem *ws)
+{
+    memset(ws, 0, sizeof(*ws));
+}
+
 #define FRAME_DT (1.0f / 60.0f)
 
 /* Frames in each sheet, as the files in assets/players/ have them. */

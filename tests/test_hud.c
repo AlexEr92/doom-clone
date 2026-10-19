@@ -124,7 +124,7 @@ static void test_hit_grimaces_for_pain_time(void)
     hud_face_init(&f);
     TEST_ASSERT_EQUAL_INT(FACE_HEALTH, face_step(&f, &p));
 
-    player_damage(&p, 50.0f, -1);
+    player_damage(&p, 50.0f, -1, 0.0f, 0.0f, NULL);
     int pain = 0;
     int frame = FACE_PAIN;
     for (int t = 0; t < 120 && (frame = face_step(&f, &p)) == FACE_PAIN; t++) {
@@ -142,13 +142,13 @@ static void test_second_hit_restarts_the_grimace(void)
     HudFace f;
     hud_face_init(&f);
     face_step(&f, &p);
-    player_damage(&p, 10.0f, -1);
+    player_damage(&p, 10.0f, -1, 0.0f, 0.0f, NULL);
     face_step(&f, &p);
     int half = (int)(HUD_PAIN_TIME / 2.0f / (float)TEST_STEP);
     for (int t = 0; t < half; t++) {
         face_step(&f, &p);
     }
-    player_damage(&p, 10.0f, -1);
+    player_damage(&p, 10.0f, -1, 0.0f, 0.0f, NULL);
     face_step(&f, &p);
     TEST_ASSERT_FLOAT_WITHIN(1e-6f, HUD_PAIN_TIME, f.pain_left);
 }
@@ -188,7 +188,7 @@ static void test_dt_zero_holds_the_grimace(void)
     HudFace f;
     hud_face_init(&f);
     face_step(&f, &p);
-    player_damage(&p, 10.0f, -1);
+    player_damage(&p, 10.0f, -1, 0.0f, 0.0f, NULL);
     face_step(&f, &p);
     for (int t = 0; t < 120; t++) {
         hud_face_update(&f, &p, 0.0f);
@@ -206,7 +206,7 @@ static void test_dead_face_wins_over_the_grimace(void)
     HudFace f;
     hud_face_init(&f);
     face_step(&f, &p);
-    player_damage(&p, 500.0f, -1);
+    player_damage(&p, 500.0f, -1, 0.0f, 0.0f, NULL);
     TEST_ASSERT_EQUAL_INT(FACE_DEAD, face_step(&f, &p));
     p.alive = 0;
     TEST_ASSERT_EQUAL_INT(FACE_DEAD, face_step(&f, &p));

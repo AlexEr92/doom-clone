@@ -115,7 +115,6 @@
 
 | # | Задача | Где |
 |---|---|---|
-| [bug-014](bug-014-player-hit-by-player-is-silent.md) | Попадание игрока по игроку не порождает `EV_PLAYER_HURT` | `player.c`, `weapon.c`, `enemy.c` |
 | [bug-015](bug-015-door-closes-silently.md) | Дверь, закрывающаяся сама, и дверь, передумавшая закрываться, беззвучны | `door.c`, `world.c`, `main.c` |
 | [bug-016](bug-016-level1-row-8-too-long.md) | Строка 8 `level1.txt` длиннее `MAP_MAX_W`, `map_load()` молча обрезает | `level1.txt`, `map.c` |
 | [bug-017](bug-017-hud-face-mouth-inverted.md) | Рот лица в статус-баре перевёрнут: хмурится при полном здоровье | `hud.c` |
@@ -194,3 +193,4 @@
 | [bug-008](../closed_tasks/bug-008-load-png-leaks-replaced-pixels.md) | `assets_load_png()` теряет пиксели замещаемого слота | Сделано: освобождает после успешного чтения |
 | [08-01](../closed_tasks/08-01-snapshot-interpolation.md) | Буфер снапшотов и интерполяция | Сделано: модуль `net_interp`, вид для рендера |
 | [09-01](../closed_tasks/09-01-spawn-points.md) | Пул точек спавна | Сделано: маркер `s`, автопул, `world_pick_spawn()` |
+| [bug-014](../closed_tasks/bug-014-player-hit-by-player-is-silent.md) | Попадание игрока по игроку не порождает `EV_PLAYER_HURT` | Сделано: событие и урон врага через `player_damage()` |

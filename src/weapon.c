@@ -159,7 +159,7 @@ void weapon_try_fire(PlayerState *p, const Map *m, const DoorList *dl, PlayerSta
         if (h.kind == HIT_ENEMY) {
             enemy_damage(el, h.id, w->damage, evq, p->id, p->x, p->y);
         } else if (h.kind == HIT_PLAYER) {
-            player_damage(&players[h.id], w->damage, p->id);
+            player_damage(&players[h.id], w->damage, p->id, p->x, p->y, evq);
         }
     }
 }

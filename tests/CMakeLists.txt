@@ -71,7 +71,9 @@ doom_test(event)
 doom_test(map    SRC map.c door.c)
 doom_test(door   SRC door.c)
 doom_test(player SRC player.c map.c door.c)
-doom_test(enemy  SRC enemy.c raycast_world.c map.c door.c)
+# Атака врага ранит игрока через player_damage(), поэтому player.c линкуется;
+# weapon.c за ним не идёт — weapon_system_init() тест подменяет сам.
+doom_test(enemy  SRC enemy.c player.c raycast_world.c map.c door.c)
 doom_test(item   SRC item.c)
 # Хитскан мировой: тест линкует трассировку, карту, двери и обе сущности,
 # которым он наносит урон.
@@ -90,8 +92,9 @@ doom_test(game   SRC game.c)
 # зависимостями, player.c — чтобы попадание снимало hp, как в мире.
 doom_test(hud    SRC hud.c weapon.c raycast_world.c enemy.c player.c map.c door.c)
 # Скины, выбор анимации и кадра персонажей. Сам рендер спрайтов не
-# проверяется: zBuffer тест определяет сам, raycast.c не линкуется.
-doom_test(sprite SRC sprite.c assets.c enemy.c raycast_world.c map.c door.c)
+# проверяется: zBuffer тест определяет сам, raycast.c не линкуется. player.c —
+# за enemy.c, чья атака зовёт player_damage(); weapon_system_init() подменён.
+doom_test(sprite SRC sprite.c assets.c enemy.c player.c raycast_world.c map.c door.c)
 # Загрузчик листов: assets.c тянет stb_image по относительному пути, а сами
 # PNG тест пишет сам — фикстур в tests/ нет.
 doom_test(assets SRC assets.c)

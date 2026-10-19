@@ -1,6 +1,7 @@
 #include "player.h"
 #include "input.h"
 #include "door.h"
+#include "event.h"
 #include "utils.h"
 #include <math.h>
 
@@ -19,7 +20,8 @@ void player_init(PlayerState *p, int start_x, int start_y)
     weapon_system_init(&p->weapons);
 }
 
-void player_damage(PlayerState *victim, float dmg, int attacker_id)
+void player_damage(PlayerState *victim, float dmg, int attacker_id, float src_x, float src_y,
+                   EventQueue *evq)
 {
     if (victim->armor > 0.0f) {
         float absorbed = dmg * 0.5f;
@@ -33,7 +35,10 @@ void player_damage(PlayerState *victim, float dmg, int attacker_id)
     if (victim->hp < 0.0f) {
         victim->hp = 0.0f;
     }
-    victim->last_attacker = (int8_t)attacker_id;
+    if (attacker_id >= 0) {
+        victim->last_attacker = (int8_t)attacker_id;
+    }
+    event_push(evq, EV_PLAYER_HURT, victim->id, src_x, src_y);
 }
 
 static int blocked(const Map *m, DoorList *dl, float x, float y)
