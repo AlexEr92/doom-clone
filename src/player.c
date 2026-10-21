@@ -1,4 +1,5 @@
 #include "player.h"
+#include "config.h"
 #include "input.h"
 #include "door.h"
 #include "event.h"
@@ -16,6 +17,7 @@ void player_init(PlayerState *p, int start_x, int start_y)
     p->armor = 0.0f;
     p->alive = 1;
     p->respawn_timer = 0.0f;
+    p->spawn_protect_timer = 0.0f;
     p->last_attacker = -1;
     weapon_system_init(&p->weapons);
 }
@@ -23,6 +25,9 @@ void player_init(PlayerState *p, int start_x, int start_y)
 void player_damage(PlayerState *victim, float dmg, int attacker_id, float src_x, float src_y,
                    EventQueue *evq)
 {
+    if (!victim->alive || victim->spawn_protect_timer > 0.0f) {
+        return;
+    }
     if (victim->armor > 0.0f) {
         float absorbed = dmg * 0.5f;
         if (absorbed > victim->armor) {
@@ -38,7 +43,13 @@ void player_damage(PlayerState *victim, float dmg, int attacker_id, float src_x,
     if (attacker_id >= 0) {
         victim->last_attacker = (int8_t)attacker_id;
     }
-    event_push(evq, EV_PLAYER_HURT, victim->id, src_x, src_y);
+    event_push(evq, EV_PLAYER_HURT, victim->id, 0, src_x, src_y);
+    if (victim->hp <= 0.0f) {
+        victim->alive = 0;
+        victim->respawn_timer = RESPAWN_TIME;
+        int killer = victim->last_attacker >= 0 ? victim->last_attacker : victim->id;
+        event_push(evq, EV_PLAYER_DEATH, killer, victim->id, victim->x, victim->y);
+    }
 }
 
 static int blocked(const Map *m, DoorList *dl, float x, float y)

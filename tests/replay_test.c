@@ -141,6 +141,12 @@ static void assert_worlds_match(const World *a, const World *b)
     ASSERT_SAME_FLOAT(a->players[0].angle, b->players[0].angle, "player.angle");
     ASSERT_SAME_FLOAT(a->players[0].hp, b->players[0].hp, "player.hp");
     ASSERT_SAME_FLOAT(a->players[0].armor, b->players[0].armor, "player.armor");
+    TEST_ASSERT_EQUAL_INT(a->players[0].alive, b->players[0].alive);
+    ASSERT_SAME_FLOAT(a->players[0].respawn_timer, b->players[0].respawn_timer,
+                      "player.respawn_timer");
+    ASSERT_SAME_FLOAT(a->players[0].spawn_protect_timer, b->players[0].spawn_protect_timer,
+                      "player.spawn_protect_timer");
+    TEST_ASSERT_EQUAL_INT(a->players[0].last_attacker, b->players[0].last_attacker);
     TEST_ASSERT_EQUAL_INT(a->players[0].weapons.current, b->players[0].weapons.current);
     for (int i = 0; i < WEAPON_COUNT; i++) {
         TEST_ASSERT_EQUAL_INT(a->players[0].weapons.weapons[i].ammo,
@@ -170,6 +176,8 @@ static void assert_worlds_match(const World *a, const World *b)
     TEST_ASSERT_EQUAL_INT(a->items.count, b->items.count);
     for (int i = 0; i < a->items.count; i++) {
         TEST_ASSERT_EQUAL_INT(a->items.items[i].active, b->items.items[i].active);
+        ASSERT_SAME_FLOAT(a->items.items[i].respawn_timer, b->items.items[i].respawn_timer,
+                          "item.respawn_timer");
     }
 }
 

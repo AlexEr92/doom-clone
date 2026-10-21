@@ -155,7 +155,7 @@ the multiplayer work has been; do not add a new one.
   at render time from `ItemType`.
 - **Sound is events, not calls.** The simulation never calls into
   `audio.c`: it appends `GameEvent`s to an `EventQueue` (`event.h`), one
-  of a kind and actor a tick, and the client plays them with
+  of a kind, actor and arg a tick, and the client plays them with
   `audio_play_events()` after each tick — a network client after each
   poll — scaling volume by the distance to *its own* player. Who hears
   what, and how far each kind carries, is `event_gain()`, which the server
@@ -188,9 +188,10 @@ includes it, so it includes nothing and holds `#define` and
 ### Entity model
 
 Entity lists are fixed-size arrays with a `count`, and nothing is ever
-removed: items deactivate (`active = 0`), enemies become corpses
-(`ESTATE_DEAD`). An index is therefore a stable id — what a snapshot puts on
-the wire and what the client keys a sprite by.
+removed: items deactivate (`active = 0`) and come back `ITEM_RESPAWN_TIME`
+later, enemies become corpses (`ESTATE_DEAD`), players die (`alive = 0`)
+and respawn under the same id. An index is therefore a stable id — what a
+snapshot puts on the wire and what the client keys a sprite by.
 
 ### Main loop
 
@@ -212,9 +213,10 @@ client's own `World` as it is. The players and enemies a frame draws come
 from `view()`: the world itself, but in a client a copy with everyone else
 `INTERP_DELAY` in the past, between two snapshots (`net_interp.h`); the
 camera, the walls and the HUD stay with the world. A world shared with
-other players goes on ticking under the menu and the pause. `--host
---dedicated` runs no frame loop at all: no window, no assets, no sound, SDL
-for its timer alone. The command line is `options.c`, which reaches no
+other players goes on ticking under the menu, the pause and its player's
+death, which there is an overlay and a respawn rather than `GSTATE_DEAD`.
+`--host --dedicated` runs no frame loop at all: no window, no assets, no
+sound, SDL for its timer alone. The command line is `options.c`, which reaches no
 other module and is tested on its own.
 
 ### Colour packing — easy to break silently

@@ -272,17 +272,23 @@ static void server_poll(Server *s)
  * buttons and every press since the last tick. With none, the last one goes
  * on — a lost packet must not stop a running player for a tick — but only
  * what is held: a press already had its tick. Silent for NET_INPUT_TIMEOUT,
- * the client stands, still facing where it last faced. */
+ * the client stands, facing the way the world has it face.
+ *
+ * Which is not always where it last faced: a client sends nothing while its
+ * player is dead, and a respawn, RESPAWN_TIME later, turns the player the way
+ * the spawn point looks. The last input before the death would turn them
+ * back, before the client even knows it is alive again. */
 static PlayerInput client_input(const ServerClient *c, const PlayerState *p, uint32_t tick)
 {
     PlayerInput in = {tick, 0, p->angle};
     if (!c->has_input) {
         return in;
     }
-    in.angle = c->last_input.angle;
     if (c->fresh) {
+        in.angle = c->last_input.angle;
         in.buttons = c->last_input.buttons | c->pending;
     } else if (c->time_since_input <= NET_INPUT_TIMEOUT) {
+        in.angle = c->last_input.angle;
         in.buttons = c->last_input.buttons & BTN_HELD;
     }
     return in;

@@ -124,7 +124,7 @@ static void test_every_sound_lasts_its_synthesis_length(void)
  * is SND_COUNT when nothing is heard. */
 static float sound_of(GameEventKind kind, int actor, float x, float y, SoundId *id)
 {
-    GameEvent e = {(uint8_t)kind, (uint8_t)actor, x, y};
+    GameEvent e = {(uint8_t)kind, (uint8_t)actor, 0, x, y};
     *id = SND_COUNT;
     return audio_event_sound(&world, &e, id);
 }
@@ -263,8 +263,8 @@ static void test_each_sound_plays_on_a_channel_at_its_own_volume(void)
 {
     skip_without_mixer();
     world.players[OTHER].weapons.current = WEAPON_PISTOL;
-    event_push(&world.events, EV_SHOT, ME, 5.0f, 5.0f);
-    event_push(&world.events, EV_SHOT, OTHER, 5.0f + OTHER_DIST, 5.0f);
+    event_push(&world.events, EV_SHOT, ME, 0, 5.0f, 5.0f);
+    event_push(&world.events, EV_SHOT, OTHER, 0, 5.0f + OTHER_DIST, 5.0f);
 
     audio_play_events(&audio, &world);
 
@@ -302,8 +302,8 @@ static void test_a_sound_with_every_channel_busy_is_dropped(void)
 static void test_what_is_not_heard_takes_no_channel(void)
 {
     skip_without_mixer();
-    event_push(&world.events, EV_PICKUP, OTHER, 5.0f, 5.0f);
-    event_push(&world.events, EV_DOOR, 0, 5.0f + event_range(EV_DOOR), 5.0f);
+    event_push(&world.events, EV_PICKUP, OTHER, 0, 5.0f, 5.0f);
+    event_push(&world.events, EV_DOOR, 0, 0, 5.0f + event_range(EV_DOOR), 5.0f);
 
     audio_play_events(&audio, &world);
 
@@ -313,7 +313,7 @@ static void test_what_is_not_heard_takes_no_channel(void)
 static void test_muting_cuts_off_what_plays_and_plays_nothing_new(void)
 {
     skip_without_mixer();
-    event_push(&world.events, EV_ENEMY_DEATH, 0, 5.0f, 5.0f);
+    event_push(&world.events, EV_ENEMY_DEATH, 0, 0, 5.0f, 5.0f);
     audio_play_events(&audio, &world);
     TEST_ASSERT_EQUAL_INT(1, channels_playing());
 

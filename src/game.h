@@ -32,7 +32,9 @@ int game_handle_event(Game *g, InputState *in, SDL_Event *ev);
 /* Per-frame FSM update (state transitions like DEAD->menu). */
 void game_update(Game *g, double dt);
 
-/* Draw the overlay for the current state (menu / paused / dead / win).
+/* Draw the overlay for the current state (menu / paused / dead / win), and
+ * while playing, for `pl` dead in a game that goes on — GSTATE_DEAD is only
+ * for one that ends with them — who killed them and when they are back.
  * Call AFTER rendering the world so overlays appear on top. */
 void game_draw_overlay(Framebuffer *fb, const Game *g, const PlayerState *pl);
 

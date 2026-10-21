@@ -1,6 +1,7 @@
 #include "game.h"
 #include "text.h"
 #include "utils.h"
+#include <stdio.h>
 #include <string.h>
 #include <math.h>
 
@@ -100,9 +101,34 @@ static void overlay_dim(Framebuffer *fb, float alpha)
     (void)dim;
 }
 
+/* A dead player in a game that goes on without them: the world is still drawn
+ * and still moving, dimmed a little, from where they fell. Who killed them —
+ * a player's id until players have names — and how long until they are back,
+ * which the world counts down. */
+static void draw_respawn(Framebuffer *fb, const PlayerState *pl)
+{
+    overlay_dim(fb, 0.35f);
+    uint32_t red = make_color(220, 40, 40);
+    uint32_t white = make_color(240, 240, 240);
+    char line[32];
+    text_draw_centered(fb, 120, "YOU DIED", red, 6);
+    if (pl->last_attacker >= 0 && pl->last_attacker != pl->id) {
+        snprintf(line, sizeof(line), "KILLED BY PLAYER %d", pl->last_attacker);
+        text_draw_centered(fb, 200, line, white, 2);
+    }
+    snprintf(line, sizeof(line), "RESPAWN IN %d", (int)ceilf(pl->respawn_timer));
+    text_draw_centered(fb, 230, line, white, 2);
+}
+
 void game_draw_overlay(Framebuffer *fb, const Game *g, const PlayerState *pl)
 {
     switch (g->state) {
+        case GSTATE_PLAYING: {
+            if (pl && !pl->alive) {
+                draw_respawn(fb, pl);
+            }
+            break;
+        }
         case GSTATE_MENU: {
             overlay_dim(fb, 0.85f);
             uint32_t red = make_color(220, 40, 40);

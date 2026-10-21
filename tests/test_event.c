@@ -25,7 +25,7 @@ void tearDown(void)
 
 static GameEvent event_at(GameEventKind kind, int actor, float x, float y)
 {
-    GameEvent e = {(uint8_t)kind, (uint8_t)actor, x, y};
+    GameEvent e = {(uint8_t)kind, (uint8_t)actor, 0, x, y};
     return e;
 }
 
@@ -34,7 +34,7 @@ static GameEvent event_at(GameEventKind kind, int actor, float x, float y)
 static void test_the_same_event_twice_in_a_tick_is_kept_once(void)
 {
     for (int pellet = 0; pellet < 7; pellet++) {
-        event_push(&q, EV_ENEMY_HURT, 3, 4.5f + (float)pellet, 2.5f);
+        event_push(&q, EV_ENEMY_HURT, 3, 0, 4.5f + (float)pellet, 2.5f);
     }
     TEST_ASSERT_EQUAL_INT(1, q.count);
     TEST_ASSERT_EQUAL_UINT8(EV_ENEMY_HURT, q.items[0].kind);
@@ -42,36 +42,42 @@ static void test_the_same_event_twice_in_a_tick_is_kept_once(void)
     TEST_ASSERT_EQUAL_FLOAT(4.5f, q.items[0].x); /* where the first one put it */
 }
 
-/* Only kind and actor together make an event the same: an enemy hurt and
- * one killed, two enemies hurt, an enemy and a player with one index. */
+/* Only kind, actor and arg together make an event the same: an enemy hurt and
+ * one killed, two enemies hurt, an enemy and a player with one index, one
+ * player killing two others. */
 static void test_another_kind_or_actor_is_another_event(void)
 {
-    event_push(&q, EV_ENEMY_HURT, 3, 1.5f, 1.5f);
-    event_push(&q, EV_ENEMY_DEATH, 3, 1.5f, 1.5f);
-    event_push(&q, EV_ENEMY_HURT, 4, 1.5f, 1.5f);
-    event_push(&q, EV_SHOT, 3, 1.5f, 1.5f);
-    TEST_ASSERT_EQUAL_INT(4, q.count);
+    event_push(&q, EV_ENEMY_HURT, 3, 0, 1.5f, 1.5f);
+    event_push(&q, EV_ENEMY_DEATH, 3, 0, 1.5f, 1.5f);
+    event_push(&q, EV_ENEMY_HURT, 4, 0, 1.5f, 1.5f);
+    event_push(&q, EV_SHOT, 3, 0, 1.5f, 1.5f);
+    event_push(&q, EV_PLAYER_DEATH, 3, 1, 1.5f, 1.5f);
+    event_push(&q, EV_PLAYER_DEATH, 3, 2, 1.5f, 1.5f);
+    event_push(&q, EV_PLAYER_DEATH, 3, 2, 1.5f, 1.5f);
+    TEST_ASSERT_EQUAL_INT(6, q.count);
+    TEST_ASSERT_EQUAL_UINT8(1, q.items[4].arg);
+    TEST_ASSERT_EQUAL_UINT8(2, q.items[5].arg);
 }
 
 /* The next tick starts from a cleared queue, and the same event is a new
  * sound there. */
 static void test_the_same_event_in_the_next_tick_is_posted_again(void)
 {
-    event_push(&q, EV_SHOT, ME, 1.5f, 1.5f);
+    event_push(&q, EV_SHOT, ME, 0, 1.5f, 1.5f);
     event_queue_clear(&q);
-    event_push(&q, EV_SHOT, ME, 1.5f, 1.5f);
+    event_push(&q, EV_SHOT, ME, 0, 1.5f, 1.5f);
     TEST_ASSERT_EQUAL_INT(1, q.count);
 }
 
 static void test_a_full_queue_drops_what_comes_after(void)
 {
     for (int i = 0; i < MAX_EVENTS + 3; i++) {
-        event_push(&q, EV_DOOR, i, 0.5f, 0.5f);
+        event_push(&q, EV_DOOR, i, 0, 0.5f, 0.5f);
     }
     TEST_ASSERT_EQUAL_INT(MAX_EVENTS, q.count);
     TEST_ASSERT_EQUAL_UINT8(MAX_EVENTS - 1, q.items[MAX_EVENTS - 1].actor);
 
-    event_push(NULL, EV_DOOR, 0, 0.5f, 0.5f); /* no queue: nothing happens */
+    event_push(NULL, EV_DOOR, 0, 0, 0.5f, 0.5f); /* no queue: nothing happens */
 }
 
 /* ---- who hears it ---- */
@@ -121,6 +127,24 @@ static void test_an_enemy_or_door_with_the_listeners_number_is_not_theirs(void)
     }
 }
 
+/* A death is the business of the two players in it, the one who died and the
+ * one who killed them, wherever each of them is — and of nobody else, however
+ * near. A death no player caused is the victim's alone. */
+static void test_a_death_belongs_to_the_victim_and_the_killer(void)
+{
+    GameEvent killed_by_other = {EV_PLAYER_DEATH, OTHER, ME, 100.0f, 0.0f};
+    GameEvent killed_other = {EV_PLAYER_DEATH, ME, OTHER, 100.0f, 0.0f};
+    GameEvent between_others = {EV_PLAYER_DEATH, OTHER, OTHER + 1, 0.0f, 0.0f};
+    GameEvent on_my_own = {EV_PLAYER_DEATH, ME, ME, 100.0f, 0.0f};
+
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, event_gain(&killed_by_other, ME, 0.0f, 0.0f));
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, event_gain(&killed_other, ME, 0.0f, 0.0f));
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, event_gain(&on_my_own, ME, 0.0f, 0.0f));
+    TEST_ASSERT_FALSE(event_is_own(&between_others, ME));
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, event_gain(&between_others, ME, 0.0f, 0.0f));
+    TEST_ASSERT_FALSE(event_is_own(&on_my_own, OTHER));
+}
+
 /* Every sound that others hear carries some way; the shot, which the server
  * sends farthest, carries farthest of all. */
 static void test_a_shot_carries_farthest(void)
@@ -134,6 +158,7 @@ static void test_a_shot_carries_farthest(void)
     TEST_ASSERT_TRUE(event_range(EV_DOOR) > 0.0f);
     TEST_ASSERT_EQUAL_FLOAT(0.0f, event_range(EV_PICKUP));
     TEST_ASSERT_EQUAL_FLOAT(0.0f, event_range(EV_NO_AMMO));
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, event_range(EV_PLAYER_DEATH));
 }
 
 int main(void)
@@ -147,6 +172,7 @@ int main(void)
     RUN_TEST(test_another_players_pickup_and_empty_click_are_not_heard);
     RUN_TEST(test_another_players_shot_fades_out_at_its_range);
     RUN_TEST(test_an_enemy_or_door_with_the_listeners_number_is_not_theirs);
+    RUN_TEST(test_a_death_belongs_to_the_victim_and_the_killer);
     RUN_TEST(test_a_shot_carries_farthest);
     return UNITY_END();
 }

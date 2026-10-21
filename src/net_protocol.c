@@ -5,7 +5,9 @@
 #include <string.h>
 
 /* hp and armor as whole points. Rounded up, so that anyone with hp left keeps
- * some — the client takes hp <= 0 for dead. NaN and anything below 0 are 0. */
+ * some — the client takes hp <= 0 for dead. NaN and anything below 0 are 0.
+ * A respawn countdown goes the same way, in tenths of a second: one with any
+ * time left does not arrive as over. */
 static uint8_t quantize_points(float v)
 {
     if (!(v > 0.0f)) {
@@ -48,8 +50,14 @@ void snapshot_write(MsgSnapshot *s, const World *w, int receiver, uint32_t last_
     s->last_input_tick = last_input_tick;
 
     s->yours.id = (uint8_t)receiver;
+    s->attacker = NET_NO_PLAYER;
     if (receiver >= 0 && receiver < MAX_PLAYERS) {
-        const WeaponSystem *ws = &w->players[receiver].weapons;
+        const PlayerState *me = &w->players[receiver];
+        s->respawn = quantize_points(me->respawn_timer * 10.0f);
+        if (me->last_attacker >= 0) {
+            s->attacker = (uint8_t)me->last_attacker;
+        }
+        const WeaponSystem *ws = &me->weapons;
         for (int k = 0; k < WEAPON_COUNT; k++) {
             const Weapon *wp = &ws->weapons[k];
             if (wp->owned) {
@@ -68,6 +76,7 @@ void snapshot_write(MsgSnapshot *s, const World *w, int receiver, uint32_t last_
         const WeaponSystem *ws = &p->weapons;
         NetPlayer *np = &s->players[n++];
         np->id = (uint8_t)i;
+        np->flags = p->spawn_protect_timer > 0.0f ? NET_PLAYER_PROTECTED : 0;
         np->weapon = (uint8_t)ws->current;
         np->alive = p->alive ? 1 : 0;
         np->x = p->x;
@@ -111,6 +120,7 @@ void snapshot_set_events(MsgSnapshot *s, const GameEvent *events, int count)
         NetEvent *ne = &s->events[i];
         ne->kind = ev->kind;
         ne->actor = ev->actor;
+        ne->arg = ev->arg;
         ne->x = ev->x;
         ne->y = ev->y;
     }
@@ -202,6 +212,7 @@ void snapshot_apply(World *w, const MsgSnapshot *s)
         GameEvent *ev = &w->events.items[i];
         ev->kind = ne->kind;
         ev->actor = ne->actor;
+        ev->arg = ne->arg;
         ev->x = ne->x;
         ev->y = ne->y;
     }
@@ -227,6 +238,7 @@ void snapshot_apply_characters(World *w, const MsgSnapshot *s)
         p->angle = np->angle;
         p->hp = (float)np->hp;
         p->armor = (float)np->armor;
+        p->spawn_protect_timer = (np->flags & NET_PLAYER_PROTECTED) ? SPAWN_PROTECT_TIME : 0.0f;
         p->weapons.current = np->weapon;
         listed[np->id] = 1;
         if (np->id >= w->player_count) {
@@ -234,7 +246,10 @@ void snapshot_apply_characters(World *w, const MsgSnapshot *s)
         }
     }
     if (s->yours.id < MAX_PLAYERS && listed[s->yours.id]) {
-        WeaponSystem *ws = &w->players[s->yours.id].weapons;
+        PlayerState *me = &w->players[s->yours.id];
+        me->respawn_timer = (float)s->respawn / 10.0f;
+        me->last_attacker = s->attacker < MAX_PLAYERS ? (int8_t)s->attacker : -1;
+        WeaponSystem *ws = &me->weapons;
         for (int k = 0; k < WEAPON_COUNT; k++) {
             ws->weapons[k].owned = (s->yours.owned >> k) & 1u;
             ws->weapons[k].ammo = s->yours.ammo[k];

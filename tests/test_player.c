@@ -10,6 +10,7 @@
 #include "door.h"
 #include "event.h"
 #include "map.h"
+#include "config.h"
 #include <math.h>
 #include <string.h>
 
@@ -99,6 +100,8 @@ static void test_player_init_centres_the_player_in_the_start_cell(void)
     TEST_ASSERT_EQUAL_FLOAT(0.0f, player.armor);
     TEST_ASSERT_EQUAL_INT(1, player.alive);
     TEST_ASSERT_EQUAL_FLOAT(0.0f, player.respawn_timer);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, player.spawn_protect_timer);
+    TEST_ASSERT_EQUAL_INT8(-1, player.last_attacker);
     TEST_ASSERT_EQUAL_UINT8(0, player.id);
     TEST_ASSERT_EQUAL_INT(1, player.active);
     /* the weapon system belongs to the player and is initialised with them */
@@ -324,6 +327,23 @@ static void test_an_inactive_player_does_not_block(void)
     TEST_ASSERT_TRUE(two[0].x > 4.5f);
 }
 
+/* Nor is a dead one, lying where they fell until they come back elsewhere. */
+static void test_a_dead_player_does_not_block(void)
+{
+    PlayerState two[2];
+    player_init(&two[0], 2, 4);
+    player_init(&two[1], 4, 4);
+    two[1].id = 1;
+    player_damage(&two[1], 1000.0f, 0, 0.0f, 0.0f, NULL);
+    in.angle = 0.0f;
+
+    in.buttons = BTN_FORWARD;
+    for (int i = 0; i < 240; i++) {
+        player_update(&two[0], &map, &doors, &in, two, 2, TEST_STEP);
+    }
+    TEST_ASSERT_TRUE(two[0].x > 4.5f);
+}
+
 /* Alone in the world, movement is what it was before anyone else could get in
  * the way: passing the one-element array and passing none agree exactly. */
 static void test_a_lone_player_moves_as_without_the_array(void)
@@ -376,6 +396,95 @@ static void test_hp_stops_at_zero(void)
 
     player_damage(&player, 10.0f, -1, 0.0f, 0.0f, NULL);
     TEST_ASSERT_EQUAL_FLOAT(0.0f, player.hp);
+}
+
+/* ---- death ---- */
+
+/* The hit that takes hp to zero kills, there and then: the player is no
+ * longer alive and is due back in RESPAWN_TIME. Their pain comes first, then
+ * the death, credited to the player who dealt the blow and posted where the
+ * victim fell. */
+static void test_the_hit_to_zero_kills_and_is_announced(void)
+{
+    EventQueue q;
+    event_queue_clear(&q);
+    player.id = 4;
+    player.hp = 10.0f;
+
+    player_damage(&player, 9.0f, 2, 7.5f, 2.5f, &q);
+    TEST_ASSERT_EQUAL_INT(1, player.alive);
+    TEST_ASSERT_EQUAL_INT(1, q.count);
+
+    event_queue_clear(&q);
+    player_damage(&player, 9.0f, 2, 7.5f, 2.5f, &q);
+    TEST_ASSERT_EQUAL_INT(0, player.alive);
+    TEST_ASSERT_EQUAL_FLOAT(RESPAWN_TIME, player.respawn_timer);
+    TEST_ASSERT_EQUAL_INT(2, q.count);
+    TEST_ASSERT_EQUAL_UINT8(EV_PLAYER_HURT, q.items[0].kind);
+    TEST_ASSERT_EQUAL_UINT8(EV_PLAYER_DEATH, q.items[1].kind);
+    TEST_ASSERT_EQUAL_UINT8(2, q.items[1].actor);
+    TEST_ASSERT_EQUAL_UINT8(4, q.items[1].arg);
+    TEST_ASSERT_EQUAL_FLOAT(player.x, q.items[1].x);
+    TEST_ASSERT_EQUAL_FLOAT(player.y, q.items[1].y);
+}
+
+/* A player wounded by another and finished by an enemy is the other player's
+ * kill; one no player ever hit is their own death, credited to themselves. */
+static void test_a_death_goes_to_the_last_player_who_hit(void)
+{
+    EventQueue q;
+    event_queue_clear(&q);
+    player.id = 4;
+    player_damage(&player, 30.0f, 7, 0.0f, 0.0f, NULL);
+    player_damage(&player, 100.0f, -1, 0.0f, 0.0f, &q);
+    TEST_ASSERT_EQUAL_UINT8(EV_PLAYER_DEATH, q.items[1].kind);
+    TEST_ASSERT_EQUAL_UINT8(7, q.items[1].actor);
+
+    player_init(&player, START_CELL, START_CELL);
+    player.id = 4;
+    event_queue_clear(&q);
+    player_damage(&player, 100.0f, -1, 0.0f, 0.0f, &q);
+    TEST_ASSERT_EQUAL_UINT8(EV_PLAYER_DEATH, q.items[1].kind);
+    TEST_ASSERT_EQUAL_UINT8(4, q.items[1].actor);
+    TEST_ASSERT_EQUAL_UINT8(4, q.items[1].arg);
+}
+
+/* The dead take no more hits: nothing comes off, nobody takes over the kill,
+ * and nothing is heard — a death is announced once. */
+static void test_a_dead_player_is_not_hurt_again(void)
+{
+    EventQueue q;
+    player_damage(&player, 100.0f, 2, 0.0f, 0.0f, NULL);
+    float respawn = player.respawn_timer;
+    player.armor = 50.0f; /* would show any hit at all */
+    event_queue_clear(&q);
+
+    player_damage(&player, 10.0f, 3, 0.0f, 0.0f, &q);
+
+    TEST_ASSERT_EQUAL_INT(0, q.count);
+    TEST_ASSERT_EQUAL_FLOAT(50.0f, player.armor);
+    TEST_ASSERT_EQUAL_INT(2, player.last_attacker);
+    TEST_ASSERT_EQUAL_FLOAT(respawn, player.respawn_timer);
+}
+
+/* Protected after a respawn, a player takes no damage from anyone, and no hit
+ * is announced: there is nothing to hear. The shooter does not become the
+ * last attacker either. */
+static void test_a_protected_player_is_not_hurt(void)
+{
+    EventQueue q;
+    event_queue_clear(&q);
+    player.spawn_protect_timer = 0.5f;
+    player.armor = 50.0f;
+
+    player_damage(&player, 1000.0f, 3, 0.0f, 0.0f, &q);
+    player_damage(&player, 1000.0f, -1, 0.0f, 0.0f, &q);
+
+    TEST_ASSERT_EQUAL_FLOAT(100.0f, player.hp);
+    TEST_ASSERT_EQUAL_FLOAT(50.0f, player.armor);
+    TEST_ASSERT_EQUAL_INT(1, player.alive);
+    TEST_ASSERT_EQUAL_INT(-1, player.last_attacker);
+    TEST_ASSERT_EQUAL_INT(0, q.count);
 }
 
 /* A player's hit is theirs until another player's replaces it. Damage that
@@ -433,10 +542,15 @@ int main(void)
     RUN_TEST(test_without_a_door_list_the_door_is_solid);
     RUN_TEST(test_a_second_player_blocks_the_way);
     RUN_TEST(test_an_inactive_player_does_not_block);
+    RUN_TEST(test_a_dead_player_does_not_block);
     RUN_TEST(test_a_lone_player_moves_as_without_the_array);
     RUN_TEST(test_armor_absorbs_half_of_the_damage);
     RUN_TEST(test_armor_absorbs_no_more_than_is_left);
     RUN_TEST(test_hp_stops_at_zero);
+    RUN_TEST(test_the_hit_to_zero_kills_and_is_announced);
+    RUN_TEST(test_a_death_goes_to_the_last_player_who_hit);
+    RUN_TEST(test_a_dead_player_is_not_hurt_again);
+    RUN_TEST(test_a_protected_player_is_not_hurt);
     RUN_TEST(test_only_a_player_takes_over_last_attacker);
     RUN_TEST(test_a_hit_is_announced_from_its_source);
     return UNITY_END();

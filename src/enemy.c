@@ -298,7 +298,7 @@ void enemy_damage(EnemyList *el, int idx, float dmg, EventQueue *evq, int attack
     if (e->hp <= 0.0f) {
         e->hp = 0.0f;
         e->state = ESTATE_DEAD;
-        event_push(evq, EV_ENEMY_DEATH, idx, e->x, e->y);
+        event_push(evq, EV_ENEMY_DEATH, idx, 0, e->x, e->y);
     } else {
         /* being shot alerts/chases immediately */
         if (e->state == ESTATE_IDLE || e->state == ESTATE_ALERT) {
@@ -315,7 +315,7 @@ void enemy_damage(EnemyList *el, int idx, float dmg, EventQueue *evq, int attack
             e->last_seen_y = py;
             e->search_timer = ENEMY_SEARCH_TIME;
         }
-        event_push(evq, EV_ENEMY_HURT, idx, e->x, e->y);
+        event_push(evq, EV_ENEMY_HURT, idx, 0, e->x, e->y);
     }
 }
 

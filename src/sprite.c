@@ -90,6 +90,11 @@ static int item_sprite_type(int type)
 /* How long a drop in hp shows as pain; the whole pain sheet plays across it. */
 #define ANIM_PAIN_TIME 0.3f
 
+/* A player protected after a respawn blinks: shown for the first half of
+ * this, hidden for the second, over and over. Without it the others would
+ * see their shots go in and nothing happen, and not know why. */
+#define PROTECT_BLINK_TIME 0.2f
+
 /* How long a character keeps running after it last moved. A position does not
  * change every frame: above the tick rate a frame with no tick in it moves
  * nobody, and a hold shorter than a tick would blink into idle between two.
@@ -189,6 +194,7 @@ void sprite_anim_update(SpriteAnim *sa, const World *w, float dt)
          * to stand aiming in between shots. */
         const Weapon *wp = &p->weapons.weapons[p->weapons.current];
         clock_step(c, p->x, p->y, p->hp, wp->anim, !p->alive, 0, dt);
+        c->blink = p->alive && p->spawn_protect_timer > 0.0f ? c->blink + dt : 0.0f;
     }
     for (int i = 0; i < w->enemies.count; i++) {
         /* An attack resets attack_cooldown, and an enemy in ESTATE_ATTACK
@@ -232,6 +238,13 @@ static int clock_frame(const AnimClock *c, int cols)
         default: return (int)(c->phase * ANIM_IDLE_FPS) % cols;
     }
     return f < cols - 1 ? f : cols - 1;
+}
+
+/* Whether a player protected after a respawn is in the hidden half of a
+ * blink. One who is not protected never is. */
+static int blinked_out(const AnimClock *c)
+{
+    return c->blink > 0.0f && fmodf(c->blink, PROTECT_BLINK_TIME) >= PROTECT_BLINK_TIME * 0.5f;
 }
 
 static void set_character(Sprite *sp, const Assets *a, int skin, const AnimClock *c)
@@ -294,6 +307,7 @@ void sprites_build_from_world(SpriteList *sl, const World *w, int local_player,
          * it has been noticed. */
         set_character(&sl->items[idx], a, p->id, &sa->players[i]);
         sl->items[idx].view = me ? player_view(p, me->x, me->y) : 0;
+        sl->items[idx].active = !blinked_out(&sa->players[i]);
     }
 }
 

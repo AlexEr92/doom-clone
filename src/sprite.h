@@ -55,6 +55,7 @@ typedef struct {
     float shot_left; /* seconds of the last shot's flash still to show */
     float x, y, hp;  /* as the last frame saw them */
     float reload;    /* likewise: what goes up when the character fires */
+    float blink;     /* player: seconds protected after a respawn, 0 while not */
     int seen;        /* 0 until a frame has seen the character: nothing to compare */
 } AnimClock;
 
@@ -85,9 +86,11 @@ void sprite_anim_update(SpriteAnim *sa, const struct World *w, float dt);
 /* Rebuild the list out of the world: enemies (alive or corpses), pickups still
  * on the map, the barrels the map places and every player but `local_player`,
  * dead ones included. Characters get their skin, and the animation and frame
- * from `sa`, counted against the length of the sheet in `a`. Called once a
- * frame after sprite_anim_update() and before sprite_render(); `local_player`
- * is the player the camera looks through and is left out of the list. */
+ * from `sa`, counted against the length of the sheet in `a`. A player who
+ * cannot be hurt yet after a respawn blinks: their sprite is in the list, but
+ * inactive every other PROTECT_BLINK_TIME / 2. Called once a frame after
+ * sprite_anim_update() and before sprite_render(); `local_player` is the
+ * player the camera looks through and is left out of the list. */
 void sprites_build_from_world(SpriteList *sl, const struct World *w, int local_player,
                               const SpriteAnim *sa, const Assets *a);
 

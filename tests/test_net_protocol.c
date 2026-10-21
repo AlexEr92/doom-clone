@@ -112,7 +112,7 @@ static void test_a_deathmatch_snapshot_is_about_400_bytes(void)
     add_players(&server, MAX_PLAYERS);
     server.enemies.count = 0;
     for (int i = 0; i < 5; i++) {
-        event_push(&server.events, EV_SHOT, i, 1.5f, 1.5f);
+        event_push(&server.events, EV_SHOT, i, 0, 1.5f, 1.5f);
     }
 
     TEST_ASSERT_EQUAL_size_t(404, send_snapshot(0));
@@ -327,12 +327,58 @@ static void test_values_out_of_range_are_pinned(void)
     TEST_ASSERT_EQUAL_UINT8(0, snap.doors[0]);
 }
 
+/* Whoever is protected after a respawn is flagged, for every client to see
+ * them blink; the client knows that they are, not for how long. */
+static void test_protection_after_a_respawn_arrives_as_a_flag(void)
+{
+    add_players(&server, 3);
+    server.players[1].spawn_protect_timer = 0.25f;
+    client.players[2].spawn_protect_timer = 1.0f; /* left from before */
+
+    send_snapshot(0);
+
+    TEST_ASSERT_EQUAL_UINT8(0, decoded.players[0].flags);
+    TEST_ASSERT_EQUAL_UINT8(NET_PLAYER_PROTECTED, decoded.players[1].flags);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, client.players[0].spawn_protect_timer);
+    TEST_ASSERT_TRUE(client.players[1].spawn_protect_timer > 0.0f);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, client.players[2].spawn_protect_timer);
+}
+
+/* A dead receiver learns how long until they are back, to a tenth of a second
+ * and rounded up, and who hit them last; of anyone else neither comes. */
+static void test_the_dead_receiver_learns_when_and_from_whom(void)
+{
+    add_players(&server, 3);
+    player_damage(&server.players[1], 1000.0f, 2, 0.0f, 0.0f, NULL);
+    server.players[1].respawn_timer = 1.21f;
+    player_damage(&server.players[0], 1000.0f, 2, 0.0f, 0.0f, NULL);
+
+    send_snapshot_to(1, 0);
+
+    TEST_ASSERT_EQUAL_UINT8(13, decoded.respawn);
+    TEST_ASSERT_EQUAL_UINT8(2, decoded.attacker);
+    TEST_ASSERT_FALSE(client.players[1].alive);
+    TEST_ASSERT_FLOAT_WITHIN(1e-6f, 1.3f, client.players[1].respawn_timer);
+    TEST_ASSERT_EQUAL_INT8(2, client.players[1].last_attacker);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, client.players[0].respawn_timer);
+    TEST_ASSERT_EQUAL_INT8(-1, client.players[0].last_attacker);
+
+    /* back, and hit by nobody yet */
+    server.players[1] = server.players[2];
+    server.players[1].id = 1;
+    send_snapshot_to(1, 0);
+    TEST_ASSERT_EQUAL_UINT8(0, decoded.respawn);
+    TEST_ASSERT_EQUAL_UINT8(NET_NO_PLAYER, decoded.attacker);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, client.players[1].respawn_timer);
+    TEST_ASSERT_EQUAL_INT8(-1, client.players[1].last_attacker);
+}
+
 /* The fields the simulation has nothing for yet go out as zero, not as
  * whatever was in memory. */
 static void test_fields_with_nothing_behind_them_are_zero(void)
 {
     add_players(&server, 1);
-    event_push(&server.events, EV_SHOT, 0, 1.5f, 1.5f);
+    event_push(&server.events, EV_SHOT, 0, 0, 1.5f, 1.5f);
 
     send_snapshot(0);
 
@@ -465,6 +511,25 @@ static void test_the_items_taken_are_gone_on_the_client(void)
     TEST_ASSERT_TRUE(client.items.items[2].active);
 }
 
+/* The mask is the items as they lie now, not the ones ever taken: a pickup
+ * back on the server ITEM_RESPAWN_TIME later is back on the client too. */
+static void test_an_item_back_on_the_server_is_back_on_the_client(void)
+{
+    add_players(&server, 1);
+    PlayerState *p = &server.players[0];
+    p->x = server.items.items[0].x; /* on the medkit, and in need of it */
+    p->y = server.items.items[0].y;
+    p->hp = 50.0f;
+    item_update(&server.items, server.players, server.player_count, NULL, FIXED_DT);
+    send_snapshot(0);
+    TEST_ASSERT_FALSE(client.items.items[0].active);
+
+    p->x = 2.5f; /* off it, so that it is not taken again */
+    item_update(&server.items, server.players, server.player_count, NULL, ITEM_RESPAWN_TIME);
+    send_snapshot(0);
+    TEST_ASSERT_TRUE(client.items.items[0].active);
+}
+
 /* Openness goes as a byte, so it comes back to within 1/255; closed and open
  * come back exactly, and the state with them. */
 static void test_doors_arrive_as_open_as_on_the_server(void)
@@ -514,22 +579,24 @@ static void test_a_door_that_has_not_moved_keeps_its_direction(void)
 
 static void test_events_replace_the_client_queue(void)
 {
-    event_push(&client.events, EV_NO_AMMO, 0, 0.0f, 0.0f);
-    event_push(&server.events, EV_SHOT, 3, 1.5f, 2.5f);
-    event_push(&server.events, EV_ENEMY_DEATH, 1, 6.5f, 3.5f);
+    event_push(&client.events, EV_NO_AMMO, 0, 0, 0.0f, 0.0f);
+    event_push(&server.events, EV_SHOT, 3, 0, 1.5f, 2.5f);
+    event_push(&server.events, EV_ENEMY_DEATH, 1, 0, 6.5f, 3.5f);
+    event_push(&server.events, EV_PLAYER_DEATH, 3, 6, 2.5f, 1.5f);
 
     send_snapshot(0);
 
-    TEST_ASSERT_EQUAL_INT(2, client.events.count);
-    for (int i = 0; i < 2; i++) {
+    TEST_ASSERT_EQUAL_INT(3, client.events.count);
+    for (int i = 0; i < 3; i++) {
         const GameEvent *s = &server.events.items[i];
         const GameEvent *c = &client.events.items[i];
         TEST_ASSERT_EQUAL_UINT8(s->kind, c->kind);
         TEST_ASSERT_EQUAL_UINT8(s->actor, c->actor);
+        TEST_ASSERT_EQUAL_UINT8(s->arg, c->arg);
         TEST_ASSERT_EQUAL_FLOAT(s->x, c->x);
         TEST_ASSERT_EQUAL_FLOAT(s->y, c->y);
-        TEST_ASSERT_EQUAL_UINT8(0, snap.events[i].arg);
     }
+    TEST_ASSERT_EQUAL_UINT8(6, snap.events[2].arg);
 }
 
 /* A server that collects the events of several ticks hands in more than a
@@ -543,7 +610,7 @@ static void test_set_events_keeps_the_first_that_fit(void)
         many[i].x = (float)i;
         many[i].y = 0.5f;
     }
-    event_push(&server.events, EV_SHOT, 0, 1.5f, 1.5f);
+    event_push(&server.events, EV_SHOT, 0, 0, 1.5f, 1.5f);
     snapshot_write(&snap, &server, 0, 0);
 
     snapshot_set_events(&snap, many, MAX_EVENTS + 5);
@@ -574,7 +641,7 @@ static PlayerState listener_at(float x, float y)
 
 static GameEvent event_at(GameEventKind kind, int actor, float x, float y)
 {
-    GameEvent e = {(uint8_t)kind, (uint8_t)actor, x, y};
+    GameEvent e = {(uint8_t)kind, (uint8_t)actor, 0, x, y};
     return e;
 }
 
@@ -680,9 +747,9 @@ static void test_apply_characters_puts_the_players_and_enemies_alone(void)
     server.tick = 99;
     server.items.items[0].active = 0;
     server.doors.doors[0].openness = 1.0f;
-    event_push(&server.events, EV_SHOT, 0, 1.5f, 1.5f);
+    event_push(&server.events, EV_SHOT, 0, 0, 1.5f, 1.5f);
     snapshot_write(&snap, &server, 0, 0);
-    event_push(&client.events, EV_DOOR, 0, 4.5f, 2.5f);
+    event_push(&client.events, EV_DOOR, 0, 0, 4.5f, 2.5f);
 
     snapshot_apply_characters(&client, &snap);
     TEST_ASSERT_TRUE(client.players[1].active);
@@ -703,7 +770,7 @@ static void test_decode_gives_back_what_encode_was_given(void)
 {
     add_players(&server, 4);
     server.players[3].x = 3.5f;
-    event_push(&server.events, EV_PICKUP, 2, 1.5f, 2.5f);
+    event_push(&server.events, EV_PICKUP, 2, 0, 1.5f, 2.5f);
 
     send_snapshot(77);
 
@@ -729,7 +796,7 @@ static size_t encode_server(void)
 {
     TEST_ASSERT_EQUAL_INT(0, world_load(&server, MAP_PATH));
     add_players(&server, 2);
-    event_push(&server.events, EV_SHOT, 0, 1.5f, 1.5f);
+    event_push(&server.events, EV_SHOT, 0, 0, 1.5f, 1.5f);
     snapshot_write(&snap, &server, 0, 0);
     return snapshot_encode(&snap, wire);
 }
@@ -866,6 +933,8 @@ int main(void)
     RUN_TEST(test_hp_rounds_up_so_the_living_never_arrive_at_zero);
     RUN_TEST(test_points_past_a_byte_arrive_as_255);
     RUN_TEST(test_values_out_of_range_are_pinned);
+    RUN_TEST(test_protection_after_a_respawn_arrives_as_a_flag);
+    RUN_TEST(test_the_dead_receiver_learns_when_and_from_whom);
     RUN_TEST(test_fields_with_nothing_behind_them_are_zero);
     RUN_TEST(test_apply_passes_over_a_player_it_cannot_index);
     RUN_TEST(test_apply_passes_over_the_receiver_holding_a_weapon_not_owned);
@@ -873,6 +942,7 @@ int main(void)
     RUN_TEST(test_enemies_arrive_where_the_server_has_them);
     RUN_TEST(test_enemies_the_client_lacks_are_spawned);
     RUN_TEST(test_the_items_taken_are_gone_on_the_client);
+    RUN_TEST(test_an_item_back_on_the_server_is_back_on_the_client);
     RUN_TEST(test_doors_arrive_as_open_as_on_the_server);
     RUN_TEST(test_a_door_that_has_not_moved_keeps_its_direction);
     RUN_TEST(test_events_replace_the_client_queue);

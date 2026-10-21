@@ -23,6 +23,7 @@ int item_add(ItemList *il, float x, float y, ItemType type, float amount, int we
     it->y = y;
     it->amount = amount;
     it->weapon = weapon;
+    it->respawn_timer = 0.0f;
     return il->count++;
 }
 
@@ -65,16 +66,21 @@ static int apply_pickup(Item *it, PlayerState *pl, EventQueue *evq)
         default: return 0;
     }
     it->active = 0;
-    event_push(evq, EV_PICKUP, pl->id, it->x, it->y);
+    it->respawn_timer = ITEM_RESPAWN_TIME;
+    event_push(evq, EV_PICKUP, pl->id, 0, it->x, it->y);
     return 1;
 }
 
-void item_update(ItemList *il, PlayerState *players, int count, EventQueue *evq)
+void item_update(ItemList *il, PlayerState *players, int count, EventQueue *evq, double dt)
 {
     for (int i = 0; i < il->count; i++) {
         Item *it = &il->items[i];
         if (!it->active) {
-            continue;
+            it->respawn_timer -= (float)dt;
+            if (it->respawn_timer > 0.0f) {
+                continue;
+            }
+            it->active = 1;
         }
         for (int p = 0; p < count; p++) {
             PlayerState *pl = &players[p];

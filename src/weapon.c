@@ -130,15 +130,18 @@ void weapon_try_fire(PlayerState *p, const Map *m, const DoorList *dl, PlayerSta
         return;
     }
     if (w->ammo <= 0) {
-        event_push(evq, EV_NO_AMMO, p->id, p->x, p->y);
+        event_push(evq, EV_NO_AMMO, p->id, 0, p->x, p->y);
         return;
     }
 
     w->ammo--;
     w->cooldown = w->fire_cd;
     w->anim = 1.0f;
+    /* Whoever shoots can be shot: protection after a respawn covers getting
+     * one's bearings, not a free first strike. */
+    p->spawn_protect_timer = 0.0f;
 
-    event_push(evq, EV_SHOT, p->id, p->x, p->y);
+    event_push(evq, EV_SHOT, p->id, 0, p->x, p->y);
 
     float dir_x = cosf(p->angle);
     float dir_y = sinf(p->angle);

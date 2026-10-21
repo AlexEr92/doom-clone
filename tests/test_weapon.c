@@ -702,6 +702,63 @@ static void test_a_shot_ignores_a_player_who_is_not_alive(void)
     TEST_ASSERT_FLOAT_WITHIN(1e-4f, 100.0f, players[VICTIM].hp);
 }
 
+/* The shot that takes the last of a player's hp kills them, and the kill is
+ * the shooter's. */
+static void test_a_killing_shot_is_the_shooters_kill(void)
+{
+    aim(&players[SHOOTER], 2.5f, 8.5f, 0.0f);
+    aim(&players[VICTIM], 7.5f, 8.5f, 0.0f);
+    players[VICTIM].hp = 1.0f;
+
+    fire();
+
+    TEST_ASSERT_EQUAL_INT(0, players[VICTIM].alive);
+    const GameEvent *ev = find_event(EV_PLAYER_DEATH);
+    TEST_ASSERT_NOT_NULL(ev);
+    TEST_ASSERT_EQUAL_UINT8(SHOOTER, ev->actor);
+    TEST_ASSERT_EQUAL_UINT8(VICTIM, ev->arg);
+}
+
+/* A player protected after a respawn stands in the way of the shot like any
+ * other, and takes nothing from it. */
+static void test_a_shot_at_a_protected_player_does_no_harm(void)
+{
+    aim(&players[SHOOTER], 2.5f, 8.5f, 0.0f);
+    aim(&players[VICTIM], 7.5f, 8.5f, 0.0f);
+    int e = add_enemy(12.5f, 8.5f);
+    players[VICTIM].spawn_protect_timer = 1.0f;
+
+    fire();
+
+    TEST_ASSERT_EQUAL_FLOAT(100.0f, players[VICTIM].hp);
+    TEST_ASSERT_EQUAL_INT(0, count_events(EV_PLAYER_HURT));
+    TEST_ASSERT_EQUAL_INT(1, count_events(EV_SHOT));
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, imp_max_hp(), enemies.items[e].hp);
+}
+
+/* Firing ends the shooter's own protection: it covers getting one's bearings
+ * after a respawn, not a free first strike. Only a shot that goes off counts —
+ * an empty click and the grenade launcher, which fires nothing yet, leave it. */
+static void test_a_shot_ends_the_shooters_protection(void)
+{
+    aim(&players[SHOOTER], 2.5f, 2.5f, 0.0f);
+    players[SHOOTER].spawn_protect_timer = 1.0f;
+
+    players[SHOOTER].weapons.weapons[WEAPON_PISTOL].ammo = 0;
+    fire();
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, players[SHOOTER].spawn_protect_timer);
+
+    give(&players[SHOOTER], WEAPON_GRENADE);
+    weapon_switch(&players[SHOOTER], WEAPON_GRENADE);
+    fire();
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, players[SHOOTER].spawn_protect_timer);
+
+    weapon_switch(&players[SHOOTER], WEAPON_PISTOL);
+    players[SHOOTER].weapons.weapons[WEAPON_PISTOL].ammo = 1;
+    fire();
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, players[SHOOTER].spawn_protect_timer);
+}
+
 static void test_an_empty_weapon_does_not_fire(void)
 {
     aim(&players[SHOOTER], 2.5f, 2.5f, 0.0f);
@@ -763,6 +820,9 @@ int main(void)
     RUN_TEST(test_a_shot_at_a_player_hurts_without_a_queue);
     RUN_TEST(test_a_player_cannot_shoot_themselves);
     RUN_TEST(test_a_shot_ignores_a_player_who_is_not_alive);
+    RUN_TEST(test_a_killing_shot_is_the_shooters_kill);
+    RUN_TEST(test_a_shot_at_a_protected_player_does_no_harm);
+    RUN_TEST(test_a_shot_ends_the_shooters_protection);
     RUN_TEST(test_an_empty_weapon_does_not_fire);
     RUN_TEST(test_a_weapon_on_cooldown_does_not_fire);
     return UNITY_END();

@@ -20,6 +20,9 @@ typedef enum {
     EV_PICKUP,      /* actor = player, x/y = the item */
     EV_DOOR,        /* actor = door index, x/y = centre of the door cell */
     EV_NO_AMMO,     /* actor = player, x/y = player */
+    /* actor = the player credited with the kill — the victim themselves when
+     * no player is —, arg = victim, x/y = victim */
+    EV_PLAYER_DEATH,
     EV_COUNT
 } GameEventKind;
 
@@ -27,6 +30,7 @@ typedef enum {
 typedef struct {
     uint8_t kind;  /* GameEventKind */
     uint8_t actor; /* index of whoever caused it; meaning depends on kind */
+    uint8_t arg;   /* what else the kind needs to say, 0 for most of them */
     float x, y;    /* world cells: where it happened */
 } GameEvent;
 
@@ -45,25 +49,28 @@ static inline void event_queue_clear(EventQueue *q)
 /* Append an event. A NULL queue and a full one are both silently ignored:
  * losing a sound must never change the simulation.
  *
- * The queue holds one tick, and an event of a kind and actor it already holds
- * is not added again: one shotgun blast hurts an enemy once per pellet, and
+ * The queue holds one tick, and an event of a kind, actor and arg it already
+ * holds is not added again: one shotgun blast hurts an enemy once per pellet, and
  * seven copies of one sound starting on one sample play as a single sound
  * some 17 dB louder, clipped, on seven mixer channels. Events of different
  * ticks are different sounds and stay apart, which is why it happens here,
  * before the server mixes the ticks between two snapshots together. */
-static inline void event_push(EventQueue *q, GameEventKind kind, int actor, float x, float y)
+static inline void event_push(EventQueue *q, GameEventKind kind, int actor, int arg, float x,
+                              float y)
 {
     if (!q || q->count >= MAX_EVENTS) {
         return;
     }
     for (int i = 0; i < q->count; i++) {
-        if (q->items[i].kind == (uint8_t)kind && q->items[i].actor == (uint8_t)actor) {
+        const GameEvent *e = &q->items[i];
+        if (e->kind == (uint8_t)kind && e->actor == (uint8_t)actor && e->arg == (uint8_t)arg) {
             return;
         }
     }
     GameEvent *e = &q->items[q->count++];
     e->kind = (uint8_t)kind;
     e->actor = (uint8_t)actor;
+    e->arg = (uint8_t)arg;
     e->x = x;
     e->y = y;
 }
@@ -79,12 +86,13 @@ static inline float event_range(int kind)
         case EV_ENEMY_DEATH:
         case EV_DOOR: return 16.0f;
         case EV_PLAYER_HURT: return 12.0f;
-        default: return 0.0f; /* EV_PICKUP, EV_NO_AMMO */
+        default: return 0.0f; /* EV_PICKUP, EV_NO_AMMO, EV_PLAYER_DEATH */
     }
 }
 
 /* Whether `e` is player `id`'s own: their shot, their pain, their pickup,
- * their empty click. The kinds whose actor is an enemy or a door never are. */
+ * their empty click, a death they died or dealt. The kinds whose actor is an
+ * enemy or a door never are. */
 static inline int event_is_own(const GameEvent *e, int id)
 {
     switch (e->kind) {
@@ -92,6 +100,7 @@ static inline int event_is_own(const GameEvent *e, int id)
         case EV_PLAYER_HURT:
         case EV_PICKUP:
         case EV_NO_AMMO: return e->actor == id;
+        case EV_PLAYER_DEATH: return e->actor == id || e->arg == id;
         default: return 0;
     }
 }

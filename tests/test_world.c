@@ -1,6 +1,8 @@
 /* world.c: who comes into the world, and where. The tick itself is held by
  * replay_test.c; this is world_add_player() and world_pick_spawn() — the solo
- * start, the spawn pool, and the score that picks a point out of it.
+ * start, the spawn pool, and the score that picks a point out of it — and the
+ * part of the tick that takes a player out and brings them back: death,
+ * respawn and the protection after it.
  *
  * Each test writes its own map, so neither the working directory nor later
  * edits to assets/maps/ can break it. */
@@ -321,6 +323,256 @@ static void test_ten_players_come_in_apart(void)
     }
 }
 
+/* ---- death and respawn ---- */
+
+/* Ticks of the world with nobody pressing anything. */
+static void idle(int ticks)
+{
+    for (int i = 0; i < ticks; i++) {
+        world_step(&w, NULL, 0, FIXED_DT);
+    }
+}
+
+/* Two players in `room`, 0 on the first point and 1 on the second, and 1
+ * killed by 0 with a pickup of theirs in hand: as the respawn has to find
+ * them. */
+static PlayerState *room_with_one_dead(void)
+{
+    LOAD_ROWS(room);
+    TEST_ASSERT_EQUAL_INT(0, world_add_player(&w, NULL));
+    TEST_ASSERT_EQUAL_INT(1, world_add_player(&w, NULL));
+    PlayerState *p = &w.players[1];
+    p->weapons.weapons[WEAPON_SHOTGUN].owned = 1;
+    p->weapons.weapons[WEAPON_SHOTGUN].ammo = 7;
+    weapon_switch(p, WEAPON_SHOTGUN);
+    p->weapons.weapons[WEAPON_PISTOL].ammo = 3;
+    p->armor = 40.0f;
+    player_damage(p, 1000.0f, 0, 0.0f, 0.0f, NULL);
+    TEST_ASSERT_FALSE(p->alive);
+    return p;
+}
+
+/* Tick until `p` is back, for RESPAWN_TIME and a tick or two at most. */
+static void wait_for_respawn(const PlayerState *p)
+{
+    for (int i = 0; i < (int)(RESPAWN_TIME * TICK_RATE) + 2 && !p->alive; i++) {
+        idle(1);
+    }
+    TEST_ASSERT_TRUE(p->alive);
+}
+
+/* RESPAWN_TIME after the death and no sooner, the player is back: at the point
+ * world_pick_spawn() finds now and facing the way it looks, whole, with the
+ * pistol alone and loaded, credited to nobody, and protected — the same id,
+ * so the same character on every client. */
+static void test_a_dead_player_comes_back_whole_after_respawn_time(void)
+{
+    PlayerState *p = room_with_one_dead();
+    float fell_x = p->x, fell_y = p->y;
+
+    int ticks = (int)(RESPAWN_TIME * TICK_RATE) - 1;
+    idle(ticks);
+    TEST_ASSERT_FALSE(p->alive);
+    TEST_ASSERT_EQUAL_FLOAT(fell_x, p->x);
+    TEST_ASSERT_EQUAL_FLOAT(fell_y, p->y);
+
+    const SpawnPoint *at = NULL;
+    for (int i = 0; i < 2 && !p->alive; i++, ticks++) {
+        at = world_pick_spawn(&w, 1);
+        idle(1);
+    }
+    TEST_ASSERT_TRUE(p->alive);
+    TEST_ASSERT_INT_WITHIN(1, (int)(RESPAWN_TIME * TICK_RATE), ticks);
+    TEST_ASSERT_NOT_NULL(at);
+    TEST_ASSERT_EQUAL_FLOAT(at->x, p->x);
+    TEST_ASSERT_EQUAL_FLOAT(at->y, p->y);
+    TEST_ASSERT_EQUAL_FLOAT(at->angle, p->angle);
+    TEST_ASSERT_FALSE(p->x == fell_x && p->y == fell_y);
+
+    TEST_ASSERT_EQUAL_UINT8(1, p->id);
+    TEST_ASSERT_TRUE(p->active);
+    TEST_ASSERT_EQUAL_FLOAT(100.0f, p->hp);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, p->armor);
+    TEST_ASSERT_EQUAL_INT(-1, p->last_attacker);
+    TEST_ASSERT_EQUAL_FLOAT(SPAWN_PROTECT_TIME, p->spawn_protect_timer);
+    TEST_ASSERT_EQUAL_INT(WEAPON_PISTOL, p->weapons.current);
+    TEST_ASSERT_FALSE(p->weapons.weapons[WEAPON_SHOTGUN].owned);
+    TEST_ASSERT_EQUAL_INT(0, p->weapons.weapons[WEAPON_SHOTGUN].ammo);
+    TEST_ASSERT_EQUAL_INT(50, p->weapons.weapons[WEAPON_PISTOL].ammo);
+}
+
+/* Two points and a door between them, with a way round it.
+ *   012345678
+ * 0 #########
+ * 1 #s..D..s#
+ * 2 #.......#
+ * 3 ######### */
+static const char *const door_room[] = {
+        "#########",
+        "#s..D..s#",
+        "#.......#",
+        "#########",
+};
+
+/* Dead, a player does nothing whatever they press: they do not walk, turn,
+ * fire, switch weapons or open a door. */
+static void test_a_dead_player_does_nothing(void)
+{
+    LOAD_ROWS(door_room);
+    TEST_ASSERT_EQUAL_INT(0, world_add_player(&w, NULL));
+    PlayerState *p = &w.players[0];
+    p->x = 3.5f;
+    p->y = 1.5f;
+    p->angle = 0.0f; /* at the door, facing it */
+    p->weapons.weapons[WEAPON_SHOTGUN].owned = 1;
+    player_damage(p, 1000.0f, -1, 0.0f, 0.0f, NULL);
+
+    PlayerInput in = {0, BTN_FORWARD | BTN_FIRE | BTN_USE | BTN_WEAPON2, 1.0f};
+    for (int i = 0; i < 30; i++) {
+        world_step(&w, &in, 1, FIXED_DT);
+        for (int k = 0; k < w.events.count; k++) {
+            TEST_ASSERT_NOT_EQUAL(EV_SHOT, w.events.items[k].kind);
+            TEST_ASSERT_NOT_EQUAL(EV_NO_AMMO, w.events.items[k].kind);
+            TEST_ASSERT_NOT_EQUAL(EV_DOOR, w.events.items[k].kind);
+        }
+    }
+    TEST_ASSERT_EQUAL_FLOAT(3.5f, p->x);
+    TEST_ASSERT_EQUAL_FLOAT(1.5f, p->y);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, p->angle);
+    TEST_ASSERT_EQUAL_INT(WEAPON_PISTOL, p->weapons.current);
+    TEST_ASSERT_EQUAL_INT(50, p->weapons.weapons[WEAPON_PISTOL].ammo);
+    TEST_ASSERT_EQUAL_INT(DOOR_CLOSED, w.doors.doors[0].state);
+}
+
+/* A body in the doorway does not hold the door open, as a live player there
+ * would: the door starts to close once its time is up (DOOR_OPEN_TIME, 4 s
+ * in door.c), not RESPAWN_TIME after that, when the body has gone. */
+static void test_a_body_in_the_doorway_does_not_hold_the_door(void)
+{
+    LOAD_ROWS(door_room);
+    TEST_ASSERT_EQUAL_INT(0, world_add_player(&w, NULL));
+    PlayerState *p = &w.players[0];
+    p->x = 4.5f; /* in the doorway */
+    p->y = 1.5f;
+    Door *d = &w.doors.doors[0];
+    d->state = DOOR_OPEN;
+    d->openness = 1.0f;
+    d->timer = 4.0f;
+    player_damage(p, 1000.0f, -1, 0.0f, 0.0f, NULL);
+
+    idle(4 * TICK_RATE + 2);
+    TEST_ASSERT_EQUAL_INT(DOOR_CLOSING, d->state);
+}
+
+/* While one player is dead the rest play on, tick for tick: they walk, fire,
+ * and walk through where the dead one lies. */
+static void test_the_others_play_on_while_one_is_dead(void)
+{
+    PlayerState *dead = room_with_one_dead();
+    dead->x = 5.5f; /* where it fell: in the middle of the room */
+    PlayerState *p = &w.players[0];
+    p->x = 2.5f;
+    p->y = dead->y;
+    PlayerInput in[2] = {{0, BTN_FORWARD | BTN_FIRE, 0.0f}, {0, 0, 0.0f}};
+
+    for (int i = 0; i < 90 && !dead->alive; i++) {
+        float x = p->x;
+        world_step(&w, in, 2, FIXED_DT);
+        TEST_ASSERT_TRUE(p->x > x);
+    }
+    TEST_ASSERT_FALSE(dead->alive);
+    TEST_ASSERT_TRUE(p->x > dead->x); /* past them, not stopped by them */
+    TEST_ASSERT_TRUE(p->weapons.weapons[WEAPON_PISTOL].ammo < 50);
+}
+
+/* Back from the dead, nothing hurts a player for SPAWN_PROTECT_TIME; then
+ * everything does again. */
+static void test_protection_wears_off_after_its_time(void)
+{
+    PlayerState *p = room_with_one_dead();
+    wait_for_respawn(p);
+    player_damage(p, 50.0f, 0, 0.0f, 0.0f, NULL);
+    TEST_ASSERT_EQUAL_FLOAT(100.0f, p->hp);
+
+    idle((int)(SPAWN_PROTECT_TIME * TICK_RATE) - 1);
+    TEST_ASSERT_TRUE(p->spawn_protect_timer > 0.0f);
+    idle(2);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, p->spawn_protect_timer);
+    player_damage(p, 50.0f, 0, 0.0f, 0.0f, NULL);
+    TEST_ASSERT_EQUAL_FLOAT(50.0f, p->hp);
+}
+
+/* The first shot of a protected player ends the protection there and then. */
+static void test_firing_ends_the_protection(void)
+{
+    PlayerState *p = room_with_one_dead();
+    wait_for_respawn(p);
+    PlayerInput in[2] = {{0, 0, w.players[0].angle}, {0, BTN_FIRE, p->angle}};
+    world_step(&w, in, 2, FIXED_DT);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, p->spawn_protect_timer);
+    TEST_ASSERT_EQUAL_INT(49, p->weapons.weapons[WEAPON_PISTOL].ammo);
+}
+
+/* Players on one line across `room`, facing along it: `id` at column x. */
+static void line_up(int id, float x, float angle)
+{
+    w.players[id].x = x;
+    w.players[id].y = 3.5f;
+    w.players[id].angle = angle;
+}
+
+/* Two players fire at each other in one tick, one of them with a hit left in
+ * them. The one with the lower id shoots first; the other is dead by then and
+ * fires no more — their shot does not go off at all. */
+static void test_a_player_shot_dead_does_not_fire_back_in_that_tick(void)
+{
+    LOAD_ROWS(room);
+    world_add_player(&w, NULL);
+    world_add_player(&w, NULL);
+    line_up(0, 2.5f, 0.0f);
+    line_up(1, 6.5f, MATH_PI);
+    w.players[1].hp = 1.0f;
+
+    PlayerInput in[2] = {{0, BTN_FIRE, 0.0f}, {0, BTN_FIRE, MATH_PI}};
+    world_step(&w, in, 2, FIXED_DT);
+
+    TEST_ASSERT_FALSE(w.players[1].alive);
+    TEST_ASSERT_EQUAL_FLOAT(100.0f, w.players[0].hp);
+    TEST_ASSERT_EQUAL_INT(50, w.players[1].weapons.weapons[WEAPON_PISTOL].ammo);
+}
+
+/* Two players shoot a third in one tick, and the first shot kills: the second
+ * passes through where the third fell and the kill stays the first one's. */
+static void test_a_kill_is_not_taken_over_in_the_same_tick(void)
+{
+    LOAD_ROWS(room);
+    for (int i = 0; i < 3; i++) {
+        world_add_player(&w, NULL);
+    }
+    line_up(0, 2.5f, 0.0f);
+    line_up(1, 5.5f, 0.0f);
+    line_up(2, 8.5f, MATH_PI);
+    w.players[1].hp = 1.0f;
+
+    PlayerInput in[3] = {{0, BTN_FIRE, 0.0f}, {0, 0, 0.0f}, {0, BTN_FIRE, MATH_PI}};
+    world_step(&w, in, 3, FIXED_DT);
+
+    TEST_ASSERT_FALSE(w.players[1].alive);
+    TEST_ASSERT_EQUAL_INT(0, w.players[1].last_attacker);
+    int deaths = 0;
+    for (int k = 0; k < w.events.count; k++) {
+        const GameEvent *e = &w.events.items[k];
+        if (e->kind == EV_PLAYER_DEATH) {
+            deaths++;
+            TEST_ASSERT_EQUAL_UINT8(0, e->actor);
+            TEST_ASSERT_EQUAL_UINT8(1, e->arg);
+        }
+    }
+    TEST_ASSERT_EQUAL_INT(1, deaths);
+    /* ...and 2's shot flew on through the gap 1 left, into 0 */
+    TEST_ASSERT_TRUE(w.players[0].hp < 100.0f);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -337,5 +589,13 @@ int main(void)
     RUN_TEST(test_a_taken_point_is_chosen_only_when_all_are);
     RUN_TEST(test_a_map_without_spawn_points_gets_a_sensible_pool);
     RUN_TEST(test_ten_players_come_in_apart);
+    RUN_TEST(test_a_dead_player_comes_back_whole_after_respawn_time);
+    RUN_TEST(test_a_dead_player_does_nothing);
+    RUN_TEST(test_a_body_in_the_doorway_does_not_hold_the_door);
+    RUN_TEST(test_the_others_play_on_while_one_is_dead);
+    RUN_TEST(test_protection_wears_off_after_its_time);
+    RUN_TEST(test_firing_ends_the_protection);
+    RUN_TEST(test_a_player_shot_dead_does_not_fire_back_in_that_tick);
+    RUN_TEST(test_a_kill_is_not_taken_over_in_the_same_tick);
     return UNITY_END();
 }

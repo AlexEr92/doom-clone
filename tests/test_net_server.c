@@ -552,6 +552,34 @@ static void test_silent_client_stands_still_after_the_timeout(void)
     TEST_ASSERT_EQUAL_FLOAT(down, p->angle);
 }
 
+/* A client sends nothing while its player is dead, and the respawn turns the
+ * player the way the spawn point looks. The last input, from before the
+ * death, has timed out by then: it does not turn them back. */
+static void test_a_respawned_client_faces_the_way_its_spawn_point_looks(void)
+{
+    Bot *b = bot_joined();
+    World *w = server_world(server);
+    PlayerState *p = &w->players[b->accept.your_id];
+    bot_send_input(b, 1, 0, 2.5f);
+    TICK_UNTIL(p->angle == 2.5f);
+
+    player_damage(p, 1000.0f, -1, 0.0f, 0.0f, NULL);
+    TICK_UNTIL(p->alive);
+    for (int i = 0; i < 10; i++) {
+        tick(NULL);
+    }
+
+    const SpawnPoint *at = NULL;
+    for (int i = 0; i < w->map.spawn_count; i++) {
+        if (w->map.spawns[i].x == p->x && w->map.spawns[i].y == p->y) {
+            at = &w->map.spawns[i];
+        }
+    }
+    TEST_ASSERT_NOT_NULL(at);
+    TEST_ASSERT_EQUAL_FLOAT(at->angle, p->angle);
+    TEST_ASSERT_NOT_EQUAL(2.5f, p->angle);
+}
+
 /* E pressed in an input that a newer one overtakes before a tick reads it: the
  * press still reaches that tick, and the door opens. */
 static void test_press_is_not_lost_under_a_newer_input(void)
@@ -841,6 +869,7 @@ int main(void)
     RUN_TEST(test_older_input_is_ignored);
     RUN_TEST(test_lost_input_does_not_stall_the_player);
     RUN_TEST(test_silent_client_stands_still_after_the_timeout);
+    RUN_TEST(test_a_respawned_client_faces_the_way_its_spawn_point_looks);
     RUN_TEST(test_press_is_not_lost_under_a_newer_input);
     RUN_TEST(test_a_weapon_key_is_not_lost_under_a_newer_input);
     RUN_TEST(test_press_is_not_repeated_while_input_is_late);

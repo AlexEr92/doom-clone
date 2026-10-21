@@ -201,6 +201,9 @@ int main(int argc, char **argv)
     if (me) {
         input.angle = me->angle;
     }
+    /* Whether the local player was alive at the end of the last frame: coming
+     * back from the dead turns them, and the input has to follow. */
+    int was_alive = me && me->alive;
 
     /* The render list belongs to the client and is rebuilt from the world once
      * a frame; the world itself keeps no sprites. */
@@ -279,7 +282,10 @@ int main(int argc, char **argv)
             }
         }
 
-        int playing = game.state == GSTATE_PLAYING && me;
+        /* A dead player plays no part: nothing they press reaches a tick, and
+         * they do not turn — the camera stays where they fell, facing the way
+         * they did, until the world brings them back. */
+        int playing = game.state == GSTATE_PLAYING && me && me->alive;
         if (playing) {
             /* Turning is the client's own, so it follows the frame rather than
              * the tick; each tick below is handed the angle as it stands. */
@@ -310,10 +316,13 @@ int main(int argc, char **argv)
             accumulator = 0.0;
         }
 
-        /* Win/Lose transitions */
+        /* Win/Lose transitions. Death ends a world of one's own; a shared one
+         * brings the player back, and the overlay counts it down. */
         if (playing) {
-            if (me->hp <= 0.0f) {
-                game.state = GSTATE_DEAD;
+            if (!me->alive) {
+                if (!sess.shared) {
+                    game.state = GSTATE_DEAD;
+                }
             } else if (enemy_all_dead(&world->enemies)) {
                 game.state = GSTATE_WIN;
             }
@@ -337,6 +346,14 @@ int main(int argc, char **argv)
             /* The menu, where Enter joins again. */
             game.state = GSTATE_MENU;
         }
+        /* Back from the dead, the player faces the way the spawn point looks.
+         * The input stood still while they were dead and would turn them
+         * straight back to where they fell facing. */
+        int alive = me && me->alive;
+        if (alive && !was_alive) {
+            input.angle = me->angle;
+        }
+        was_alive = alive;
 
         game_update(&game, frame_time);
 

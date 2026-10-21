@@ -126,6 +126,26 @@ const SpawnPoint *world_pick_spawn(const World *w, int player_id)
     return best < 0 ? NULL : &w->map.spawns[best];
 }
 
+/* Put player `id` on the map at `at`, as player_init() leaves a player: whole,
+ * with the pistol alone. `at` NULL is the point world_pick_spawn() finds, and
+ * the map's start when the map has no pool. */
+static void spawn_player(World *w, int id, const SpawnPoint *at)
+{
+    const SpawnPoint *sp = at;
+    if (!sp) {
+        sp = world_pick_spawn(w, id);
+        if (sp) {
+            w->spawned_at[id][sp - w->map.spawns] = w->tick + 1;
+        } else {
+            sp = &w->map.start;
+        }
+    }
+    PlayerState *p = &w->players[id];
+    player_init(p, (int)sp->x, (int)sp->y);
+    p->angle = sp->angle;
+    p->id = (uint8_t)id;
+}
+
 int world_add_player(World *w, const SpawnPoint *at)
 {
     int id = -1;
@@ -144,19 +164,7 @@ int world_add_player(World *w, const SpawnPoint *at)
 
     /* Whoever had the slot before took their spawns with them. */
     memset(w->spawned_at[id], 0, sizeof(w->spawned_at[id]));
-    const SpawnPoint *sp = at;
-    if (!sp) {
-        sp = world_pick_spawn(w, id);
-        if (sp) {
-            w->spawned_at[id][sp - w->map.spawns] = w->tick + 1;
-        } else {
-            sp = &w->map.start;
-        }
-    }
-    PlayerState *p = &w->players[id];
-    player_init(p, (int)sp->x, (int)sp->y);
-    p->angle = sp->angle;
-    p->id = (uint8_t)id;
+    spawn_player(w, id, at);
     return id;
 }
 
@@ -182,7 +190,7 @@ static int world_door_occupants(const World *w, DoorOccupant *occ, int max)
     int n = 0;
     for (int i = 0; i < w->player_count && n < max; i++) {
         const PlayerState *p = &w->players[i];
-        if (p->active && p->hp > 0.0f) {
+        if (is_live(p)) {
             occ[n].x = p->x;
             occ[n].y = p->y;
             n++;
@@ -221,11 +229,25 @@ void world_step(World *w, const PlayerInput inputs[], int count, double dt)
      * walked by ascending id for the same reason — who moves first decides
      * which of two players ends up standing where they collided. */
 
-    /* players */
+    /* players: the dead wait out RESPAWN_TIME and come back where
+     * world_pick_spawn() finds safest now, protected for SPAWN_PROTECT_TIME;
+     * the living move. A dead player's input goes nowhere, in this phase or
+     * any after it. */
     for (int i = 0; i < w->player_count; i++) {
         PlayerState *p = &w->players[i];
         if (!p->active) {
             continue;
+        }
+        if (!p->alive) {
+            p->respawn_timer -= (float)dt;
+            if (p->respawn_timer <= 0.0f) {
+                spawn_player(w, i, NULL);
+                p->spawn_protect_timer = SPAWN_PROTECT_TIME;
+            }
+            continue;
+        }
+        if (p->spawn_protect_timer > 0.0f) {
+            p->spawn_protect_timer = fmaxf(p->spawn_protect_timer - (float)dt, 0.0f);
         }
         player_update(p, &w->map, &w->doors, &tick_input[i], w->players, w->player_count, dt);
     }
@@ -233,7 +255,7 @@ void world_step(World *w, const PlayerInput inputs[], int count, double dt)
     /* doors */
     for (int i = 0; i < w->player_count; i++) {
         PlayerState *p = &w->players[i];
-        if (p->active && (tick_input[i].buttons & BTN_USE)) {
+        if (is_live(p) && (tick_input[i].buttons & BTN_USE)) {
             door_try_use(&w->doors, p, &w->map, &w->events);
         }
     }
@@ -245,12 +267,12 @@ void world_step(World *w, const PlayerInput inputs[], int count, double dt)
     enemy_update_all(&w->enemies, &w->map, &w->doors, w->players, w->player_count, &w->events, dt);
 
     /* items */
-    item_update(&w->items, w->players, w->player_count, &w->events);
+    item_update(&w->items, w->players, w->player_count, &w->events, dt);
 
-    /* weapons */
+    /* weapons: a player shot dead earlier in this phase fires no more */
     for (int i = 0; i < w->player_count; i++) {
         PlayerState *p = &w->players[i];
-        if (!p->active) {
+        if (!is_live(p)) {
             continue;
         }
         uint16_t buttons = tick_input[i].buttons;

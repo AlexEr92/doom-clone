@@ -483,6 +483,37 @@ static void test_dead_player_is_drawn_dying(void)
     TEST_ASSERT_EQUAL_INT(3, player_sprite(3)->skin);
 }
 
+/* A player protected after a respawn blinks: shown for the first half of each
+ * PROTECT_BLINK_TIME (0.2 s), hidden for the second, kept in the list either
+ * way. Once the protection is gone they stay shown; nobody else ever blinks. */
+static void test_a_protected_player_blinks(void)
+{
+    PlayerState *p = add_player(3, 2.0f, 8.0f);
+    add_player(4, 6.0f, 8.0f);
+    p->spawn_protect_timer = 1.0f;
+
+    int shown = 0, hidden = 0, changes = 0, was = 1;
+    for (int i = 0; i < 60; i++) {
+        frame(FRAME_DT);
+        TEST_ASSERT_TRUE(player_sprite(4)->active);
+        int now = player_sprite(3)->active;
+        shown += now;
+        hidden += !now;
+        changes += now != was;
+        was = now;
+    }
+    /* a second: five blinks, each half shown and half hidden */
+    TEST_ASSERT_INT_WITHIN(2, 30, shown);
+    TEST_ASSERT_INT_WITHIN(2, 30, hidden);
+    TEST_ASSERT_INT_WITHIN(1, 10, changes);
+
+    p->spawn_protect_timer = 0.0f;
+    for (int i = 0; i < 30; i++) {
+        frame(FRAME_DT);
+        TEST_ASSERT_TRUE(player_sprite(3)->active);
+    }
+}
+
 /* Someone who joins a slot another player left starts afresh: the distance
  * between where the last one stood and where they spawn is not a run. */
 static void test_a_freed_slot_forgets_its_last_player(void)
@@ -526,6 +557,7 @@ int main(void)
     RUN_TEST(test_death_takes_its_time);
     RUN_TEST(test_death_ends_the_flash);
     RUN_TEST(test_dead_player_is_drawn_dying);
+    RUN_TEST(test_a_protected_player_blinks);
     RUN_TEST(test_a_freed_slot_forgets_its_last_player);
     RUN_TEST(test_zero_dt_holds_every_animation);
     return UNITY_END();

@@ -77,6 +77,14 @@ void world_remove_player(World *w, int id);
  * collision the result depends on that order, and the server and the client
  * predicting it have to walk the array the same way.
  *
+ * A player dies in the tick that takes their hp to zero (player_damage())
+ * and from then on neither moves, shoots, opens doors nor picks anything up.
+ * RESPAWN_TIME later they come back at world_pick_spawn()'s point as a fresh
+ * player_init() leaves them, and cannot be hurt for SPAWN_PROTECT_TIME or
+ * until they fire. A pickup taken comes back ITEM_RESPAWN_TIME later. A game
+ * that ends with the player's death — a solo one — stops ticking the world
+ * before anyone comes back.
+ *
  * Clears w->events on entry and fills it with whatever the tick produced, then
  * increments w->tick. Deterministic: given the same world and the same inputs
  * it always lands on the same state, which is what reconciliation replays. */

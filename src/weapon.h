@@ -65,7 +65,8 @@ void weapon_switch(struct PlayerState *p, int idx);
  * closed doors; whatever live entity it reaches first takes the damage.
  * `players` is the array p itself lives in, so a shot cannot hit its owner.
  * el may be NULL for a world with no enemies; evq may be NULL.
- * Also triggers the weapon animation and cooldown.
+ * Also triggers the weapon animation and cooldown, and ends p's protection
+ * after a respawn; a click with no ammo does neither.
  * The grenade launcher fires a projectile, not a ray, and there are no
  * projectiles before task 10-07: with it in hand nothing happens at all.
  */

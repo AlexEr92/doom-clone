@@ -25,7 +25,7 @@ struct World;
 struct PlayerState;
 
 /* Raised with every change to anything in this file a peer reads. */
-#define PROTO_VERSION 2
+#define PROTO_VERSION 3
 
 #define NET_NAME_MAX 16 /* player name, terminating NUL included */
 #define NET_MAP_MAX 32  /* map file name, terminating NUL included */
@@ -82,12 +82,18 @@ typedef struct {
     float angle;
 } MsgInput;
 
+/* NetPlayer.flags */
+#define NET_PLAYER_PROTECTED (1u << 0) /* respawned a moment ago: takes no damage */
+
+/* MsgSnapshot.attacker for a receiver no player has hit. */
+#define NET_NO_PLAYER 0xff
+
 /* One player who is in the world. hp and armor are whole points, rounded up:
  * a player with any hp left never arrives with 0. Of the weapons it carries
  * the one in hand; the receiver's own come whole in MsgSnapshot.yours. */
 typedef struct {
     uint8_t id;     /* index into World.players */
-    uint8_t flags;  /* no bits defined yet; always 0 */
+    uint8_t flags;  /* NET_PLAYER_* */
     uint8_t weapon; /* WeaponType in hand */
     uint8_t alive;
     float x, y, angle;
@@ -117,8 +123,7 @@ typedef struct {
     float x, y;
 } NetEnemy;
 
-/* A GameEvent (event.h). `arg` is the third byte whose meaning depends on the
- * kind; GameEvent has no such byte yet, so it is always 0. */
+/* A GameEvent (event.h), field for field. */
 typedef struct {
     uint8_t kind; /* GameEventKind */
     uint8_t actor;
@@ -140,7 +145,12 @@ typedef struct {
     uint32_t last_input_tick; /* the newest input of the receiver's the server has used */
     NetWeapons yours;         /* the receiver's weapons */
     uint8_t player_count, enemy_count, event_count;
-    uint8_t _pad[5];
+    /* The receiver dead, what the screen tells them: how long until they are
+     * back, in tenths of a second rounded up, and who hit them last — their
+     * last_attacker, NET_NO_PLAYER for nobody. Nobody else needs either. */
+    uint8_t respawn;
+    uint8_t attacker;
+    uint8_t _pad[3];
     NetPlayer players[MAX_PLAYERS]; /* the players in the world, by ascending id */
     NetEnemy enemies[MAX_ENEMIES];
     uint64_t items_alive;     /* bit i: World.items.items[i] is still there */
@@ -150,8 +160,8 @@ typedef struct {
 
 /* Fill `s` from the world as it stands, for the player `receiver` of `w` — an
  * active one: every player in the world, every enemy, the items, the doors,
- * the events of the last tick, and the receiver's weapons. `s` is zeroed
- * first, padding and unused slots included.
+ * the events of the last tick, and the receiver's weapons, respawn countdown
+ * and last attacker. `s` is zeroed first, padding and unused slots included.
  *
  * The events are those of the last world_step() only. A server that sends
  * snapshots less often than it ticks replaces them with the ones it collected
@@ -178,13 +188,16 @@ void snapshot_pick_events(MsgSnapshot *s, const GameEvent *events, int count,
  *
  * Only what a snapshot carries is set; the rest of each entity keeps what it
  * had, and a player who appears in a slot that was empty starts from
- * player_init(). The receiver's weapons are set whole from `yours`; of every
- * other player only the weapon in hand is, and the rest of their weapons is
- * not known. A player entry snapshot_decode() would turn away — an id or
- * weapon out of range, the receiver holding a weapon not in `yours.owned` —
- * is passed over. Door states are inferred from openness: 0 is closed, 255 is
- * open, and in between the door is moving the way its openness changed. The
- * events replace w->events. */
+ * player_init(). The receiver's weapons are set whole from `yours`, and so
+ * are their respawn_timer and last_attacker; of every other player only the
+ * weapon in hand is, and the rest of their weapons is not known. Whether a
+ * player is protected after a respawn arrives without how long for: the
+ * flag sets spawn_protect_timer to SPAWN_PROTECT_TIME, and its absence to 0.
+ * A player entry snapshot_decode() would turn away — an id or weapon out of
+ * range, the receiver holding a weapon not in `yours.owned` — is passed over.
+ * Door states are inferred from openness: 0 is closed, 255 is open, and in
+ * between the door is moving the way its openness changed. The events
+ * replace w->events. */
 void snapshot_apply(struct World *w, const MsgSnapshot *s);
 
 /* The part of snapshot_apply() that puts the players and the enemies of `s`

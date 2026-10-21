@@ -86,7 +86,7 @@ void door_try_use(DoorList *dl, const PlayerState *p, const Map *m, EventQueue *
         case DOOR_CLOSING: d->state = DOOR_OPENING; break;
     }
     d->triggered = 1;
-    event_push(evq, EV_DOOR, idx, (float)d->cellx + 0.5f, (float)d->celly + 0.5f);
+    event_push(evq, EV_DOOR, idx, 0, (float)d->cellx + 0.5f, (float)d->celly + 0.5f);
 }
 
 /* Does anyone overlap the door's cell? Tested as a circle of PLAYER_RADIUS

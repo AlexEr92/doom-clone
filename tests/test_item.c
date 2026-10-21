@@ -74,7 +74,7 @@ static int place(float x, float y, ItemType type, float amount, int weapon)
 static void update(void)
 {
     event_queue_clear(&events);
-    item_update(&items, players, TEST_PLAYERS, &events);
+    item_update(&items, players, TEST_PLAYERS, &events, FIXED_DT);
 }
 
 /* item_update() reports what it did through the queue and nowhere else. */
@@ -348,8 +348,8 @@ static void test_a_player_who_is_not_in_the_world_or_not_alive_takes_nothing(voi
     TEST_ASSERT_EQUAL_FLOAT(50.0f, players[2].hp);
 }
 
-/* Dead by hp rather than by flag: nothing has set alive to 0 yet on the tick
- * the shot landed. */
+/* Zero hp is dead even with the flag still up: a pickup goes to the living,
+ * whatever left a player so. */
 static void test_a_player_at_zero_hp_takes_nothing(void)
 {
     P0->hp = 0.0f;
@@ -358,6 +358,52 @@ static void test_a_player_at_zero_hp_takes_nothing(void)
     update();
     TEST_ASSERT_EQUAL_INT(1, items.items[0].active);
     TEST_ASSERT_EQUAL_FLOAT(0.0f, P0->hp);
+}
+
+/* ---- coming back ---- */
+
+/* A pickup taken lies where it lay again ITEM_RESPAWN_TIME later, and not a
+ * moment sooner: in deathmatch the medkits and the ammo are what the fight is
+ * over, and gone for good they would leave the map bare. */
+static void test_a_taken_item_comes_back_after_its_time(void)
+{
+    place(8.0f, 8.0f, ITEM_ARMOR, 50.0f, 0);
+    P0->x = 8.0f;
+    P0->y = 8.0f;
+    update();
+    TEST_ASSERT_EQUAL_INT(0, items.items[0].active);
+    P0->x = 5.0f; /* and away from it */
+    P0->y = 5.0f;
+
+    item_update(&items, players, TEST_PLAYERS, &events, ITEM_RESPAWN_TIME - 0.5);
+    TEST_ASSERT_EQUAL_INT(0, items.items[0].active);
+
+    item_update(&items, players, TEST_PLAYERS, &events, 0.5);
+    TEST_ASSERT_EQUAL_INT(1, items.items[0].active);
+    TEST_ASSERT_EQUAL_INT(ITEM_ARMOR, items.items[0].type);
+    TEST_ASSERT_EQUAL_FLOAT(8.0f, items.items[0].x);
+    TEST_ASSERT_EQUAL_FLOAT(8.0f, items.items[0].y);
+    TEST_ASSERT_EQUAL_FLOAT(50.0f, items.items[0].amount);
+}
+
+/* Come back under somebody who can use it, it is taken in the same call, and
+ * its time starts over; under somebody who cannot, it stays. */
+static void test_an_item_back_under_a_player_is_taken_at_once(void)
+{
+    place(5.0f, 5.0f, ITEM_MEDKIT, 25.0f, 0);
+    update();
+    TEST_ASSERT_EQUAL_FLOAT(75.0f, P0->hp);
+
+    event_queue_clear(&events);
+    item_update(&items, players, TEST_PLAYERS, &events, ITEM_RESPAWN_TIME);
+    TEST_ASSERT_EQUAL_FLOAT(100.0f, P0->hp);
+    TEST_ASSERT_EQUAL_INT(0, items.items[0].active);
+    TEST_ASSERT_EQUAL_INT(1, pickup_count());
+    TEST_ASSERT_EQUAL_FLOAT(ITEM_RESPAWN_TIME, items.items[0].respawn_timer);
+
+    update();
+    item_update(&items, players, TEST_PLAYERS, &events, ITEM_RESPAWN_TIME);
+    TEST_ASSERT_EQUAL_INT(1, items.items[0].active);
 }
 
 int main(void)
@@ -382,5 +428,7 @@ int main(void)
     RUN_TEST(test_each_player_takes_the_item_they_stand_on);
     RUN_TEST(test_a_player_who_is_not_in_the_world_or_not_alive_takes_nothing);
     RUN_TEST(test_a_player_at_zero_hp_takes_nothing);
+    RUN_TEST(test_a_taken_item_comes_back_after_its_time);
+    RUN_TEST(test_an_item_back_under_a_player_is_taken_at_once);
     return UNITY_END();
 }

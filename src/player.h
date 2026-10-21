@@ -21,9 +21,10 @@ typedef struct PlayerState {
     float hp;
     float armor;
     int alive;
-    float respawn_timer;
-    int8_t last_attacker; /* id of the player who damaged this one last, -1 for none */
-    WeaponSystem weapons; /* ammo, cooldowns and selection are per player */
+    float respawn_timer;       /* while dead: seconds until world_step() brings them back */
+    float spawn_protect_timer; /* seconds of being unhurt left after a respawn */
+    int8_t last_attacker;      /* id of the player who damaged this one last, -1 for none */
+    WeaponSystem weapons;      /* ammo, cooldowns and selection are per player */
 } PlayerState;
 
 void player_init(PlayerState *p, int start_x, int start_y);
@@ -35,7 +36,14 @@ void player_init(PlayerState *p, int start_x, int start_y);
  * `attacker_id` is the player who dealt it, recorded in last_attacker so a
  * frag can be attributed; pass -1 for damage that belongs to no player, which
  * leaves last_attacker as it was: a player who wounded the victim keeps the
- * credit when an enemy finishes them off. */
+ * credit when an enemy finishes them off.
+ *
+ * The hit that takes hp to zero kills: the victim is no longer alive, is due
+ * back in RESPAWN_TIME, and EV_PLAYER_DEATH follows the hurt. Dying here and
+ * not at the end of the tick is what keeps a player shot dead from firing
+ * back in the same tick, and a later shot in it from taking the frag over.
+ * A player who is dead already, or still protected after a respawn, is not
+ * hurt at all and nothing is announced. */
 void player_damage(PlayerState *victim, float dmg, int attacker_id, float src_x, float src_y,
                    struct EventQueue *evq);
 
