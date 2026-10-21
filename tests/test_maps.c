@@ -5,12 +5,14 @@
  * dm1.txt is the deathmatch map a server plays by default: 48x48, no enemies,
  * twice as many spawn points as players, none of them in sight of another,
  * each facing open floor, and every free cell reachable with every door shut —
- * no door is the only way anywhere. level1.txt is the single-player map. */
+ * no door is the only way anywhere. level1.txt is the single-player map.
+ * Both are rectangles, every row as long as the map is wide. */
 
 #include "unity.h"
 #include "world.h"
 #include "raycast_world.h"
 #include <math.h>
+#include <stdio.h>
 #include <string.h>
 
 /* The source tree's assets/maps/, from tests/CMakeLists.txt: CTest runs the
@@ -28,12 +30,17 @@ void setUp(void)
 void tearDown(void)
 {}
 
-static void load(const char *name)
+static const char *map_path(const char *name)
 {
-    char path[512];
+    static char path[512];
     strcpy(path, MAPS_DIR);
     strcat(path, name);
-    TEST_ASSERT_EQUAL_INT_MESSAGE(0, world_load(&w, path), path);
+    return path;
+}
+
+static void load(const char *name)
+{
+    TEST_ASSERT_EQUAL_INT_MESSAGE(0, world_load(&w, map_path(name)), name);
 }
 
 static void test_dm1_is_a_deathmatch_map_for_ten(void)
@@ -123,6 +130,33 @@ static void test_level1_is_a_map_to_play_alone(void)
     TEST_ASSERT_TRUE(w.enemies.count > 0);
 }
 
+/* Every row of a shipped map is as long as the first, and that is the map's
+ * width: a row longer than the rest widens the whole map and leaves a pocket
+ * in its wall, and map_load() cannot tell that from a map that is not a
+ * rectangle on purpose. */
+static void test_shipped_maps_have_rows_of_one_length(void)
+{
+    static const char *const names[] = {"level1.txt", "dm1.txt"};
+    for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+        load(names[i]);
+        FILE *f = fopen(map_path(names[i]), "r");
+        TEST_ASSERT_NOT_NULL_MESSAGE(f, names[i]);
+        char line[256];
+        int y = 0, first = -1;
+        while (fgets(line, sizeof(line), f)) {
+            int len = (int)strcspn(line, "\r\n");
+            first = y == 0 ? len : first;
+            char what[64];
+            snprintf(what, sizeof(what), "%s: row %d is not as long as row 0", names[i], y);
+            TEST_ASSERT_EQUAL_INT_MESSAGE(first, len, what);
+            y++;
+        }
+        fclose(f);
+        TEST_ASSERT_EQUAL_INT_MESSAGE(w.map.w, first, names[i]);
+        TEST_ASSERT_EQUAL_INT_MESSAGE(w.map.h, y, names[i]);
+    }
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -131,5 +165,6 @@ int main(void)
     RUN_TEST(test_dm1_spawn_points_face_open_floor);
     RUN_TEST(test_dm1_every_cell_is_reachable_with_every_door_shut);
     RUN_TEST(test_level1_is_a_map_to_play_alone);
+    RUN_TEST(test_shipped_maps_have_rows_of_one_length);
     return UNITY_END();
 }

@@ -44,6 +44,30 @@ static void load_rows(Map *m, const char *const *rows, int n)
 }
 #define LOAD_ROWS(m, rows) load_rows(m, rows, (int)(sizeof(rows) / sizeof(rows[0])))
 
+#define TEST_STDERR_PATH "test_map_stderr.txt"
+
+/* load_rows() with `eol` after each row, and what map_load() said on stderr
+ * put into `said`. stderr stays in the file for the rest of the run. */
+static void load_rows_saying(Map *m, const char *const *rows, int n, const char *eol, char *said,
+                             size_t size)
+{
+    write_map(TEST_MAP_PATH, rows, n, eol);
+    TEST_ASSERT_NOT_NULL(freopen(TEST_STDERR_PATH, "w+", stderr));
+    TEST_ASSERT_EQUAL_INT(0, map_load(m, TEST_MAP_PATH));
+    fflush(stderr);
+    rewind(stderr);
+    said[fread(said, 1, size - 1, stderr)] = '\0';
+}
+
+/* A row of `len` cells: `edge` at both ends and `inside` between them. */
+static void make_row(char *row, int len, char edge, char inside)
+{
+    for (int x = 0; x < len; x++) {
+        row[x] = x == 0 || x == len - 1 ? edge : inside;
+    }
+    row[len] = '\0';
+}
+
 void setUp(void)
 {
     memset(&map, 0, sizeof(map));
@@ -170,6 +194,54 @@ static void test_map_load_strips_crlf(void)
     TEST_ASSERT_EQUAL_INT(1, map_cell(&crlf, 9, 1));
     TEST_ASSERT_EQUAL_INT(1, map_cell(&crlf, 10, 1));
     TEST_ASSERT_EQUAL_FLOAT(1.5f, crlf.start.x);
+}
+
+/* A row longer than the grid is read up to the grid's edge and said on stderr
+ * in one line: the door and the item past the edge are not in the map, and
+ * the next row is read from its own start.
+ *   0 ####...####      MAP_MAX_W
+ *   1 #.........#DM    MAP_MAX_W + 2
+ *   2 #.........#      MAP_MAX_W
+ *   3 ####...####      MAP_MAX_W */
+static void test_map_load_reads_a_row_past_the_grid_up_to_its_edge(void)
+{
+    static char rows[4][MAP_MAX_W + 3];
+    make_row(rows[0], MAP_MAX_W, '#', '#');
+    make_row(rows[1], MAP_MAX_W, '#', '.');
+    strcat(rows[1], "DM");
+    make_row(rows[2], MAP_MAX_W, '#', '.');
+    make_row(rows[3], MAP_MAX_W, '#', '#');
+    const char *const row_ptrs[] = {rows[0], rows[1], rows[2], rows[3]};
+    char said[256];
+    load_rows_saying(&map, row_ptrs, 4, "\n", said, sizeof(said));
+
+    TEST_ASSERT_EQUAL_INT(MAP_MAX_W, map.w);
+    TEST_ASSERT_EQUAL_INT(4, map.h);
+    TEST_ASSERT_EQUAL_INT(0, map.sprite_count);
+    TEST_ASSERT_EQUAL_INT(0, map_cell(&map, MAP_MAX_W - 2, 1));
+    TEST_ASSERT_EQUAL_INT(1, map_cell(&map, MAP_MAX_W - 1, 1));
+    TEST_ASSERT_EQUAL_INT(1, map_cell(&map, 0, 2));
+    TEST_ASSERT_EQUAL_INT(0, map_cell(&map, 1, 2));
+
+    char expected[64];
+    snprintf(expected, sizeof(expected), "line 2 (y=1) has %d characters", MAP_MAX_W + 2);
+    TEST_ASSERT_NOT_NULL_MESSAGE(strstr(said, expected), said);
+    TEST_ASSERT_NOT_NULL_MESSAGE(strstr(said, TEST_MAP_PATH), said);
+    TEST_ASSERT_EQUAL_PTR_MESSAGE(strchr(said, '\n'), strrchr(said, '\n'), said);
+}
+
+/* Short rows are wall to the map's edge on purpose, and a row as long as the
+ * grid is not past it, \r\n and all: neither is a word on stderr. */
+static void test_map_load_says_nothing_of_short_rows_or_a_full_one(void)
+{
+    static char full[MAP_MAX_W + 1];
+    make_row(full, MAP_MAX_W, '#', '#');
+    const char *const rows[] = {full, "#..#", "#.......#", full};
+    char said[256];
+    load_rows_saying(&map, rows, 4, "\r\n", said, sizeof(said));
+
+    TEST_ASSERT_EQUAL_INT(MAP_MAX_W, map.w);
+    TEST_ASSERT_EQUAL_STRING("", said);
 }
 
 /* A map is named by its file name, and its path is MAP_DIR's; a name the
@@ -410,6 +482,8 @@ int main(void)
     RUN_TEST(test_map_load_collects_sprite_spawns);
     RUN_TEST(test_map_load_pads_short_rows_and_missing_rows);
     RUN_TEST(test_map_load_strips_crlf);
+    RUN_TEST(test_map_load_reads_a_row_past_the_grid_up_to_its_edge);
+    RUN_TEST(test_map_load_says_nothing_of_short_rows_or_a_full_one);
     RUN_TEST(test_map_file_path_puts_the_name_in_the_map_directory);
     RUN_TEST(test_map_load_rejects_a_missing_file);
     RUN_TEST(test_map_cell_outside_the_grid_is_wall);

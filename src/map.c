@@ -179,6 +179,13 @@ int map_load(Map *m, const char *path)
         while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r')) {
             line[--len] = '\0';
         }
+        /* A row past the grid is read up to its edge: a typo in a map is no
+         * reason not to play it, but it is said, with the line as an editor
+         * counts it (from 1) and the row as a cell's y does (from 0). */
+        if (len > MAP_MAX_W) {
+            fprintf(stderr, "Map %s: line %d (y=%d) has %d characters, those past %d ignored\n",
+                    path, row + 1, row, len, MAP_MAX_W);
+        }
         if (len > m->w) {
             m->w = len < MAP_MAX_W ? len : MAP_MAX_W;
         }

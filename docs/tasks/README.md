@@ -115,7 +115,6 @@
 | # | Задача | Где |
 |---|---|---|
 | [bug-015](bug-015-door-closes-silently.md) | Дверь, закрывающаяся сама, и дверь, передумавшая закрываться, беззвучны | `door.c`, `world.c`, `main.c` |
-| [bug-016](bug-016-level1-row-8-too-long.md) | Строка 8 `level1.txt` длиннее `MAP_MAX_W`, `map_load()` молча обрезает | `level1.txt`, `map.c` |
 | [bug-017](bug-017-hud-face-mouth-inverted.md) | Рот лица в статус-баре перевёрнут: хмурится при полном здоровье | `hud.c` |
 | [bug-018](bug-018-lint-changed-deleted-file.md) | `lint.sh changed` отдаёт cppcheck удалённый `src/*.c` и падает | `lint.sh`, `SKILL.md` |
 | [bug-019](bug-019-hud-weapon-freezes-mid-flash.md) | Оружие в руках замирает на кадре вспышки под оверлеем победы/смерти | `main.c`, `sprite.c`, `hud.c` |
@@ -197,3 +196,4 @@
 | [test-003](../closed_tasks/test-003-text-module-layout-test.md) | Общий модуль шрифта 3×5 и тест раскладки глифов | Сделано: модуль `text.c`, тест `test_text.c` |
 | [09-07](../closed_tasks/09-07-deathmatch-map.md) | Карта 48×48 для DM | Сделано: `dm1.txt`, `--map`, предел луча по размеру карты |
 | [bug-021](../closed_tasks/bug-021-snapshot-lacks-weapon-ownership.md) | Снапшот не несёт `owned` и патроны стволов не в руках | Сделано: оружие целиком только получателю, `MsgSnapshot.yours` |
+| [bug-016](../closed_tasks/bug-016-level1-row-8-too-long.md) | Строка 8 `level1.txt` длиннее остальных, `map_load()` молча обрезает строки длиннее `MAP_MAX_W` | Сделано: строка исправлена, предупреждение в `map_load()`, тест на ровные строки отгружаемых карт |
